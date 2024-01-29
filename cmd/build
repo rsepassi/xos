@@ -5,4 +5,33 @@ then
   echo "must provide package"
   exit 1
 fi
-/bin/sh $PWD/pkg/$pkg/build.sh || echo error
+
+root=$PWD
+
+# symlink tools
+seal_dir=$root/build/tools
+seal_tools="
+mkdir
+rm
+cp
+dirname
+tar
+wget
+zig
+sha256sum
+shasum
+cut
+mktemp
+head
+tail
+"
+./tools/seal $seal_dir "$seal_tools"
+
+# seal env
+env -i \
+  PATH="$seal_dir:$root/tools" \
+  HOME=$root/build/home \
+  BUILD_DL=$root/build/dl \
+  BUILD_OUT=$root/build/out \
+  BUILD_PKG=$root/pkg/$pkg \
+/bin/sh $root/pkg/$pkg/build.sh || echo error

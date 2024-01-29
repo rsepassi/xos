@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -e
+
+dir=$1
+tools=$2
+
+rm -rf $dir
+mkdir -p $dir
+for tool in $tools
+do
+  srcpath=$(which $tool || echo "")
+  if [ -z "$srcpath" ]
+  then
+    echo "tool $tool does not exist"
+    exit 1
+  fi
+  ln -s $srcpath $dir
+done

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+src=$1
+dst=$2
+strip=${3:-1}
+
+rm -rf $dst
+mkdir -p $dst
+tar xf $src -C $dst --strip-components=$strip

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+src=$1
+dst=$2
+hash=$3
+
+mkdir -p $(dirname $dst)
+if [ ! -e $dst ]
+then
+  wget $src -O $dst
+fi
+hash_got="$(sha256sum $dst | cut -d ' ' -f1)"
+if [ "$hash" != "$hash_got" ]
+then
+  echo "bad hash for $src"
+  echo "expected $hash"
+  echo "got $hash_got"
+  exit 1
+fi

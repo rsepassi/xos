@@ -24,7 +24,6 @@ rm -rf build/arch
 mkdir -p build/arch
 for arch in $archs
 do
-  echo $arch
-  ARCH=$arch OPT=$OPT ./pkg/$pkg/build.sh
+  ARCH=$arch OPT=$OPT ./cmd/build $pkg
   cp -r build/out build/arch/$arch
 done

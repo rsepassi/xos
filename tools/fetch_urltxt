@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+urltxt=$1
+dst=$2
+
+url=$(head -n1 $urltxt)
+hash=$(tail -n1 $urltxt)
+
+fetch $url $dst $hash

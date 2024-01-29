@@ -5,54 +5,12 @@ set -e
 ARCH=${ARCH:-native}
 OPT=${OPT:-s}
 
-root=$PWD
-
-# seal PATH
-tools=$root/build/tools
-rm -rf $tools
-mkdir -p $tools
-all_tools="
-mkdir
-rm
-cp
-tar
-wget
-zig
-sha256sum
-shasum
-cut
-"
-for tool in $all_tools
-do
-  srcpath=$(which $tool || echo "")
-  if [ -z "$srcpath" ]
-  then
-    echo "tool $tool does not exist"
-    exit 1
-  fi
-  ln -s $srcpath $tools
-done
-export PATH="$root/build/tools"
-
 # fetch
-mkdir -p build/dl
-if [ ! -e build/dl/md4c.tar.gz ]
-then
-  wget https://github.com/mity/md4c/archive/refs/tags/release-0.5.1.tar.gz -O build/dl/md4c.tar.gz
-fi
-hash_expected="2dca17c6175a7f11182943079c2a4f9adb5071433e3d3d05ba801ff794993f34"
-hash_got="$(sha256sum build/dl/md4c.tar.gz | cut -d ' ' -f1)"
-if [ "$hash_expected" != "$hash_got" ]
-then
-  echo "bad hash"
-  exit 1
-fi
+fetch_urltxt $BUILD_PKG/url.txt $BUILD_DL/md4c.tar.gz
 
 # untar
-src=$root/build/dl/md4c
-rm -rf $src
-mkdir -p $src
-tar xf build/dl/md4c.tar.gz -C $src --strip-components=1
+src=$(mktemp -d)
+untar $BUILD_DL/md4c.tar.gz $src
 
 # md4c library
 cd $src/src
@@ -76,8 +34,7 @@ zig cc -static -s -O$OPT --target=$ARCH -o md2html \
   -lc
 
 # install
-cd $root
-out=$root/build/out
+out=$BUILD_OUT
 rm -rf $out
 mkdir -p $out/lib $out/bin $out/include
 cp $src/src/libmd4c.a $out/lib
