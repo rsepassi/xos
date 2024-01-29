@@ -1,7 +1,13 @@
 #/bin/sh
 set -e
 
-pkg=md4c
+pkg=$1
+if [ -z "$pkg" ]
+then
+  echo "must provide package"
+  exit 1
+fi
+
 archs="
 aarch64-linux-musl
 x86_64-linux-musl
