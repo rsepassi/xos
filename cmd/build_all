@@ -1,7 +1,10 @@
 #/bin/sh
 set -e
 
+OPT=${OPT:-s}
+
 pkg=$1
+
 if [ -z "$pkg" ]
 then
   echo "must provide package"
@@ -22,6 +25,6 @@ mkdir -p build/arch
 for arch in $archs
 do
   echo $arch
-  ARCH=$arch ./pkg/$pkg/build.sh
+  ARCH=$arch OPT=$OPT ./pkg/$pkg/build.sh
   cp -r build/out build/arch/$arch
 done
