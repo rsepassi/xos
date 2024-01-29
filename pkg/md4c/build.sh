@@ -35,7 +35,6 @@ zig cc -static -s -O$OPT --target=$ARCH -o md2html \
 
 # install
 out=$BUILD_OUT
-rm -rf $out
 mkdir -p $out/lib $out/bin $out/include
 cp $src/src/libmd4c.a $out/lib
 cp $src/src/md4c.h $out/include

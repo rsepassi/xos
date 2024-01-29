@@ -31,7 +31,6 @@ zig ar rcs libwren.a \
 
 # install
 out=$BUILD_OUT
-rm -rf $out
 mkdir -p $out/lib $out/include
 cp $src/src/include/wren.h $out/include
 cp $src/src/vm/libwren.a $out/lib
