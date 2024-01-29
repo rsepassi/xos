@@ -9,8 +9,8 @@ fi
 root=$PWD
 
 # symlink tools
-seal_dir=$root/build/tools
-seal_tools="
+tools_dir=$root/build/tools
+tools="
 mkdir
 rm
 cp
@@ -25,14 +25,14 @@ mktemp
 head
 tail
 "
-./tools/seal $seal_dir "$seal_tools"
+./tools/link_tools $tools_dir "$tools"
 
 # seal env
 build_out=$root/build/out
 rm -rf $build_out
 mkdir -p $build_out
 env -i \
-  PATH="$seal_dir:$root/tools" \
+  PATH="$tools_dir:$root/tools" \
   HOME=$root/build/home \
   BUILD_DL=$root/build/dl \
   BUILD_OUT=$build_out \
