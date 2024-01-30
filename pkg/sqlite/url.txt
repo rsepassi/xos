@@ -1,0 +1,2 @@
+https://www.sqlite.org/2024/sqlite-amalgamation-3450000.zip
+bde30d13ebdf84926ddd5e8b6df145be03a577a48fd075a087a5dd815bcdf740

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+pkgs="$1"
+linkdir=$2
+
+for pkg in $pkgs
+do
+  pkgid=$($BUILD_ROOT/cmd/build $pkg)
+  ln -s $BUILD_ROOT/build/cache/$pkgid $linkdir/$pkg
+done
