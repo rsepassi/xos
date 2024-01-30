@@ -7,8 +7,10 @@ then
   echo "must provide package"
   exit 1
 fi
+EXTRA_ARGS="$@"
 
 BUILD_ROOT=${BUILD_ROOT:-$PWD}
+BUILD_CACHE=$BUILD_ROOT/build/cache
 ARCH_HOST=$(zig env | grep target | cut -d ' ' -f3 | cut -c2- | rev | cut -c2- | rev)
 ARCH=${ARCH:-$ARCH_HOST}
 OPT=${OPT:-s}
@@ -20,9 +22,10 @@ pkgid=$(\
   BUILD_ROOT=$BUILD_ROOT \
   ARCH=$ARCH \
   OPT=$OPT \
+  ALL_ARGS="$EXTRA_ARGS" \
   $BUILD_ROOT/tools/pkgid $pkg \
 )
-build_out=$BUILD_ROOT/build/cache/$pkgid
+build_out=$BUILD_CACHE/$pkgid
 
 # symlink tools
 tools_dir=$BUILD_ROOT/build/tools
@@ -43,6 +46,7 @@ then
   wget
   sha256sum
   shasum
+  cat
   cut
   grep
   rev
@@ -64,6 +68,7 @@ then
   then
     BUILD_DEPS=$(mktemp -d)
     BUILD_ROOT=$BUILD_ROOT \
+    BUILD_CACHE=$BUILD_CACHE \
       $BUILD_ROOT/tools/need \
       "$(cat $pkgdir/deps.txt)" \
       $BUILD_DEPS
@@ -73,16 +78,17 @@ then
   mkdir -p $build_out
   env -i \
     PATH="$tools_dir:$BUILD_ROOT/tools" \
-    XDG_CACHE_HOME=$BUILD_ROOT/build/cache/xdg \
+    XDG_CACHE_HOME=$BUILD_CACHE/xdg \
     ARCH=$ARCH \
     ARCH_HOST=$ARCH_HOST \
     OPT=$OPT \
     BUILD_ROOT=$BUILD_ROOT \
+    BUILD_CACHE=$BUILD_CACHE \
     BUILD_DL=$BUILD_ROOT/build/dl \
     BUILD_OUT=$build_out \
     BUILD_DEPS=$BUILD_DEPS \
     BUILD_PKG=$pkgdir \
-  /bin/sh $pkgdir/build.sh
+  /bin/sh $pkgdir/build.sh $EXTRA_ARGS
   touch $build_out/.ok
 fi
 echo $pkgid

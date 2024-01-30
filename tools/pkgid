@@ -8,6 +8,7 @@ tmp=$(mktemp)
 
 cd $BUILD_ROOT/pkg/$pkg
 echo $pkg > $tmp
+echo "ARGS=$ALL_ARGS" >> $tmp
 echo "$(sha256sum *)" >> $tmp
 echo "ARCH=$ARCH" >> $tmp
 echo "OPT=$OPT" >> $tmp

@@ -2,17 +2,21 @@ cross-platform builds
 
 uses zig for cross-compilation
 
-very much not complete
+wip
 
 cmd/
-  build: build a package for a single platform
-  build_all: build a package for all platforms
+  build: build a package
 
-pkg/
-  build scripts for packages
+pkg/: build scripts for packages
+  <pkgname>/
+    build.sh: build script
+    url.txt (optional): src download
+    deps.txt (optional): pkg dependencies
 
 tools/
+  bunzip: clean zip extraction
   fetch: fetch a url and check hash
   fetch_urltxt: fetch a url and check hash, reading url and hash from file
-  seal: symlink passed tools into a directory
+  link_tools: symlink passed tools into a directory
+  pkgid: compute identifier for pkg build
   untar: clean tar extraction
