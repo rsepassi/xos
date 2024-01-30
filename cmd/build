@@ -42,6 +42,7 @@ then
   mktemp
   dirname
   tar
+  gzip
   unzip
   wget
   sha256sum
