@@ -11,7 +11,7 @@ EXTRA_ARGS="$@"
 
 BUILD_ROOT=${BUILD_ROOT:-$PWD}
 BUILD_CACHE=$BUILD_ROOT/build/cache
-ARCH_HOST=$(zig env | grep target | cut -d ' ' -f3 | cut -c2- | rev | cut -c2- | rev)
+ARCH_HOST=$(zig env | grep target | cut -d '"' -f4)
 ARCH=${ARCH:-$ARCH_HOST}
 OPT=${OPT:-s}
 
@@ -49,7 +49,6 @@ then
   cat
   cut
   grep
-  rev
   head
   tail
   which
