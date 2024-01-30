@@ -7,7 +7,7 @@ hash=$3
 mkdir -p $(dirname $dst)
 if [ ! -e $dst ]
 then
-  wget $src -O $dst
+  wget -q $src -O $dst
 fi
 hash_got="$(sha256sum $dst | cut -d ' ' -f1)"
 if [ "$hash" != "$hash_got" ]

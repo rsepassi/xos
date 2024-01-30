@@ -1,4 +1,6 @@
 #!/bin/sh
+set -e
+
 pkg=$1
 if [ -z "$pkg" ]
 then
@@ -6,35 +8,81 @@ then
   exit 1
 fi
 
-root=$PWD
+BUILD_ROOT=${BUILD_ROOT:-$PWD}
+ARCH_HOST=$(zig env | grep target | cut -d ' ' -f3 | cut -c2- | rev | cut -c2- | rev)
+ARCH=${ARCH:-$ARCH_HOST}
+OPT=${OPT:-s}
+
+pkgdir=$BUILD_ROOT/pkg/$pkg
+
+# identify output directory
+pkgid=$(\
+  BUILD_ROOT=$BUILD_ROOT \
+  ARCH=$ARCH \
+  OPT=$OPT \
+  $BUILD_ROOT/tools/pkgid $pkg \
+)
+build_out=$BUILD_ROOT/build/cache/$pkgid
 
 # symlink tools
-tools_dir=$root/build/tools
-tools="
-mkdir
-rm
-cp
-dirname
-tar
-wget
-zig
-sha256sum
-shasum
-cut
-mktemp
-head
-tail
-"
-./tools/link_tools $tools_dir "$tools"
+tools_dir=$BUILD_ROOT/build/tools
+if [ ! -e $tools_dir/.ok ]
+then
+  # symlink tools
+  tools="
+  mkdir
+  ls
+  rm
+  mv
+  cp
+  ln
+  mktemp
+  dirname
+  tar
+  unzip
+  wget
+  sha256sum
+  shasum
+  cut
+  grep
+  rev
+  head
+  tail
+  which
+  env
+  zig
+  touch
+  "
+  $BUILD_ROOT/tools/link_tools $tools_dir "$tools"
+fi
 
-# seal env
-build_out=$root/build/out
-rm -rf $build_out
-mkdir -p $build_out
-env -i \
-  PATH="$tools_dir:$root/tools" \
-  HOME=$root/build/home \
-  BUILD_DL=$root/build/dl \
-  BUILD_OUT=$build_out \
-  BUILD_PKG=$root/pkg/$pkg \
-/bin/sh $root/pkg/$pkg/build.sh || echo error
+# build
+if [ ! -e $build_out/.ok ]
+then
+  BUILD_DEPS=""
+  if [ -e $pkgdir/deps.txt ]
+  then
+    BUILD_DEPS=$(mktemp -d)
+    BUILD_ROOT=$BUILD_ROOT \
+      $BUILD_ROOT/tools/need \
+      "$(cat $pkgdir/deps.txt)" \
+      $BUILD_DEPS
+  fi
+
+  rm -rf $build_out
+  mkdir -p $build_out
+  env -i \
+    PATH="$tools_dir:$BUILD_ROOT/tools" \
+    XDG_CACHE_HOME=$BUILD_ROOT/build/cache/xdg \
+    ARCH=$ARCH \
+    ARCH_HOST=$ARCH_HOST \
+    OPT=$OPT \
+    BUILD_ROOT=$BUILD_ROOT \
+    BUILD_DL=$BUILD_ROOT/build/dl \
+    BUILD_OUT=$build_out \
+    BUILD_DEPS=$BUILD_DEPS \
+    BUILD_PKG=$pkgdir \
+  /bin/sh $pkgdir/build.sh
+  touch $build_out/.ok
+fi
+echo $pkgid

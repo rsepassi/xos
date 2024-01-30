@@ -2,11 +2,11 @@
 
 set -e
 
-dir=$1
+outdir=$1
 tools=$2
 
-rm -rf $dir
-mkdir -p $dir
+dir=$(mktemp -d)
+
 for tool in $tools
 do
   srcpath=$(which $tool || echo "")
@@ -17,3 +17,8 @@ do
   fi
   ln -s $srcpath $dir
 done
+
+rm -rf $outdir
+mkdir -p $(dirname $outdir)
+mv $dir $outdir
+touch $outdir/.ok

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -e
+
+pkg=$1
+
+tmp=$(mktemp)
+
+cd $BUILD_ROOT/pkg/$pkg
+echo $pkg > $tmp
+echo "$(sha256sum *)" >> $tmp
+echo "ARCH=$ARCH" >> $tmp
+echo "OPT=$OPT" >> $tmp
+echo "ZIG=$(zig version)" >> $tmp
+sha256sum $tmp | cut -d ' ' -f1
