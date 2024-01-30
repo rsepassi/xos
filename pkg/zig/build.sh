@@ -1,4 +1,3 @@
-#!/bin/sh
 set -e
 
 urlf=$BUILD_PKG/url-$ARCH_OS-$ARCH_ISA.txt
