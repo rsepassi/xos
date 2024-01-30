@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
 
-# options
 ARCH=${ARCH:-native}
 OPT=${OPT:-s}
 
@@ -11,8 +10,6 @@ untar $BUILD_DL/busybox.tar.bz2 $src
 
 cd $src
 
-xprefix="bbcross"
-
 toolchaindir=$(mktemp -d)
 cp $BUILD_PKG/gcc $toolchaindir
 cp $BUILD_PKG/bbcross-ar $toolchaindir
@@ -21,9 +18,32 @@ export PATH="$toolchaindir:$PATH"
 export BB_BUILD_ARCH=$ARCH
 
 cp $BUILD_PKG/config .config
-CROSS_COMPILE="$xprefix-" \
-  make -j16 busybox_unstripped
-zig objcopy -S busybox_unstripped busybox
+cp $BUILD_PKG/platform.h include/platform.h
+
+objs="
+applets/built-in.o
+archival/lib.a
+archival/libarchive/lib.a
+coreutils/lib.a
+coreutils/libcoreutils/lib.a
+debianutils/lib.a
+editors/lib.a
+findutils/lib.a
+libbb/lib.a
+libpwdgrp/lib.a
+miscutils/lib.a
+procps/lib.a
+shell/lib.a
+"
+for obj in $objs
+do
+CROSS_COMPILE="bbcross-" make -j16 $obj
+done
+
+echo "linking..."
+zig cc --target=$ARCH -s -static -Os -o busybox \
+  $(echo $objs)
 
 mkdir -p $BUILD_OUT/bin
 cp busybox $BUILD_OUT/bin/busybox
+
