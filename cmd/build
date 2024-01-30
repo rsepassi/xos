@@ -11,8 +11,10 @@ EXTRA_ARGS="$@"
 
 BUILD_ROOT=${BUILD_ROOT:-$PWD}
 BUILD_CACHE=$BUILD_ROOT/build/cache
-ARCH_HOST=$(zig env | grep target | cut -d '"' -f4)
+ARCH_HOST=$(zig targets | grep "\"triple\"" | cut -d '"' -f4)
 ARCH=${ARCH:-$ARCH_HOST}
+ARCH_ISA=$(echo $ARCH | cut -d '-' -f1)
+ARCH_OS=$(echo $ARCH | cut -d '-' -f2 | cut -d '.' -f1)
 OPT=${OPT:-s}
 
 pkgdir=$BUILD_ROOT/pkg/$pkg
@@ -88,12 +90,17 @@ then
       $BUILD_DEPS
   fi
 
+  mkdir -p $BUILD_CACHE/logs
+  logfile=$BUILD_CACHE/logs/$pkgid.log
+
   rm -rf $build_out
   mkdir -p $build_out
   env -i \
     PATH="$tools_dir:$BUILD_ROOT/tools" \
     XDG_CACHE_HOME=$BUILD_CACHE/xdg \
     ARCH=$ARCH \
+    ARCH_ISA=$ARCH_ISA \
+    ARCH_OS=$ARCH_OS \
     ARCH_HOST=$ARCH_HOST \
     OPT=$OPT \
     BUILD_ROOT=$BUILD_ROOT \
@@ -102,7 +109,8 @@ then
     BUILD_OUT=$build_out \
     BUILD_DEPS=$BUILD_DEPS \
     BUILD_PKG=$pkgdir \
-  /bin/sh $pkgdir/build.sh $EXTRA_ARGS
+  /bin/sh $pkgdir/build.sh $EXTRA_ARGS \
+    > $logfile
   touch $build_out/.ok
 fi
 echo $pkgid
