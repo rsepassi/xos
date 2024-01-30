@@ -7,9 +7,11 @@ pkg=$1
 tmp=$(mktemp)
 
 cd $BUILD_ROOT/pkg/$pkg
+srcfiles=$(find . -type f)
+
 echo $pkg > $tmp
 echo "ARGS=$ALL_ARGS" >> $tmp
-echo "$(sha256sum *)" >> $tmp
+echo "$(sha256sum $srcfiles)" >> $tmp
 echo "ARCH=$ARCH" >> $tmp
 echo "OPT=$OPT" >> $tmp
 echo "ZIG=$(zig version)" >> $tmp
