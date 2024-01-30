@@ -14,7 +14,6 @@ untar $BUILD_DL/md4c.tar.gz $src
 
 # md4c library
 cd $src/src
-rm -f *.a *.o
 zig cc --target=$ARCH -o entity.o -c entity.c
 zig cc --target=$ARCH -o md4c-html.o -c md4c-html.c
 zig cc --target=$ARCH -o md4c.o -c md4c.c -DMD4C_USE_UTF8
