@@ -1,0 +1,2 @@
+https://ziglang.org/builds/zig-macos-aarch64-0.12.0-dev.2341+92211135f.tar.xz
+77a948acb0048c57b66ef791039b09ea2f55663543bb7cef4b04c0b22a3696e6
