@@ -54,9 +54,22 @@ then
   tail
   which
   env
-  zig
   touch
   find
+  make
+  sed
+  cmp
+  tr
+  sleep
+  od
+  bzip2
+  awk
+  wc
+  xargs
+  sort
+  uniq
+  diff
+  zig
   "
   $BUILD_ROOT/tools/link_tools $tools_dir "$tools"
 fi
