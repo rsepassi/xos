@@ -3,73 +3,148 @@ set -e
 
 tools_dir=$1
 
-# symlink tools
-tools="
-mkdir
-ls
-rm
-mv
-cp
-ln
-basename
-dirname
-realpath
-tar
-gzip
-unzip
-wget
-sha256sum
-shasum
-cat
-cut
-grep
-head
-tail
-which
-env
-touch
-find
-make
-sed
-cmp
-tr
-sleep
-od
-bzip2
-awk
-wc
-xargs
-sort
-uniq
-diff
-chmod
-sh
-zig
-"
+[ -e $tools_dir/.ok ] && exit 0
 
-for tool in $tools
-do
-  srcpath=$(which $tool || echo "")
-  if [ -z "$srcpath" ]
-  then
-    echo "tool $tool does not exist"
-    exit 1
-  fi
-  ln -s $srcpath $tools_dir
-done
+link_internal_tools() {
+  # symlink tools
+  internal_tools="
+  $BUILD_ROOT/cmd/build
+  $BUILD_ROOT/tools/fetch
+  $BUILD_ROOT/tools/fetch_urltxt
+  $BUILD_ROOT/tools/need
+  $BUILD_ROOT/tools/pkgid
+  $BUILD_ROOT/tools/untar
+  "
+  for tool in $internal_tools
+  do
+    ln -s $tool $tools_dir
+  done
+}
 
-internal_tools="
-$BUILD_ROOT/cmd/build
-$BUILD_ROOT/tools/bunzip
-$BUILD_ROOT/tools/fetch
-$BUILD_ROOT/tools/fetch_urltxt
-$BUILD_ROOT/tools/need
-$BUILD_ROOT/tools/pkgid
-$BUILD_ROOT/tools/untar
-"
-for tool in $internal_tools
-do
-  ln -s $tool $tools_dir
-done
 
-ln -s $(which mktemp) $tools_dir/internal_mktemp
+if [ -e $tools_dir/.bootstrap ]
+then
+  bootstrap_tools="
+    mkdir
+    ls
+    rm
+    mv
+    cp
+    ln
+    basename
+    dirname
+    realpath
+    tar
+    gzip
+    unzip
+    wget
+    sha256sum
+    shasum
+    cat
+    cut
+    grep
+    head
+    tail
+    which
+    env
+    touch
+    find
+    make
+    sed
+    cmp
+    tr
+    sleep
+    od
+    bzip2
+    awk
+    wc
+    xargs
+    sort
+    uniq
+    diff
+    chmod
+    sh
+    zig
+  "
+
+  rm -rf $tools_dir
+  mkdir -p $tools_dir
+
+  for tool in $bootstrap_tools
+  do
+    srcpath=$(which $tool || echo "")
+    if [ -z "$srcpath" ]
+    then
+      echo "tool $tool does not exist"
+      exit 1
+    fi
+    ln -s $srcpath $tools_dir
+  done
+  ln -s $(which mktemp) $tools_dir/internal_mktemp
+
+  link_internal_tools
+else
+  mkdir -p $tools_dir
+  #touch $tools_dir/.bootstrap
+  #bbid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build busybox)
+  bbid="ecf93d8ef3447d7a0e32fecc219dc490093c2af2c5bc39578db9bdb2f76312ee"
+  #touch $tools_dir/.bootstrap
+  #zigid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build zig)
+  zigid="fbf990469dd45bd63e5d47ea8d1ae0ebd75d21866f88444de95fa860c149f2ad"
+
+  bbtools="
+    mkdir
+    ls
+    rm
+    mv
+    cp
+    ln
+    basename
+    dirname
+    realpath
+    tar
+    gzip
+    unzip
+    wget
+    sha256sum
+    cat
+    cut
+    grep
+    head
+    tail
+    which
+    env
+    touch
+    find
+    sed
+    sleep
+    bzip2
+    awk
+    wc
+    xargs
+    sort
+    uniq
+    diff
+    chmod
+    sh
+  "
+
+  rm -rf $tools_dir
+  mkdir -p $tools_dir
+  for tool in $bbtools
+  do
+    ln -s $BUILD_CACHE/$bbid/out/bin/busybox $tools_dir/$tool
+  done
+  ln -s $BUILD_CACHE/$zigid/out/zig $tools_dir
+
+  cat <<EOF > $tools_dir/internal_mktemp
+#!/usr/bin/env sh
+set -e
+$BUILD_CACHE/$bbid/out/bin/busybox mktemp \$@
+EOF
+  chmod +x $tools_dir/internal_mktemp
+
+  link_internal_tools
+
+  touch $tools_dir/.ok
+fi

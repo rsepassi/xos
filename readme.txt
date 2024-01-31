@@ -14,7 +14,6 @@ pkg/: build scripts for packages
     deps.txt (optional): pkg dependencies
 
 tools/
-  bunzip: clean zip extraction
   fetch: fetch a url and check hash
   fetch_urltxt: fetch a url and check hash, reading url and hash from file
   link_tools: symlink passed tools into a directory

@@ -5,7 +5,6 @@ pkg=$1
 
 buildfiles=$(echo "
 cmd/build
-tools/bunzip
 tools/fetch
 tools/fetch_urltxt
 tools/need
