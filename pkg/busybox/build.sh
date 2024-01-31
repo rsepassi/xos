@@ -7,17 +7,19 @@ src=$(mktemp -d)
 
 if [ "$ARCH_OS" = "windows" ]
 then
-tarfile=busybox-w32.tar.gz
-urlfile=url-w32.txt
-configfile=config-w32
-cflags="-Dclockid_t=int -DCLOCK_REALTIME=0 -Dffs=__builtin_ffs"
-ldflags="-lws2_32"
+  tarfile=busybox-w32.tar.gz
+  urlfile=url-w32.txt
+  configfile=config-w32
+  cflags="-Dclockid_t=int -DCLOCK_REALTIME=0 -Dffs=__builtin_ffs"
+  ldflags="-lws2_32"
 else
-tarfile=busybox.tar.bz2
-urlfile=url.txt
-configfile=config
-cflags=""
+  tarfile=busybox.tar.bz2
+  urlfile=url.txt
+  configfile=config
+  cflags=""
+  ldflags=""
 fi
+
 
 fetch_urltxt $BUILD_PKG/$urlfile $BUILD_DL/$tarfile
 untar $BUILD_DL/$tarfile $src
@@ -106,6 +108,7 @@ objs="
 applets/built-in.o
 archival/lib.a
 archival/libarchive/lib.a
+console-tools/lib.a
 coreutils/lib.a
 coreutils/libcoreutils/lib.a
 debianutils/lib.a
@@ -114,8 +117,10 @@ findutils/lib.a
 libbb/lib.a
 libpwdgrp/lib.a
 miscutils/lib.a
+networking/lib.a
 procps/lib.a
 shell/lib.a
+util-linux/lib.a
 "
 fi
 
