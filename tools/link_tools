@@ -87,10 +87,8 @@ else
   mkdir -p $tools_dir
   touch $tools_dir/.bootstrap
   bbid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build busybox)
-  #bbid="ecf93d8ef3447d7a0e32fecc219dc490093c2af2c5bc39578db9bdb2f76312ee"
   touch $tools_dir/.bootstrap
   zigid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build zig)
-  #zigid="fbf990469dd45bd63e5d47ea8d1ae0ebd75d21866f88444de95fa860c149f2ad"
 
   bbtools="
     mkdir
