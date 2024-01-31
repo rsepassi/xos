@@ -54,13 +54,25 @@ ARCH_OS=$(echo $ARCH | cut -d '-' -f2 | cut -d '.' -f1)
 # Optimizaton
 OPT=${OPT:-s}
 
+# static dependencies
+deps_static=""
+if [ -e $BUILD_PKG/deps.txt ]
+then
+  for dep in $(cat $BUILD_PKG/deps.txt)
+  do
+    depid=$(build $dep)
+    deps_static="$deps_static\n$depid  $dep"
+  done
+fi
+
 # identify output hash
 pkgid_text=$(
-  BUILD_ROOT=$BUILD_ROOT \
+  XOS=$(sha256sum $tools_dir/.xos | cut -d ' ' -f1) \
   BUILD_PKG=$BUILD_PKG \
   ARCH=$ARCH \
   OPT=$OPT \
   ARGS="$ARGS" \
+  DEPS="$deps_static" \
   $BUILD_ROOT/tools/pkgid $pkg
 )
 pkgid=$(echo $pkgid_text | sha256sum | cut -d ' ' -f1)

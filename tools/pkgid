@@ -2,18 +2,6 @@
 set -e
 
 pkg=$1
-ZIG_VERSION="0.12.0-dev.2341+92211135f"
-
-buildfiles=$(echo "
-cmd/build
-tools/fetch
-tools/fetch_urltxt
-tools/need
-tools/pkgid
-tools/untar
-" | sort)
-cd $BUILD_ROOT
-buildfiles_hash="$(sha256sum $buildfiles)"
 
 cd $BUILD_PKG
 if [ -e $BUILD_PKG/manifest.txt ]
@@ -33,9 +21,8 @@ echo "PKG=$pkg"
 echo "ARGS=$ARGS"
 echo "ARCH=$ARCH"
 echo "OPT=$OPT"
-echo "ZIG=$ZIG_VERSION"
 echo "SRCS="
 echo "$srcfiles_hash"
-echo "XOS="
-echo "$buildfiles_hash"
+echo "DEPS=$DEPS"
+echo "XOS=$XOS"
 echo "--- END XOS PKG ---"
