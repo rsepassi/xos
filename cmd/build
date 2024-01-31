@@ -4,7 +4,7 @@ set -e
 # get xos/ root directory
 get_buildroot() {
   containing_dir=$(dirname $0)
-  if [ "$(basename containing_dir)" = "cmd" ]
+  if [ "$(basename $containing_dir)" = "cmd" ]
   then
     # called cmd/build
     dirname $containing_dir
@@ -14,26 +14,29 @@ get_buildroot() {
   fi
 }
 BUILD_ROOT=$(realpath $(get_buildroot))
+BUILD_CACHE=$BUILD_ROOT/build/cache
 
 # seal PATH
 tools_dir=$BUILD_ROOT/build/tools
-if [ ! -e $tools_dir/.ok ]
-then
-  rm -rf $tools_dir
-  mkdir -p $tools_dir
-  BUILD_ROOT=$BUILD_ROOT $BUILD_ROOT/tools/link_tools $tools_dir
-  touch $tools_dir/.ok
-fi
+BUILD_ROOT=$BUILD_ROOT \
+BUILD_CACHE=$BUILD_CACHE \
+  $BUILD_ROOT/tools/link_tools $tools_dir
 export PATH="$tools_dir"
 
 # process arguments
 pkg=$1
+ARGS="$@"
+BUILD_PKG=$BUILD_ROOT/pkg/$pkg
 if [ -z "$pkg" ]
 then
   echo "must provide package"
   exit 1
 fi
-ARGS="$@"
+if [ ! -e $BUILD_PKG/build.sh ]
+then
+  echo "unrecognized pkg $pkg, missing build.sh"
+  exit 1
+fi
 
 # Host and target ARCH
 ARCH_HOST=$(zig targets | grep "\"triple\"" | cut -d '"' -f4)
@@ -47,7 +50,6 @@ ARCH_OS=$(echo $ARCH | cut -d '-' -f2 | cut -d '.' -f1)
 OPT=${OPT:-s}
 
 # identify output hash
-BUILD_PKG=$BUILD_ROOT/pkg/$pkg
 pkgid_text=$(
   BUILD_ROOT=$BUILD_ROOT \
   BUILD_PKG=$BUILD_PKG \
@@ -57,7 +59,6 @@ pkgid_text=$(
   $BUILD_ROOT/tools/pkgid $pkg
 )
 pkgid=$(echo $pkgid_text | sha256sum | cut -d ' ' -f1)
-BUILD_CACHE=$BUILD_ROOT/build/cache
 BUILD_OUT=$BUILD_CACHE/$pkgid
 
 # build if necessary
@@ -73,7 +74,7 @@ then
   then
     mkdir -p $BUILD_DEPS
     cp $BUILD_PKG/deps.txt $BUILD_OUT
-    BUILD_ROOT=$BUILD_ROOT \
+    BUILD_DEPS=$BUILD_DEPS \
     BUILD_CACHE=$BUILD_CACHE \
       $BUILD_ROOT/tools/need \
       "$(cat $BUILD_PKG/deps.txt)"
@@ -82,7 +83,11 @@ then
   # pkg-specific tools
   pkg_tools_dir=$BUILD_OUT/tools
   mkdir -p $pkg_tools_dir
-  echo "internal_mktemp \"\$@\" $BUILD_OUT/tmp/tmpXXXXXX" > $pkg_tools_dir/mktemp
+  cat <<EOF > $pkg_tools_dir/mktemp
+#!/usr/bin/env sh
+set -e
+internal_mktemp \$@ $BUILD_OUT/tmp/tmpXXXXXX
+EOF
   chmod +x $pkg_tools_dir/mktemp
 
   # run build script

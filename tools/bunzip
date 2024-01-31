@@ -1,9 +1,0 @@
-#!/usr/bin/env sh
-set -e
-
-src=$1
-dst=$2
-
-rm -rf $dst
-mkdir -p $dst
-unzip -q $src -d $dst
