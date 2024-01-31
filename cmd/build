@@ -16,20 +16,18 @@ get_buildroot() {
 BUILD_ROOT=$(realpath $(get_buildroot))
 BUILD_CACHE=$BUILD_ROOT/build/cache
 
-# seal PATH
-tools_dir=$BUILD_ROOT/build/tools
-BUILD_ROOT=$BUILD_ROOT \
-BUILD_CACHE=$BUILD_CACHE \
-  $BUILD_ROOT/tools/link_tools $tools_dir
-export PATH="$tools_dir"
-
 # process arguments
 pkg=$1
 ARGS="$@"
 BUILD_PKG=$BUILD_ROOT/pkg/$pkg
 if [ -z "$pkg" ]
 then
-  echo "must provide package"
+  cat <<EOF
+usage: ARCH= OPT= build pkgname
+
+echoes pkgid on successful build
+build artifacts for last successful build available in build/out/
+EOF
   exit 1
 fi
 if [ ! -e $BUILD_PKG/build.sh ]
@@ -37,6 +35,13 @@ then
   echo "unrecognized pkg $pkg, missing build.sh"
   exit 1
 fi
+
+# seal PATH
+tools_dir=$BUILD_ROOT/build/tools
+BUILD_ROOT=$BUILD_ROOT \
+BUILD_CACHE=$BUILD_CACHE \
+  $BUILD_ROOT/tools/link_tools $tools_dir
+export PATH="$tools_dir"
 
 # Host and target ARCH
 ARCH_HOST=$(zig targets | grep "\"triple\"" | cut -d '"' -f4)
