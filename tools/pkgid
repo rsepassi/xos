@@ -2,6 +2,7 @@
 set -e
 
 pkg=$1
+ZIG_VERSION="0.12.0-dev.2341+92211135f"
 
 buildfiles=$(echo "
 cmd/build
@@ -32,7 +33,7 @@ echo "PKG=$pkg"
 echo "ARGS=$ARGS"
 echo "ARCH=$ARCH"
 echo "OPT=$OPT"
-echo "ZIG=$(zig version)"
+echo "ZIG=$ZIG_VERSION"
 echo "SRCS="
 echo "$srcfiles_hash"
 echo "XOS="
