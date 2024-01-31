@@ -1,9 +1,12 @@
 #!/usr/bin/env sh
 set -e
 
+XOS_RELEASE_ZIG="364f1e1573b6987182606151fb61324d4a802ee8574cd51911fbe9fb692915c6"
+XOS_RELEASE_BUSYBOX="9d81d8a0152d25ca9a83b6abb04783906c1d5fe83fe1d5afb20098717d3a3703"
+
 tools_dir=$1
 
-[ -e $tools_dir/.ok ] && exit 0
+[ -e $tools_dir/.xos ] && exit 0
 
 link_internal_tools() {
   # symlink tools
@@ -125,11 +128,22 @@ else
     ARCH_HOST="$isa-$os"
   fi
 
-  touch $tools_dir/.bootstrap0
-  zigid=$(ARCH_HOST=$ARCH_HOST ARCH= OPT=s $BUILD_ROOT/cmd/build zig)
-  ln -s $BUILD_CACHE/$zigid/out/zig $tools_dir
-  touch $tools_dir/.bootstrap1
-  bbid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build busybox)
+  if [ -z "XOS_RELEASE_ZIG" ]
+  then
+    touch $tools_dir/.bootstrap0
+    zigid=$(ARCH_HOST=$ARCH_HOST ARCH= OPT=s $BUILD_ROOT/cmd/build zig)
+  else
+    zigid=$XOS_RELEASE_ZIG
+  fi
+
+  if [ -z "XOS_RELEASE_BUSYBOX" ]
+  then
+    ln -s $BUILD_CACHE/$zigid/out/zig $tools_dir
+    touch $tools_dir/.bootstrap1
+    bbid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build busybox)
+  else
+    bbid=$XOS_RELEASE_BUSYBOX
+  fi
 
   bbtools="
     mkdir
@@ -185,5 +199,20 @@ EOF
 
   link_internal_tools
 
-  touch $tools_dir/.ok
+  # xos id
+  buildfiles="
+    cmd/build
+    tools/fetch
+    tools/fetch_urltxt
+    tools/link_tools
+    tools/need
+    tools/pkgid
+    tools/untar
+  "
+  xosid() {
+    echo "$zigid  zig"
+    echo "$bbid  busybox"
+    sha256sum $(echo $buildfiles | sort)
+  }
+  xosid > $tools_dir/.xos
 fi
