@@ -1,125 +1,120 @@
-#!/bin/sh
+#!/usr/bin/env sh
 set -e
 
+# get xos/ root directory
+get_buildroot() {
+  containing_dir=$(dirname $0)
+  if [ "$(basename containing_dir)" = "cmd" ]
+  then
+    # called cmd/build
+    dirname $containing_dir
+  else
+    # called build/tools/build
+    dirname $(dirname $containing_dir)
+  fi
+}
+BUILD_ROOT=$(realpath $(get_buildroot))
+
+# seal PATH
+tools_dir=$BUILD_ROOT/build/tools
+if [ ! -e $tools_dir/.ok ]
+then
+  rm -rf $tools_dir
+  mkdir -p $tools_dir
+  BUILD_ROOT=$BUILD_ROOT $BUILD_ROOT/tools/link_tools $tools_dir
+  touch $tools_dir/.ok
+fi
+export PATH="$tools_dir"
+
+# process arguments
 pkg=$1
 if [ -z "$pkg" ]
 then
   echo "must provide package"
   exit 1
 fi
-EXTRA_ARGS="$@"
+ARGS="$@"
 
-BUILD_ROOT=${BUILD_ROOT:-$PWD}
-BUILD_CACHE=$BUILD_ROOT/build/cache
+# Host and target ARCH
 ARCH_HOST=$(zig targets | grep "\"triple\"" | cut -d '"' -f4)
+ARCH=${ARCH:-$ARCH_HOST}
 ARCH_HOST_ISA=$(echo $ARCH_HOST | cut -d '-' -f1)
 ARCH_HOST_OS=$(echo $ARCH_HOST | cut -d '-' -f2 | cut -d '.' -f1)
-ARCH=${ARCH:-$ARCH_HOST}
 ARCH_ISA=$(echo $ARCH | cut -d '-' -f1)
 ARCH_OS=$(echo $ARCH | cut -d '-' -f2 | cut -d '.' -f1)
+
+# Optimizaton
 OPT=${OPT:-s}
 
-pkgdir=$BUILD_ROOT/pkg/$pkg
-
-# identify output directory
-pkgid=$(\
+# identify output hash
+BUILD_PKG=$BUILD_ROOT/pkg/$pkg
+pkgid_text=$(
   BUILD_ROOT=$BUILD_ROOT \
+  BUILD_PKG=$BUILD_PKG \
   ARCH=$ARCH \
   OPT=$OPT \
-  ALL_ARGS="$EXTRA_ARGS" \
-  $BUILD_ROOT/tools/pkgid $pkg \
+  ARGS="$ARGS" \
+  $BUILD_ROOT/tools/pkgid $pkg
 )
-build_out=$BUILD_CACHE/$pkgid
+pkgid=$(echo $pkgid_text | sha256sum | cut -d ' ' -f1)
+BUILD_CACHE=$BUILD_ROOT/build/cache
+BUILD_OUT=$BUILD_CACHE/$pkgid
 
-# symlink tools
-tools_dir=$BUILD_ROOT/build/tools
-if [ ! -e $tools_dir/.ok ]
+# build if necessary
+if [ ! -e $BUILD_OUT/.ok ]
 then
-  # symlink tools
-  tools="
-  mkdir
-  ls
-  rm
-  mv
-  cp
-  ln
-  mktemp
-  dirname
-  tar
-  gzip
-  unzip
-  wget
-  sha256sum
-  shasum
-  cat
-  cut
-  grep
-  head
-  tail
-  which
-  env
-  touch
-  find
-  make
-  sed
-  cmp
-  tr
-  sleep
-  od
-  bzip2
-  awk
-  wc
-  xargs
-  sort
-  uniq
-  diff
-  zig
-  "
-  $BUILD_ROOT/tools/link_tools $tools_dir "$tools"
-fi
+  rm -rf $BUILD_OUT
+  mkdir -p $BUILD_OUT/out $BUILD_OUT/tmp
+  echo "$pkgid_text" > $BUILD_OUT/pkgid
 
-# build
-if [ ! -e $build_out/.ok ]
-then
-  BUILD_DEPS=""
-  if [ -e $pkgdir/deps.txt ]
+  # build deps
+  BUILD_DEPS=$BUILD_OUT/deps
+  if [ -e $BUILD_PKG/deps.txt ]
   then
-    BUILD_DEPS=$(mktemp -d)
+    mkdir -p $BUILD_DEPS
+    cp $BUILD_PKG/deps.txt $BUILD_OUT
     BUILD_ROOT=$BUILD_ROOT \
     BUILD_CACHE=$BUILD_CACHE \
       $BUILD_ROOT/tools/need \
-      "$(cat $pkgdir/deps.txt)"
+      "$(cat $BUILD_PKG/deps.txt)"
   fi
 
-  mkdir -p $BUILD_CACHE/logs
-  logfile=$BUILD_CACHE/logs/$pkgid.log
+  # pkg-specific tools
+  pkg_tools_dir=$BUILD_OUT/tools
+  mkdir -p $pkg_tools_dir
+  echo "internal_mktemp \"\$@\" $BUILD_OUT/tmp/tmpXXXXXX" > $pkg_tools_dir/mktemp
+  chmod +x $pkg_tools_dir/mktemp
 
+  # run build script
+  logfile=$BUILD_OUT/build.log
   fail() {
     cat $logfile
     echo ""
     echo "error building pkg $pkg $pkgid"
-    echo "logfile (output above): $logfile"
     exit 1
   }
-
-  rm -rf $build_out
-  mkdir -p $build_out
   env -i \
-    PATH="$tools_dir:$BUILD_ROOT/tools" \
-    XDG_CACHE_HOME=$BUILD_CACHE/xdg \
+    PATH="$pkg_tools_dir:$PATH" \
+    XDG_CACHE_HOME=$BUILD_ROOT/build/xdgcache \
     ARCH=$ARCH \
     ARCH_ISA=$ARCH_ISA \
     ARCH_OS=$ARCH_OS \
     ARCH_HOST=$ARCH_HOST \
     OPT=$OPT \
-    BUILD_ROOT=$BUILD_ROOT \
     BUILD_CACHE=$BUILD_CACHE \
     BUILD_DL=$BUILD_ROOT/build/dl \
-    BUILD_OUT=$build_out \
+    BUILD_OUT=$BUILD_OUT/out \
     BUILD_DEPS=$BUILD_DEPS \
-    BUILD_PKG=$pkgdir \
-  /bin/sh $pkgdir/build.sh $EXTRA_ARGS \
-    > $logfile || fail
-  touch $build_out/.ok
+    BUILD_PKG=$BUILD_PKG \
+  sh $BUILD_PKG/build.sh $ARGS > $logfile || fail
+
+  # ok
+  touch $BUILD_OUT/.ok
 fi
+
+# link to build/out
+rm -f $BUILD_ROOT/build/out
+ln -s $BUILD_OUT/out $BUILD_ROOT/build/out
+
+# echo id
 echo $pkgid

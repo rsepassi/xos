@@ -19,6 +19,6 @@ aarch64-windows-gnu
 
 for arch in $archs
 do
-  pkgid=$(ARCH=$arch $BUILD_ROOT/cmd/build $pkg)
-  ln -s $BUILD_CACHE/$pkgid $BUILD_OUT/$arch
+  pkgid=$(ARCH=$arch build $pkg)
+  ln -s $BUILD_CACHE/$pkgid/out $BUILD_OUT/$arch
 done

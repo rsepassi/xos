@@ -1,11 +1,51 @@
-#!/bin/sh
-
+#!/usr/bin/env sh
 set -e
 
-outdir=$1
-tools=$2
+tools_dir=$1
 
-dir=$(mktemp -d)
+# symlink tools
+tools="
+mkdir
+ls
+rm
+mv
+cp
+ln
+basename
+dirname
+realpath
+tar
+gzip
+unzip
+wget
+sha256sum
+shasum
+cat
+cut
+grep
+head
+tail
+which
+env
+touch
+find
+make
+sed
+cmp
+tr
+sleep
+od
+bzip2
+awk
+wc
+xargs
+sort
+uniq
+diff
+chmod
+sh
+zig
+"
 
 for tool in $tools
 do
@@ -15,10 +55,21 @@ do
     echo "tool $tool does not exist"
     exit 1
   fi
-  ln -s $srcpath $dir
+  ln -s $srcpath $tools_dir
 done
 
-rm -rf $outdir
-mkdir -p $(dirname $outdir)
-mv $dir $outdir
-touch $outdir/.ok
+internal_tools="
+$BUILD_ROOT/cmd/build
+$BUILD_ROOT/tools/bunzip
+$BUILD_ROOT/tools/fetch
+$BUILD_ROOT/tools/fetch_urltxt
+$BUILD_ROOT/tools/need
+$BUILD_ROOT/tools/pkgid
+$BUILD_ROOT/tools/untar
+"
+for tool in $internal_tools
+do
+  ln -s $tool $tools_dir
+done
+
+ln -s $(which mktemp) $tools_dir/internal_mktemp
