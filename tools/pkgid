@@ -1,18 +1,41 @@
-#!/bin/sh
-
+#!/usr/bin/env sh
 set -e
 
 pkg=$1
 
-tmp=$(mktemp)
+buildfiles=$(echo "
+cmd/build
+tools/bunzip
+tools/fetch
+tools/fetch_urltxt
+tools/need
+tools/pkgid
+tools/untar
+" | sort)
+cd $BUILD_ROOT
+buildfiles_hash="$(sha256sum $buildfiles)"
 
-cd $BUILD_ROOT/pkg/$pkg
-srcfiles=$(find . -type f)
+cd $BUILD_PKG
+if [ -e $BUILD_PKG/manifest.txt ]
+then
+  srcfiles() {
+    echo manifest.txt
+    cat $BUILD_PKG/manifest.txt
+  }
+  srcfiles=$(srcfiles | sort)
+else
+  srcfiles=$(find . -type f | cut -c3- | sort)
+fi
+srcfiles_hash="$(sha256sum $srcfiles)"
 
-echo $pkg > $tmp
-echo "ARGS=$ALL_ARGS" >> $tmp
-echo "$(sha256sum $srcfiles)" >> $tmp
-echo "ARCH=$ARCH" >> $tmp
-echo "OPT=$OPT" >> $tmp
-echo "ZIG=$(zig version)" >> $tmp
-sha256sum $tmp | cut -d ' ' -f1
+echo "--- BEGIN XOS PKG ---"
+echo "PKG=$pkg"
+echo "ARGS=$ARGS"
+echo "ARCH=$ARCH"
+echo "OPT=$OPT"
+echo "ZIG=$(zig version)"
+echo "SRCS="
+echo "$srcfiles_hash"
+echo "XOS="
+echo "$buildfiles_hash"
+echo "--- END XOS PKG ---"
