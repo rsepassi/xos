@@ -44,7 +44,7 @@ BUILD_CACHE=$BUILD_CACHE \
 export PATH="$tools_dir"
 
 # Host and target ARCH
-ARCH_HOST=$(zig targets | grep "\"triple\"" | cut -d '"' -f4)
+ARCH_HOST=${ARCH_HOST:-$(zig targets | grep "\"triple\"" | cut -d '"' -f4)}
 ARCH=${ARCH:-$ARCH_HOST}
 ARCH_HOST_ISA=$(echo $ARCH_HOST | cut -d '-' -f1)
 ARCH_HOST_OS=$(echo $ARCH_HOST | cut -d '-' -f2 | cut -d '.' -f1)

@@ -21,56 +21,47 @@ link_internal_tools() {
   done
 }
 
+bootstrap0_tools="
+grep
+cut
+sh
+sort
+sha256sum
+shasum
+find
+rm
+mkdir
+cat
+chmod
+env
+head
+tail
+dirname
+tar
+touch
+ln
+"
 
-if [ -e $tools_dir/.bootstrap ]
+bootstrap1_tools="
+$bootstrap0_tools
+cp
+make
+sed
+mv
+cmp
+sleep
+tr
+od
+bzip2
+awk
+wc
+"
+
+if [ -e $tools_dir/.bootstrap0 ]
 then
-  bootstrap_tools="
-    mkdir
-    ls
-    rm
-    mv
-    cp
-    ln
-    basename
-    dirname
-    realpath
-    tar
-    gzip
-    unzip
-    wget
-    sha256sum
-    shasum
-    cat
-    cut
-    grep
-    head
-    tail
-    which
-    env
-    touch
-    find
-    make
-    sed
-    cmp
-    tr
-    sleep
-    od
-    bzip2
-    awk
-    wc
-    xargs
-    sort
-    uniq
-    diff
-    chmod
-    sh
-    zig
-  "
-
   rm -rf $tools_dir
   mkdir -p $tools_dir
-
-  for tool in $bootstrap_tools
+  for tool in $bootstrap0_tools
   do
     srcpath=$(which $tool || echo "")
     if [ -z "$srcpath" ]
@@ -81,14 +72,64 @@ then
     ln -s $srcpath $tools_dir
   done
   ln -s $(which mktemp) $tools_dir/internal_mktemp
-
+  link_internal_tools
+elif [ -e $tools_dir/.bootstrap1 ]
+then
+  zigpath=$(realpath $tools_dir/zig)
+  rm -rf $tools_dir
+  mkdir -p $tools_dir
+  for tool in $bootstrap1_tools
+  do
+    srcpath=$(which $tool || echo "")
+    if [ -z "$srcpath" ]
+    then
+      echo "tool $tool does not exist"
+      exit 1
+    fi
+    ln -s $srcpath $tools_dir
+  done
+  ln -s $(which mktemp) $tools_dir/internal_mktemp
+  ln -s $zigpath $tools_dir
   link_internal_tools
 else
   mkdir -p $tools_dir
-  touch $tools_dir/.bootstrap
+
+  if [ -z "$ARCH_HOST" ]
+  then
+    case $(uname -m) in
+      arm64)
+        isa=aarch64
+        ;;
+      x86_64)
+        isa=x86_64
+        ;;
+      *)
+        echo "unrecognized arch $(uname -m). set ARCH_HOST="
+        exit 1
+        ;;
+    esac
+
+    case $(uname) in
+      Linux)
+        os=linux
+        ;;
+      Darwin)
+        os=macos
+        ;;
+      *)
+        echo "unrecognized os $(uname). set ARCH_HOST="
+        exit 1
+        ;;
+    esac
+
+    ARCH_HOST="$isa-$os"
+  fi
+
+  touch $tools_dir/.bootstrap0
+  zigid=$(ARCH_HOST=$ARCH_HOST ARCH= OPT=s $BUILD_ROOT/cmd/build zig)
+  ln -s $BUILD_CACHE/$zigid/out/zig $tools_dir
+  touch $tools_dir/.bootstrap1
   bbid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build busybox)
-  touch $tools_dir/.bootstrap
-  zigid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build zig)
 
   bbtools="
     mkdir
