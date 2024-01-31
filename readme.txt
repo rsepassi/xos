@@ -18,5 +18,6 @@ tools/
   fetch: fetch a url and check hash
   fetch_urltxt: fetch a url and check hash, reading url and hash from file
   link_tools: symlink passed tools into a directory
+  need: build a dependency and link it into $BUILD_DEPS
   pkgid: compute identifier for pkg build
   untar: clean tar extraction

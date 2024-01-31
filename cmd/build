@@ -88,8 +88,7 @@ then
     BUILD_ROOT=$BUILD_ROOT \
     BUILD_CACHE=$BUILD_CACHE \
       $BUILD_ROOT/tools/need \
-      "$(cat $pkgdir/deps.txt)" \
-      $BUILD_DEPS
+      "$(cat $pkgdir/deps.txt)"
   fi
 
   mkdir -p $BUILD_CACHE/logs
