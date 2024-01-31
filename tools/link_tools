@@ -1,12 +1,12 @@
 #!/usr/bin/env sh
 set -e
 
-XOS_RELEASE_ZIG="364f1e1573b6987182606151fb61324d4a802ee8574cd51911fbe9fb692915c6"
-XOS_RELEASE_BUSYBOX="9d81d8a0152d25ca9a83b6abb04783906c1d5fe83fe1d5afb20098717d3a3703"
+XOS_RELEASE_ZIG=
+XOS_RELEASE_BUSYBOX=
 
 tools_dir=$1
 
-[ -e $tools_dir/.xos ] && exit 0
+[ -e $tools_dir/.ok ] && exit 0
 
 link_internal_tools() {
   # symlink tools
@@ -76,6 +76,7 @@ then
   done
   ln -s $(which mktemp) $tools_dir/internal_mktemp
   link_internal_tools
+  echo "bootstrap0" > $tools_dir/.xos
 elif [ -e $tools_dir/.bootstrap1 ]
 then
   zigpath=$(realpath $tools_dir/zig)
@@ -94,6 +95,7 @@ then
   ln -s $(which mktemp) $tools_dir/internal_mktemp
   ln -s $zigpath $tools_dir
   link_internal_tools
+  echo "bootstrap1" > $tools_dir/.xos
 else
   mkdir -p $tools_dir
 
@@ -128,7 +130,7 @@ else
     ARCH_HOST="$isa-$os"
   fi
 
-  if [ -z "XOS_RELEASE_ZIG" ]
+  if [ -z "$XOS_RELEASE_ZIG" ]
   then
     touch $tools_dir/.bootstrap0
     zigid=$(ARCH_HOST=$ARCH_HOST ARCH= OPT=s $BUILD_ROOT/cmd/build zig)
@@ -136,7 +138,7 @@ else
     zigid=$XOS_RELEASE_ZIG
   fi
 
-  if [ -z "XOS_RELEASE_BUSYBOX" ]
+  if [ -z "$XOS_RELEASE_BUSYBOX" ]
   then
     ln -s $BUILD_CACHE/$zigid/out/zig $tools_dir
     touch $tools_dir/.bootstrap1
@@ -215,4 +217,5 @@ EOF
     sha256sum $(echo $buildfiles | sort)
   }
   xosid > $tools_dir/.xos
+  touch $tools_dir/.ok
 fi
