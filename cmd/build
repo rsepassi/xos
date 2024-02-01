@@ -53,6 +53,20 @@ ARCH_OS=$(echo $ARCH | cut -d '-' -f2 | cut -d '.' -f1)
 
 # Optimizaton
 OPT=${OPT:-s}
+case $OPT in
+  0)
+    OPT_ZIG=Debug
+    ;;
+  1)
+    OPT_ZIG=ReleaseSafe
+    ;;
+  2|3|fast)
+    OPT_ZIG=ReleaseFast
+    ;;
+  s|z)
+    OPT_ZIG=ReleaseSmall
+    ;;
+esac
 
 # static dependencies
 deps_static=""
@@ -129,6 +143,7 @@ EOF
     ARCH_OS=$ARCH_OS \
     ARCH_HOST=$ARCH_HOST \
     OPT=$OPT \
+    OPT_ZIG=$OPT_ZIG \
     BUILD_CACHE=$BUILD_CACHE \
     BUILD_OUT=$BUILD_OUT/out \
     BUILD_DEPS=$BUILD_DEPS \
