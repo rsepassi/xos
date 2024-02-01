@@ -62,6 +62,7 @@ wc
 
 if [ -e $tools_dir/.bootstrap0 ]
 then
+  # build zig
   rm -rf $tools_dir
   mkdir -p $tools_dir
   for tool in $bootstrap0_tools
@@ -79,6 +80,7 @@ then
   echo "bootstrap0" > $tools_dir/.xos
 elif [ -e $tools_dir/.bootstrap1 ]
 then
+  # build busybox
   zigpath=$(realpath $tools_dir/zig)
   rm -rf $tools_dir
   mkdir -p $tools_dir
@@ -97,6 +99,7 @@ then
   link_internal_tools
   echo "bootstrap1" > $tools_dir/.xos
 else
+  # bootstrap: builds zig, busybox, and links all tools
   mkdir -p $tools_dir
 
   if [ -z "$ARCH_HOST" ]
@@ -198,6 +201,23 @@ set -e
 $BUILD_CACHE/$bbid/out/bin/busybox mktemp \$@
 EOF
   chmod +x $tools_dir/internal_mktemp
+
+  cat <<EOF > $tools_dir/system
+#!/usr/bin/env sh
+set -e
+cmd=\$(PATH=$PATH which \$1)
+shift
+\$cmd \$@
+EOF
+  chmod +x $tools_dir/system
+
+  cat <<EOF > $tools_dir/system_export
+#!/usr/bin/env sh
+set -e
+export PATH=$PATH
+\$@
+EOF
+  chmod +x $tools_dir/system_export
 
   link_internal_tools
 
