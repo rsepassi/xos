@@ -13,15 +13,15 @@ untar $BUILD_DEPS/md4c.tar.gz $src
 
 # md4c library
 cd $src/src
-zig cc --target=$ARCH -o entity.o -c entity.c
-zig cc --target=$ARCH -o md4c-html.o -c md4c-html.c
-zig cc --target=$ARCH -o md4c.o -c md4c.c -DMD4C_USE_UTF8
-zig ar rcs libmd4c.a entity.o md4c-html.o md4c.o
+cc --target=$ARCH -o entity.o -c entity.c
+cc --target=$ARCH -o md4c-html.o -c md4c-html.c
+cc --target=$ARCH -o md4c.o -c md4c.c -DMD4C_USE_UTF8
+ar rcs libmd4c.a entity.o md4c-html.o md4c.o
 
 # md2html binary
 cd $src/md2html
 rm -f md2html
-zig cc -static -s -O$OPT --target=$ARCH -o md2html \
+cc -static -s -O$OPT --target=$ARCH -o md2html \
   -fstack-protector \
   -I $src/src \
   -D MD_VERSION_MAJOR=0 \

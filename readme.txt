@@ -45,6 +45,8 @@ pkg/: build scripts for packages
     deps.txt (optional): pkg dependencies
 
 tools/
+  cc: zig cc wrapper
+  ar: zig ar wrapper
   fetch: fetch a url and check hash
   fetch_urltxt: fetch a url and check hash, reading url and hash from file
   link_tools: link all tools needed by xos builds

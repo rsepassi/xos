@@ -13,6 +13,8 @@ link_internal_tools() {
   internal_tools="
   $BUILD_ROOT/cmd/build
   $BUILD_ROOT/tools/fetch
+  $BUILD_ROOT/tools/cc
+  $BUILD_ROOT/tools/ar
   $BUILD_ROOT/tools/fetch_urltxt
   $BUILD_ROOT/tools/need
   $BUILD_ROOT/tools/pkgid
@@ -280,6 +282,8 @@ EOF
   # xos id
   buildfiles="
     cmd/build
+    tools/cc
+    tools/ar
     tools/fetch
     tools/fetch_urltxt
     tools/link_tools
