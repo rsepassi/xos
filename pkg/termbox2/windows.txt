@@ -1,0 +1,142 @@
+not working for windows
+
+missing headers
+* sys/ioctl.h
+  used for terminal resize
+* sys/select.h
+  in wait_event
+  also in update_term_size_via_esc
+* termios.h
+  struct termios
+  tcgetattr
+  tcsetattr
+  cfmakeraw
+
+To add support for Windows with recent PowerShells that support VT100 escape sequences, you'll need to make several changes to the library. The overall strategy includes:
+
+1. Identifying Unix-specific code and providing corresponding Windows implementations.
+2. Replacing or conditionally compiling Unix system headers with Windows equivalents.
+3. Adjusting the build process to support Windows compilation.
+
+Here is a high-level summary of the necessary changes:
+
+1. Implement Windows-specific terminal setup and teardown:
+   - Use `GetConsoleMode` and `SetConsoleMode` to enable VT100 escape sequences in the Windows console (ENABLE_VIRTUAL_TERMINAL_PROCESSING flag).
+   - In `tb_init`, `tb_shutdown`, and `init_term_attrs`, add Windows-specific code to configure the console.
+
+2. Replace or conditionalize Unix headers with Windows equivalents:
+   - Replace `<unistd.h>` with `<windows.h>`.
+   - Define types and constants missing from Windows that are used in Unix code (like `PATH_MAX`).
+
+3. Replace Unix-specific calls to `ioctl`, `tcgetattr`, and `tcsetattr` with Windows calls to configure the console mode.
+
+4. Replace the Unix `pipe` and `sigaction` setup for resize handling with a Windows mechanism for detecting window size changes, such as polling the console for size changes or handling window events.
+
+5. Replace Unix-specific input reading with Windows-specific functions:
+   - Use the `ReadConsoleInput` or `ReadFile` function to read input from the console.
+
+6. Replace any Unix system call error handling with Windows-specific error handling using `GetLastError`.
+
+7. Conditionally compile or separate the code depending on the platform (Unix vs Windows):
+   - Use preprocessor macros like `#ifdef _WIN32` to conditionally include platform-specific sections in the code.
+
+8. For building, adjust the Makefile, build script, or provide instructions for compiling on Windows:
+   - Include Windows header paths and link with Windows libraries as needed (e.g., `-lkernel32` for linking with Kernel32.lib).
+
+Remember that for more complex changes, especially when dealing with I/O and terminal behavior, testing on actual Windows systems is crucial to ensure correctness and to catch platform-specific behavior.
+
+You will need to use a Windows development environment (e.g., Visual Studio, MinGW, or any other C/C++ compiler for Windows) to adapt the code. Also, you will likely need to test and possibly iterate on the implementation to make sure it works correctly under Windows.
+
+1. Windows-specific initialization:
+
+```c
+#ifdef _WIN32
+#include <windows.h>
+
+int enable_vt_mode() {
+    // Get the console handle
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) {
+        return TB_ERR_INIT_OPEN;
+    }
+
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) {
+        return TB_ERR_INIT_OPEN;
+    }
+
+    // Enable Virtual Terminal Processing
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(hOut, dwMode)) {
+        return TB_ERR_INIT_OPEN;
+    }
+
+    return TB_OK;
+}
+#endif
+
+// In your tb_init function, call enable_vt_mode as the first thing for Windows
+```
+
+2. Use preprocessor conditions to avoid including Unix headers on Windows and vice versa:
+
+```c
+#ifndef _WIN32
+// Include Unix-specific headers
+#include <unistd.h>
+#include <termios.h>
+// Other Unix headers...
+#else
+// Include Windows-specific headers
+#include <windows.h>
+// Maybe define some constants that are not defined by default on Windows
+#endif
+```
+
+3. Replace Unix-specific calls, like `ioctl`, with Windows-specific calls, possibly wrapped in functions:
+
+```c
+#ifdef _WIN32
+int set_console_mode() {
+    // Similar code as before wrapped in a function
+    return enable_vt_mode();
+}
+#else
+int set_terminal_mode() {
+    // Unix-specific functionality for terminal attributes
+}
+#endif
+```
+
+4. Handle console resizing in a Windows-specific way:
+
+```c
+#ifdef _WIN32
+void check_console_resize() {
+    // Implement Windows-specific check for window resize events
+}
+#else
+void handle_resize(int sig) {
+    // Unix-specific resize handling
+}
+#endif
+```
+
+5. Adjust input reading functionality:
+
+```c
+#ifdef _WIN32
+void read_input() {
+    // Use Windows-specific functions such as ReadConsoleInput or ReadFile
+}
+#else
+void read_input() {
+    // Use Unix-specific input handling
+}
+#endif
+```
+
+6. Compile with a Windows-targeted C++ compiler:
+Make sure to set up your build system to target Windows and use something like `cmake` or a Windows-specific make program.
+
+Please note that adapting a Unix-based codebase for Windows often involves iterative development and testing to ensure the code works across both platforms reliably. Additionally, the code fragments and guidelines are just skeletons and hints; implementing the full compatibility requires careful design and problem-solving to fit these changes into the library's larger context.
