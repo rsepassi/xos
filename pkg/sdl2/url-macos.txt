@@ -1,0 +1,2 @@
+https://github.com/rsepassi/xos/releases/download/mac-os-sdk-14.2/macsdk.tar.xz
+86348fc5bc27bc2910c17b83ed9ff6af7ade0b84864c4de456ce6067f0667fa5

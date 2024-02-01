@@ -1,3 +1,4 @@
+// from https://github.com/andrewrk/SDL
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
@@ -27,6 +28,7 @@ pub fn build(b: *std.Build) void {
             lib.linkSystemLibrary("ole32");
         },
         .macos => {
+            if (b.sysroot == null) @panic("Must provide a sysroot for mac compilation");
             lib.addCSourceFiles(.{ .files = &darwin_src_files });
             lib.addCSourceFiles(.{
                 .files = &objective_c_src_files,

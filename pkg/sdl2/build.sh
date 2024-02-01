@@ -8,7 +8,9 @@ cp $BUILD_PKG/build.zig .
 
 if [ "$ARCH_OS" = "macos" ]
 then
-  macsdk=$(system xcrun --sdk macosx --show-sdk-path)
+  fetch_urltxt $BUILD_PKG/url-macos.txt macsdk.tar.xz
+  macsdk=$(mktemp -d)
+  untar $BUILD_DEPS/macsdk.tar.xz $macsdk
   flags="--sysroot $macsdk"
 fi
 
