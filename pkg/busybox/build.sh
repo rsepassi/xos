@@ -132,7 +132,7 @@ CFLAGS="$cflags" \
 done
 
 echo "linking..."
-zig cc --target=$ARCH -s -O$OPT -o busybox \
+cc --target=$ARCH -s -O$OPT -o busybox \
   $(echo $objs) $ldflags -lc
 
 mkdir -p $BUILD_OUT/bin

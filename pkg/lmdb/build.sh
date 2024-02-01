@@ -9,11 +9,9 @@ untar $BUILD_DEPS/lmdb.tar.gz $src 3
 
 # lib
 cd $src
-zig cc --target=$ARCH -o mdb.o -c mdb.c
-zig cc --target=$ARCH -o midl.o -c midl.c
-zig ar rcs liblmdb.a \
-    mdb.o \
-    midl.o
+cc --target=$ARCH -o mdb.o -c mdb.c
+cc --target=$ARCH -o midl.o -c midl.c
+ar rcs liblmdb.a mdb.o midl.o
 
 # install
 out=$BUILD_OUT

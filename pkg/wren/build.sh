@@ -11,14 +11,14 @@ untar $BUILD_DEPS/wren.tar.gz $src
 cd $src/src/vm
 cflags="-I $src/src/include -DWREN_OPT_META=0 -DWREN_OPT_RANDOM=0"
 rm -f *.a *.o
-zig cc --target=$ARCH $cflags -o wren_compiler.o -c wren_compiler.c
-zig cc --target=$ARCH $cflags -o wren_core.o -c wren_core.c
-zig cc --target=$ARCH $cflags -o wren_debug.o -c wren_debug.c
-zig cc --target=$ARCH $cflags -o wren_primitive.o -c wren_primitive.c
-zig cc --target=$ARCH $cflags -o wren_utils.o -c wren_utils.c
-zig cc --target=$ARCH $cflags -o wren_value.o -c wren_value.c
-zig cc --target=$ARCH $cflags -o wren_vm.o -c wren_vm.c
-zig ar rcs libwren.a \
+cc --target=$ARCH $cflags -o wren_compiler.o -c wren_compiler.c
+cc --target=$ARCH $cflags -o wren_core.o -c wren_core.c
+cc --target=$ARCH $cflags -o wren_debug.o -c wren_debug.c
+cc --target=$ARCH $cflags -o wren_primitive.o -c wren_primitive.c
+cc --target=$ARCH $cflags -o wren_utils.o -c wren_utils.c
+cc --target=$ARCH $cflags -o wren_value.o -c wren_value.c
+cc --target=$ARCH $cflags -o wren_vm.o -c wren_vm.c
+ar rcs libwren.a \
     wren_compiler.o \
     wren_core.o \
     wren_debug.o \

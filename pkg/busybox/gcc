@@ -22,4 +22,4 @@ rewrite_flags() {
   echo "$transformed_args"
 }
 
-zig cc $(rewrite_flags "$@")
+cc $(rewrite_flags "$@")
