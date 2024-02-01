@@ -73,7 +73,7 @@ mv
 realpath
 "
 
-bootstrap0_mac="
+bootstrap0_macos="
 shasum5.34
 "
 bootstrap0_alpine="
@@ -122,12 +122,39 @@ EOF
   chmod +x $tools_dir/internal_mktemp
 }
 
+link_bootstrap0_os() {
+  case $(uname) in
+    Linux)
+      grep -q Alpine /etc/os-release
+      if [ $? = 0 ]
+      then
+        link_system_tools "$bootstrap0_alpine"
+      else
+        link_system_tools "$bootstrap0_debian"
+      fi
+      ;;
+    Darwin)
+      link_system_tools "$bootstrap0_macos"
+      cat <<EOF > $tools_dir/sha256sum
+#!/usr/bin/env sh
+set -e
+shasum5.34 -a 256 \$@
+EOF
+      chmod +x $tools_dir/sha256sum
+      ;;
+    *)
+      >&2 echo "unrecognized os $(uname), bootstrap may fail"
+      ;;
+  esac
+}
+
 if [ -e $tools_dir/.bootstrap0 ]
 then
   # build zig
   rm -rf $tools_dir
   mkdir -p $tools_dir
   link_system_tools "$bootstrap0_tools"
+  link_bootstrap0_os
   link_system_mktemp
   link_internal_tools
   echo "bootstrap0" > $tools_dir/.xos
@@ -138,6 +165,7 @@ then
   rm -rf $tools_dir
   mkdir -p $tools_dir
   link_system_tools "$bootstrap1_tools"
+  link_bootstrap0_os
   link_system_mktemp
   ln -s $zigpath $tools_dir
   link_internal_tools
