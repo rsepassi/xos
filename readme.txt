@@ -51,3 +51,11 @@ tools/
   need: build a dependency and link it into $BUILD_DEPS
   pkgid: compute identifier for pkg build
   untar: clean tar extraction
+
+---
+
+todo
+
+* dynamic dependency tracking
+* improve logging and error reporting
+* additional command line tools (e.g. dry run, etc)
