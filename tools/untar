@@ -1,10 +1,15 @@
 #!/usr/bin/env sh
 set -e
 
-src=$1
+src=$(realpath $1)
 dst=$2
 strip=${3:-1}
 
 rm -rf $dst
 mkdir -p $dst
+
+if [ -z "$src" ]
+then
+  >&2 echo "missing src for tar, dst=$dst"
+fi
 tar xf $src -C $dst --strip-components=$strip

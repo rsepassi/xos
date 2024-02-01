@@ -32,7 +32,7 @@ EOF
 fi
 if [ ! -e $BUILD_PKG/build.sh ]
 then
-  echo "unrecognized pkg $pkg, missing build.sh"
+  >&2 echo "unrecognized pkg $pkg, missing build.sh"
   exit 1
 fi
 
@@ -114,9 +114,9 @@ EOF
   # run build script
   logfile=$BUILD_OUT/build.log
   fail() {
-    cat $logfile
-    echo ""
-    echo "error building pkg $pkg $pkgid"
+    >&2 cat $logfile
+    >&2 echo ""
+    >&2 echo "error building pkg $pkg $pkgid"
     exit 1
   }
 

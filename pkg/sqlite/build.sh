@@ -6,7 +6,7 @@ OPT=${OPT:-s}
 fetch_urltxt $BUILD_PKG/url.txt sqlite.zip
 src=$(mktemp -d)
 cd $src
-unzip $BUILD_DEPS/sqlite.zip
+unzip $(realpath $BUILD_DEPS/sqlite.zip)
 
 # lib
 cd $src/sqlite-amalgamation-3450000
