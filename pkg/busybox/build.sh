@@ -21,8 +21,8 @@ else
 fi
 
 
-fetch_urltxt $BUILD_PKG/$urlfile $BUILD_DL/$tarfile
-untar $BUILD_DL/$tarfile $src
+fetch_urltxt $BUILD_PKG/$urlfile $tarfile
+untar $BUILD_DEPS/$tarfile $src
 
 cd $src
 

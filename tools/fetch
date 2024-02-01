@@ -2,17 +2,22 @@
 set -e
 
 src=$1
-dst=$2
+name=$2
 hash=$3
 
-
-mkdir -p $(dirname $dst)
-if [ ! -e $dst ]
+dst=$BUILD_CACHE/$hash/file
+if [ -e $dst ]
 then
-  wget --no-check-certificate -q "$src" -O "$dst.tmp"
-  mv "$dst.tmp" "$dst"
+  mkdir -p $BUILD_DEPS
+  ln -s $dst $BUILD_DEPS/$name
+  exit 0
 fi
-hash_got="$(sha256sum $dst | cut -d ' ' -f1)"
+
+tmpd=$(mktemp -d)
+
+wget --no-check-certificate -q "$src" -O $tmpd/file
+
+hash_got="$(sha256sum $tmpd/file | cut -d ' ' -f1)"
 if [ "$hash" != "$hash_got" ]
 then
   echo "bad hash for $src"
@@ -20,3 +25,7 @@ then
   echo "got $hash_got"
   exit 1
 fi
+
+mkdir -p $BUILD_CACHE/$hash
+echo "$src" > $BUILD_CACHE/$hash/src
+mv $tmpd/file $dst

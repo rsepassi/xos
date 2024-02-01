@@ -5,11 +5,11 @@ ARCH=${ARCH:-native}
 OPT=${OPT:-s}
 
 # fetch
-fetch_urltxt $BUILD_PKG/url.txt $BUILD_DL/md4c.tar.gz
+fetch_urltxt $BUILD_PKG/url.txt md4c.tar.gz
 
 # untar
 src=$(mktemp -d)
-untar $BUILD_DL/md4c.tar.gz $src
+untar $BUILD_DEPS/md4c.tar.gz $src
 
 # md4c library
 cd $src/src

@@ -85,16 +85,20 @@ then
   mkdir -p $BUILD_OUT/out $BUILD_OUT/tmp
   echo "$pkgid_text" > $BUILD_OUT/pkgid
 
-  # build deps
+  # build static deps
   BUILD_DEPS=$BUILD_OUT/deps
   if [ -e $BUILD_PKG/deps.txt ]
   then
     mkdir -p $BUILD_DEPS
     cp $BUILD_PKG/deps.txt $BUILD_OUT
-    BUILD_DEPS=$BUILD_DEPS \
-    BUILD_CACHE=$BUILD_CACHE \
-      $BUILD_ROOT/tools/need \
-      "$(cat $BUILD_PKG/deps.txt)"
+    for dep in $(cat $BUILD_PKG/deps.txt)
+    do
+      ARCH=$ARCH \
+      OPT=$OPT \
+      BUILD_DEPS=$BUILD_DEPS \
+      BUILD_CACHE=$BUILD_CACHE \
+        $BUILD_ROOT/tools/need $dep
+    done
   fi
 
   # pkg-specific tools
@@ -124,7 +128,6 @@ EOF
     ARCH_HOST=$ARCH_HOST \
     OPT=$OPT \
     BUILD_CACHE=$BUILD_CACHE \
-    BUILD_DL=$BUILD_ROOT/build/dl \
     BUILD_OUT=$BUILD_OUT/out \
     BUILD_DEPS=$BUILD_DEPS \
     BUILD_PKG=$BUILD_PKG \

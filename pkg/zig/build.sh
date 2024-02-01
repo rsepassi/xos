@@ -9,6 +9,6 @@ file="zig-$ARCH_OS-$ARCH_ISA.tar.xz"
 decomp=untar
 fi
 
-fetch_urltxt $urlf $BUILD_DL/$file
-$decomp $BUILD_DL/$file $BUILD_OUT
+fetch_urltxt $urlf $file
+$decomp $BUILD_DEPS/$file $BUILD_OUT
 

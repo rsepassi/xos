@@ -4,9 +4,9 @@ ARCH=${ARCH:-native}
 OPT=${OPT:-s}
 
 file=samurai.tar.gz
-fetch_urltxt $BUILD_PKG/url.txt $BUILD_DL/$file
+fetch_urltxt $BUILD_PKG/url.txt $file
 src=$(mktemp -d)
-untar $BUILD_DL/$file $src
+untar $BUILD_DEPS/$file $src
 cd $src
 
 mkdir $BUILD_OUT/bin

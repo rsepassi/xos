@@ -3,9 +3,9 @@ set -e
 ARCH=${ARCH:-native}
 OPT=${OPT:-s}
 
-fetch_urltxt $BUILD_PKG/url.txt $BUILD_DL/lmdb.tar.gz
+fetch_urltxt $BUILD_PKG/url.txt lmdb.tar.gz
 src=$(mktemp -d)
-untar $BUILD_DL/lmdb.tar.gz $src 3
+untar $BUILD_DEPS/lmdb.tar.gz $src 3
 
 # lib
 cd $src
