@@ -24,13 +24,38 @@ link_internal_tools() {
   done
 }
 
+add_system_commands() {
+  cat <<EOF > $tools_dir/system
+#!/usr/bin/env sh
+set -e
+cmd=\$(PATH=$PATH which \$1)
+shift
+\$cmd \$@
+EOF
+  chmod +x $tools_dir/system
+
+  cat <<EOF > $tools_dir/system_export
+#!/usr/bin/env sh
+set -e
+export PATH=$PATH
+\$@
+EOF
+  chmod +x $tools_dir/system_export
+}
+
+# for bootstrap0_tools, need
+# if mac
+# * sha256sum wrapper over shasum5.34/shasum5.30
+# if alpine linux
+# * apk add make
+# if debian/ubuntu
+# * apt-get install wget xz-utils make bzip2
+
 bootstrap0_tools="
 grep
 cut
 sh
 sort
-sha256sum
-shasum
 find
 rm
 mkdir
@@ -43,6 +68,21 @@ dirname
 tar
 touch
 ln
+wget
+mv
+realpath
+"
+
+bootstrap0_mac="
+shasum5.34
+"
+bootstrap0_alpine="
+ssl_client
+sha256sum
+"
+bootstrap0_debian="
+xz
+sha256sum
 "
 
 bootstrap1_tools="
@@ -50,7 +90,6 @@ $bootstrap0_tools
 cp
 make
 sed
-mv
 cmp
 sleep
 tr
@@ -60,22 +99,36 @@ awk
 wc
 "
 
+link_system_tools() {
+  for tool in $1
+  do
+    srcpath=$(which $tool || echo "")
+    if [ -z "$srcpath" ]
+    then
+      >&2 echo "tool $tool does not exist, needed for xos bootstrap"
+      exit 1
+    fi
+    ln -s $srcpath $tools_dir
+  done
+}
+
+link_system_mktemp() {
+  sysmktemp=$(which mktemp)
+  cat <<EOF > $tools_dir/internal_mktemp
+#!/usr/bin/env sh
+set -e
+$sysmktemp \$@
+EOF
+  chmod +x $tools_dir/internal_mktemp
+}
+
 if [ -e $tools_dir/.bootstrap0 ]
 then
   # build zig
   rm -rf $tools_dir
   mkdir -p $tools_dir
-  for tool in $bootstrap0_tools
-  do
-    srcpath=$(which $tool || echo "")
-    if [ -z "$srcpath" ]
-    then
-      >&2 echo "tool $tool does not exist"
-      exit 1
-    fi
-    ln -s $srcpath $tools_dir
-  done
-  ln -s $(which mktemp) $tools_dir/internal_mktemp
+  link_system_tools "$bootstrap0_tools"
+  link_system_mktemp
   link_internal_tools
   echo "bootstrap0" > $tools_dir/.xos
 elif [ -e $tools_dir/.bootstrap1 ]
@@ -84,17 +137,8 @@ then
   zigpath=$(realpath $tools_dir/zig)
   rm -rf $tools_dir
   mkdir -p $tools_dir
-  for tool in $bootstrap1_tools
-  do
-    srcpath=$(which $tool || echo "")
-    if [ -z "$srcpath" ]
-    then
-      >&2 echo "tool $tool does not exist"
-      exit 1
-    fi
-    ln -s $srcpath $tools_dir
-  done
-  ln -s $(which mktemp) $tools_dir/internal_mktemp
+  link_system_tools "$bootstrap1_tools"
+  link_system_mktemp
   ln -s $zigpath $tools_dir
   link_internal_tools
   echo "bootstrap1" > $tools_dir/.xos
@@ -202,23 +246,7 @@ $BUILD_CACHE/$bbid/out/bin/busybox mktemp \$@
 EOF
   chmod +x $tools_dir/internal_mktemp
 
-  cat <<EOF > $tools_dir/system
-#!/usr/bin/env sh
-set -e
-cmd=\$(PATH=$PATH which \$1)
-shift
-\$cmd \$@
-EOF
-  chmod +x $tools_dir/system
-
-  cat <<EOF > $tools_dir/system_export
-#!/usr/bin/env sh
-set -e
-export PATH=$PATH
-\$@
-EOF
-  chmod +x $tools_dir/system_export
-
+  add_system_commands
   link_internal_tools
 
   # xos id

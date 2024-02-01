@@ -29,3 +29,6 @@ fi
 mkdir -p $BUILD_CACHE/$hash
 echo "$src" > $BUILD_CACHE/$hash/src
 mv $tmpd/file $dst
+
+mkdir -p $BUILD_DEPS
+ln -s $dst $BUILD_DEPS/$name
