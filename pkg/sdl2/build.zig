@@ -15,6 +15,7 @@ pub fn build(b: *std.Build) void {
     lib.addIncludePath(.{ .path = "include" });
     lib.addCSourceFiles(.{ .files = &generic_src_files });
     lib.defineCMacro("SDL_USE_BUILTIN_OPENGL_DEFINITIONS", "1");
+    lib.defineCMacro("_THREAD_SAFE", "1");
     lib.linkLibC();
     switch (t.os.tag) {
         .windows => {
@@ -47,6 +48,9 @@ pub fn build(b: *std.Build) void {
             lib.linkFramework("Foundation");
             lib.addSystemIncludePath(.{ .path = b.pathJoin(&.{ b.sysroot.?, "usr/include" }) });
             lib.addFrameworkPath(.{ .path = b.pathJoin(&.{ b.sysroot.?, "System/Library/Frameworks" }) });
+        },
+        .linux => {
+            lib.addCSourceFiles(.{ .files = &linux_src_files });
         },
         else => {
             const config_header = b.addConfigHeader(.{
