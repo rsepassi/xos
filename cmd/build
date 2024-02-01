@@ -119,6 +119,8 @@ EOF
     echo "error building pkg $pkg $pkgid"
     exit 1
   }
+
+  cd $BUILD_OUT/tmp
   env -i \
     PATH="$pkg_tools_dir:$PATH" \
     XDG_CACHE_HOME=$BUILD_ROOT/build/xdgcache \
