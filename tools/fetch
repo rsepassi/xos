@@ -20,6 +20,9 @@ wget --no-check-certificate -q "$src" -O $tmpd/file
 hash_got="$(sha256sum $tmpd/file | cut -d ' ' -f1)"
 if [ "$hash" != "$hash_got" ]
 then
+  mkdir -p $BUILD_CACHE/$hash_got
+  echo "$src" > $BUILD_CACHE/$hash_got/src
+  mv $tmpd/file $BUILD_CACHE/$hash_got
   >&2 echo "bad hash for $src"
   >&2 echo "expected $hash"
   >&2 echo "got $hash_got"
