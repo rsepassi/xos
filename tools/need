@@ -1,10 +1,18 @@
 #!/usr/bin/env sh
 set -e
 
-pkgs="$1"
+pkg=$1
+name=${2:-$pkg}
 
-for pkg in $pkgs
-do
-  pkgid=$(build $pkg)
-  ln -s $BUILD_CACHE/$pkgid/out $BUILD_DEPS/$pkg
-done
+dst=$BUILD_DEPS/$name
+if [ -d $dst ]
+then
+  echo "error in need: destination already exists. consider passing a name."
+  echo "dst=$dst"
+  exit 1
+fi
+
+pkgid=$(ARCH=$ARCH OPT=$OPT build $pkg)
+
+mkdir -p $BUILD_DEPS
+ln -s $BUILD_CACHE/$pkgid/out $dst
