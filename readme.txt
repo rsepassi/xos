@@ -62,4 +62,3 @@ todo
 * binary releases of xos for macos, linux, windows
 * additional command line tools (e.g. dry run, etc)
 * add make
-* add cc, ar, ... aliases with path seals
