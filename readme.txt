@@ -57,5 +57,8 @@ tools/
 todo
 
 * dynamic dependency tracking
-* improve logging and error reporting
+* binary releases of xos for macos, linux, windows
 * additional command line tools (e.g. dry run, etc)
+* add a system command to escape path seal explicitly
+* add make
+* add cc, ar, ... aliases with path seals
