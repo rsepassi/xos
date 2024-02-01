@@ -1,0 +1,4 @@
+Linux not working
+needs various headers, e.g. libudev. can probably package these
+
+Mac+Windows build but downstream link not ironed out

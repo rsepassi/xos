@@ -28,6 +28,8 @@ rm -rf ./include/apache2
 mkdir -p lib/
 cp $libs/libobjc.tbd ./lib/
 cp $libs/libobjc.A.tbd ./lib/
+cp -L $libs/libiconv.tbd ./lib/
+cp -L $libs/libcharset.1.tbd ./lib/
 
 # General frameworks
 cp -RL $frameworks/CoreFoundation.framework ./Frameworks/CoreFoundation.framework
