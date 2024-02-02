@@ -11,14 +11,14 @@ tools_dir=$1
 link_internal_tools() {
   # symlink tools
   internal_tools="
-  $BUILD_ROOT/cmd/build
-  $BUILD_ROOT/tools/fetch
-  $BUILD_ROOT/tools/cc
-  $BUILD_ROOT/tools/ar
-  $BUILD_ROOT/tools/fetch_urltxt
-  $BUILD_ROOT/tools/need
-  $BUILD_ROOT/tools/pkgid
-  $BUILD_ROOT/tools/untar
+  $XOS_ROOT/cmd/build
+  $XOS_ROOT/tools/fetch
+  $XOS_ROOT/tools/cc
+  $XOS_ROOT/tools/ar
+  $XOS_ROOT/tools/fetch_urltxt
+  $XOS_ROOT/tools/need
+  $XOS_ROOT/tools/pkgid
+  $XOS_ROOT/tools/untar
   "
   for tool in $internal_tools
   do
@@ -210,7 +210,7 @@ else
   if [ -z "$XOS_RELEASE_ZIG" ]
   then
     touch $tools_dir/.bootstrap0
-    zigid=$(ARCH_HOST=$ARCH_HOST ARCH= OPT=s $BUILD_ROOT/cmd/build zig)
+    zigid=$(ARCH_HOST=$ARCH_HOST ARCH= OPT=s $XOS_ROOT/cmd/build zig)
   else
     zigid=$XOS_RELEASE_ZIG
   fi
@@ -219,7 +219,7 @@ else
   then
     ln -s $BUILD_CACHE/$zigid/out/zig $tools_dir
     touch $tools_dir/.bootstrap1
-    bbid=$(ARCH= OPT=s $BUILD_ROOT/cmd/build busybox)
+    bbid=$(ARCH= OPT=s $XOS_ROOT/cmd/build busybox)
   else
     bbid=$XOS_RELEASE_BUSYBOX
   fi
