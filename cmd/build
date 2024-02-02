@@ -1,33 +1,82 @@
 #!/usr/bin/env sh
 set -e
 
-# get xos/ root directory
-get_buildroot() {
-  containing_dir=$(dirname $0)
-  if [ "$(basename $containing_dir)" = "cmd" ]
-  then
-    # called cmd/build
-    dirname $containing_dir
-  else
-    # called build/tools/build
-    dirname $(dirname $containing_dir)
-  fi
-}
-BUILD_ROOT=$(realpath $(get_buildroot))
-BUILD_CACHE=$BUILD_ROOT/build/cache
-
-# process arguments
-pkg=$1
-ARGS="$@"
-BUILD_PKG=$BUILD_ROOT/pkg/$pkg
-if [ -z "$pkg" ]
-then
+usage() {
   cat <<EOF
 usage: ARCH= OPT= build pkgname
 
 echoes pkgid on successful build
 build artifacts for last successful build available in build/out/
+
+example:
+  ARCH=aarch64-linux-musl OPT=s build sqlite
+
+Env vars:
+  ARCH= zig target triple
+  OPT={0, 1, 2, 3, fast, s, z} optimization level
+  BUILD= directory for build artifacts, defaults to ./build
+  PKG= pkg/ directory path, defaults to ./pkg
+  DRY={1,0} if 1, log info and exit
 EOF
+}
+
+# get xos/ root directory
+get_xosroot() {
+  if [ ! -z "$XOS_ROOT" ]
+  then
+    echo "$XOS_ROOT"
+  else
+    containing_dir=$(dirname $0)
+    if [ "$(basename $containing_dir)" = "cmd" ]
+    then
+      # called cmd/build
+      realpath $(dirname $containing_dir)
+    else
+      # called build/tools/build
+      realpath $(dirname $(dirname $containing_dir))
+    fi
+  fi
+}
+XOS_ROOT=$(get_xosroot)
+
+get_buildroot() {
+  if [ ! -z "$BUILD_ROOT" ]
+  then
+    echo "$BUILD_ROOT"
+  elif [ ! -z "$BUILD" ]
+  then
+    echo "$BUILD"
+  else
+    echo "$PWD/build"
+  fi
+}
+BUILD_ROOT=$(get_buildroot)
+BUILD_CACHE=$BUILD_ROOT/cache
+
+# get pkg dir
+get_pkgroot() {
+  if [ ! -z "$XOS_PKG_ROOT" ]
+  then
+    echo "$XOS_PKG_ROOT"
+  elif [ ! -z "$PKG" ]
+  then
+    echo "$PKG"
+  elif [ -d "$PWD/pkg" ]
+  then
+    echo "$PWD/pkg"
+  else
+    >&2 echo "could not find ./pkg dir. specify PKG= or run next to a pkg/ dir."
+  fi
+}
+XOS_PKG_ROOT=$(get_pkgroot)
+
+# process arguments
+pkg=$1
+ARGS="$@"
+BUILD_PKG=$XOS_PKG_ROOT/$pkg
+if [ -z "$pkg" ]
+then
+  usage
   exit 1
 fi
 if [ ! -e $BUILD_PKG/build.sh ]
@@ -37,10 +86,10 @@ then
 fi
 
 # seal PATH
-tools_dir=$BUILD_ROOT/build/tools
-BUILD_ROOT=$BUILD_ROOT \
+tools_dir=$BUILD_ROOT/tools
+XOS_ROOT=$XOS_ROOT \
 BUILD_CACHE=$BUILD_CACHE \
-  $BUILD_ROOT/tools/link_tools $tools_dir
+  $XOS_ROOT/tools/link_tools $tools_dir
 export PATH="$tools_dir"
 
 # Host and target ARCH
@@ -80,20 +129,56 @@ then
 fi
 
 # identify output hash
+XOS_ID=$(sha256sum $tools_dir/.xos | cut -d ' ' -f1)
 pkgid_text=$(
-  XOS=$(sha256sum $tools_dir/.xos | cut -d ' ' -f1) \
+  XOS=$XOS_ID \
   BUILD_PKG=$BUILD_PKG \
   ARCH=$ARCH \
   OPT=$OPT \
   ARGS="$ARGS" \
   DEPS="$deps_static" \
-  $BUILD_ROOT/tools/pkgid $pkg
+  $XOS_ROOT/tools/pkgid $pkg
 )
 pkgid=$(echo $pkgid_text | sha256sum | cut -d ' ' -f1)
 BUILD_OUT=$BUILD_CACHE/$pkgid
 
+if [ -e $BUILD_OUT/.ok ]
+then
+  rebuild=0
+else
+  rebuild=1
+fi
+
+if [ $DRY = 1 ]
+then
+  >&2 cat <<EOF
+---
+BUILD_PKG=$BUILD_PKG
+BUILD_OUT=$BUILD_OUT
+ARCH=$ARCH
+ARCH_ISA=$ARCH_ISA
+ARCH_OS=$ARCH_OS
+ARCH_HOST=$ARCH_HOST
+ARCH_HOST_ISA=$ARCH_HOST_ISA
+ARCH_HOST_OS=$ARCH_HOST_OS
+OPT=$OPT
+OPT_ZIG=$OPT_ZIG
+XOS_ROOT=$XOS_ROOT
+XOS_PKG_ROOT=$XOS_PKG_ROOT
+BUILD_ROOT=$BUILD_ROOT
+BUILD_CACHE=$BUILD_CACHE
+BUILD_DEPS=$BUILD_DEPS
+XOS_ID=$XOS_ID
+PATH=$PATH
+rebuild?=$rebuild
+---
+EOF
+  echo $pkgid
+  exit 0
+fi
+
 # build if necessary
-if [ ! -e $BUILD_OUT/.ok ]
+if [ $rebuild = 1 ]
 then
   rm -rf $BUILD_OUT
   mkdir -p $BUILD_OUT/out $BUILD_OUT/tmp
@@ -111,7 +196,7 @@ then
       OPT=$OPT \
       BUILD_DEPS=$BUILD_DEPS \
       BUILD_CACHE=$BUILD_CACHE \
-        $BUILD_ROOT/tools/need $dep
+        $XOS_ROOT/tools/need $dep
     done
   fi
 
@@ -136,8 +221,8 @@ EOF
 
   cd $BUILD_OUT/tmp
   env -i \
+    DRY=$DRY \
     PATH="$pkg_tools_dir:$PATH" \
-    XDG_CACHE_HOME=$BUILD_ROOT/build/xdgcache \
     ARCH=$ARCH \
     ARCH_ISA=$ARCH_ISA \
     ARCH_OS=$ARCH_OS \
@@ -146,10 +231,14 @@ EOF
     ARCH_HOST_OS=$ARCH_HOST_OS \
     OPT=$OPT \
     OPT_ZIG=$OPT_ZIG \
+    XOS_ROOT=$XOS_ROOT \
+    XOS_PKG_ROOT=$XOS_PKG_ROOT \
+    BUILD_ROOT=$BUILD_ROOT \
     BUILD_CACHE=$BUILD_CACHE \
     BUILD_OUT=$BUILD_OUT/out \
     BUILD_DEPS=$BUILD_DEPS \
     BUILD_PKG=$BUILD_PKG \
+    XDG_CACHE_HOME=$BUILD_ROOT/xdgcache \
   sh $BUILD_PKG/build.sh $ARGS > $logfile || fail
 
   # ok
@@ -157,8 +246,8 @@ EOF
 fi
 
 # link to build/out
-rm -f $BUILD_ROOT/build/out
-ln -s $BUILD_OUT/out $BUILD_ROOT/build/out
+rm -f $BUILD_ROOT/out
+ln -s $BUILD_OUT/out $BUILD_ROOT/out
 
 # echo id
 echo $pkgid
