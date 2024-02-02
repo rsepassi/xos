@@ -13,9 +13,9 @@ untar $BUILD_DEPS/md4c.tar.gz $src
 
 # md4c library
 cd $src/src
-cc --target=$ARCH -o entity.o -c entity.c
-cc --target=$ARCH -o md4c-html.o -c md4c-html.c
-cc --target=$ARCH -o md4c.o -c md4c.c -DMD4C_USE_UTF8
+cc --target=$ARCH -o entity.o -c entity.c -lc
+cc --target=$ARCH -o md4c-html.o -c md4c-html.c -lc
+cc --target=$ARCH -o md4c.o -c md4c.c -DMD4C_USE_UTF8 -lc
 ar rcs libmd4c.a entity.o md4c-html.o md4c.o
 
 # md2html binary
