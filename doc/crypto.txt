@@ -1,0 +1,34 @@
+https://monocypher.org
+  Monocypher is a cryptographic library. It provides functions for
+  authenticated encryption, hashing, password hashing and key derivation, key
+  exchange, and public key signatures.
+
+https://www.trustedfirmware.org/projects/mbed-tls/
+  Project implements cryptographic primitives, X.509 certificate manipulation
+  and the SSL/TLS and DTLS protocols.
+
+Signal protocol
+https://github.com/signalapp/libsignal
+
+Bitwarden crypto
+https://bitwarden.com/crypto.html
+
+Bitcoin crypto
+  https://github.com/libbtc/libbtc
+  https://github.com/bitcoin-core/secp256k1
+
+LetsEncrypt
+  https://letsencrypt.org/docs/client-options/
+    sh: https://github.com/Neilpang/acme.sh
+    C: https://github.com/ndilieto/uacme/
+       https://git.wolfsden.cz/acme-client-portable
+
+Secret sharing
+https://github.com/dsprenkels/sss
+
+Randomness
+https://github.com/dsprenkels/randombytes
+
+Education
+https://www.crypto101.io
+https://www.latacora.com/blog/2018/04/03/cryptographic-right-answers/

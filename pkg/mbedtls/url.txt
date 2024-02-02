@@ -1,0 +1,2 @@
+https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v3.5.2.tar.gz
+35890edf1a2c7a7e29eac3118d43302c3e1173e0df0ebaf5db56126dabe5bb05
