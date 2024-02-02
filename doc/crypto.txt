@@ -18,10 +18,15 @@ Bitcoin crypto
   https://github.com/bitcoin-core/secp256k1
 
 LetsEncrypt
+  https://letsencrypt.org/getting-started/
   https://letsencrypt.org/docs/client-options/
     sh: https://github.com/Neilpang/acme.sh
     C: https://github.com/ndilieto/uacme/
        https://git.wolfsden.cz/acme-client-portable
+
+TOTP
+  https://github.com/Theldus/Tiny2FA
+  https://github.com/Netthaw/TOTP-MCU
 
 Secret sharing
 https://github.com/dsprenkels/sss
