@@ -22,7 +22,7 @@ rewrite_flags() {
   echo "$transformed_args"
 }
 
-cc --target=$BB_BUILD_ARCH \
+zig cc --target=$BB_BUILD_ARCH \
   -DBB_GLOBAL_CONST='' \
   -Wno-unused-command-line-argument \
   -Wno-ignored-optimization-argument \
