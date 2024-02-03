@@ -1,6 +1,25 @@
 #!/usr/bin/env sh
 set -e
 
+XOS_PKG=$(realpath $(dirname $0))
+xos_root=$(mktemp -d)
+tools=$xos_root/tools
+mkdir -p $tools
+touch $xos_root/.xos
+cp $XOS_PKG/* $tools
+
+mktemp=$(which mktemp)
+cat <<EOF > $tools/internal_mktemp
+#!/usr/bin/env sh
+set -e
+$mktemp \$@
+EOF
+  chmod +x $tools/internal_mktemp
+
+XOS_BOOTSTRAP=1 $tools/build xos
+
+exit 0
+
 XOS_RELEASE_ZIG=
 XOS_RELEASE_BUSYBOX=
 
@@ -39,7 +58,7 @@ EOF
   cat <<EOF > $tools_dir/system_export
 #!/usr/bin/env sh
 set -e
-export PATH=$PATH
+export PATH="$PATH:\$PATH"
 \$@
 EOF
   chmod +x $tools_dir/system_export
