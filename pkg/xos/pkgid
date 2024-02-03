@@ -3,16 +3,16 @@ set -e
 
 pkg=$1
 
-cd $BUILD_PKG
-if [ -e $BUILD_PKG/manifest.txt ]
+cd "$BUILD_PKG"
+if [ -e "$BUILD_PKG/manifest.txt" ]
 then
   srcfiles() {
     echo manifest.txt
-    cat $BUILD_PKG/manifest.txt
+    cat "$BUILD_PKG/manifest.txt"
   }
-  srcfiles=$(srcfiles | sort)
+  srcfiles="$(srcfiles | sort)"
 else
-  srcfiles=$(find . -type f | cut -c3- | sort)
+  srcfiles="$(find . -type f | cut -c3- | sort)"
 fi
 srcfiles_hash="$(sha256sum $srcfiles)"
 

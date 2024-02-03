@@ -22,14 +22,14 @@ EOF
 
 # get xos/ root directory
 get_xosroot() {
-  if [ ! -z "$XOS_ROOT" ]
+  if [ -n "$XOS_ROOT" ]
   then
     echo "$XOS_ROOT"
   else
-    realpath $(dirname $(dirname $(realpath $0)))
+    realpath "$(dirname "$(dirname "$(realpath "$0")")")"
   fi
 }
-XOS_ROOT=$(get_xosroot)
+XOS_ROOT="$(get_xosroot)"
 
 if [ "$XOS_BOOTSTRAP" = 1 ]
 then
@@ -39,25 +39,25 @@ else
 fi
 
 get_buildroot() {
-  if [ ! -z "$BUILD_ROOT" ]
+  if [ -n "$BUILD_ROOT" ]
   then
     echo "$BUILD_ROOT"
-  elif [ ! -z "$BUILD" ]
+  elif [ -n "$BUILD" ]
   then
     realpath "$BUILD"
   else
     echo "$PWD/build"
   fi
 }
-BUILD_ROOT=$(get_buildroot)
-BUILD_CACHE=$BUILD_ROOT/cache
+BUILD_ROOT="$(get_buildroot)"
+BUILD_CACHE="$BUILD_ROOT/cache"
 
 # get pkg dir
 get_pkgroot() {
-  if [ ! -z "$XOS_PKG_ROOT" ]
+  if [ -n "$XOS_PKG_ROOT" ]
   then
     echo "$XOS_PKG_ROOT"
-  elif [ ! -z "$PKG" ]
+  elif [ -n "$PKG" ]
   then
     realpath "$PKG"
   elif [ -d "$PWD/pkg" ]
@@ -67,78 +67,91 @@ get_pkgroot() {
     >&2 echo "could not find ./pkg dir. specify PKG= or run next to a pkg/ dir."
   fi
 }
-XOS_PKG_ROOT=$(get_pkgroot)
+XOS_PKG_ROOT="$(get_pkgroot)"
 
 # process arguments
 pkg=$1
-ARGS="$@"
-BUILD_PKG=$XOS_PKG_ROOT/$pkg
+ARGS=$@
+BUILD_PKG="$XOS_PKG_ROOT/$pkg"
 if [ -z "$pkg" ]
 then
   usage
   exit 1
 fi
-if [ ! -e $BUILD_PKG/build.sh ]
+if [ ! -e "$BUILD_PKG/build.sh" ]
 then
   >&2 echo "unrecognized pkg $pkg, missing build.sh"
   exit 1
 fi
 
 # local tools
-tools_dir=$BUILD_ROOT/tools
-$XOS_ROOT/tools/link_tools $tools_dir
+tools_dir="$BUILD_ROOT/tools"
+"$XOS_ROOT/tools/link_tools" "$tools_dir"
 
 # Host and target ARCH
 ARCH_HOST=${ARCH_HOST:-$(zig targets | grep "\"triple\"" | cut -d '"' -f4)}
 ARCH=${ARCH:-$ARCH_HOST}
-ARCH_HOST_ISA=$(echo $ARCH_HOST | cut -d '-' -f1)
-ARCH_HOST_OS=$(echo $ARCH_HOST | cut -d '-' -f2 | cut -d '.' -f1)
-ARCH_ISA=$(echo $ARCH | cut -d '-' -f1)
-ARCH_OS=$(echo $ARCH | cut -d '-' -f2 | cut -d '.' -f1)
+ARCH_HOST_ISA=$(echo "$ARCH_HOST" | cut -d '-' -f1)
+ARCH_HOST_OS=$(echo "$ARCH_HOST" | cut -d '-' -f2 | cut -d '.' -f1)
+ARCH_ISA=$(echo "$ARCH" | cut -d '-' -f1)
+ARCH_OS=$(echo "$ARCH" | cut -d '-' -f2 | cut -d '.' -f1)
 
 # Optimizaton
 OPT=${OPT:-s}
 case $OPT in
-  0)
+  0|Debug)
+    OPT=0
     OPT_ZIG=Debug
     ;;
-  1)
+  1|Safe)
+    OPT=1
     OPT_ZIG=ReleaseSafe
     ;;
-  2|3|fast)
+  2|Fast)
+    OPT=2
+    OPT_ZIG=ReleaseFast
+    ;;
+  Small)
+    OPT=s
+    OPT_ZIG=ReleaseSmall
+    ;;
+  3|fast)
     OPT_ZIG=ReleaseFast
     ;;
   s|z)
     OPT_ZIG=ReleaseSmall
     ;;
+  *)
+    >&2 echo "unrecognized OPT=$OPT"
+    exit 1
+    ;;
 esac
 
 # static dependencies
 deps_static=""
-if [ -e $BUILD_PKG/deps.txt ]
+if [ -e "$BUILD_PKG/deps.txt" ]
 then
-  for dep in $(cat $BUILD_PKG/deps.txt)
-  do
-    depid=$(build $dep)
+  while IFS= read -r dep; do
+    depid="$(build "$dep")"
     deps_static="$deps_static\n$depid  $dep"
-  done
+  done < "$BUILD_PKG/deps.txt"
 fi
 
 # identify output hash
-XOS_ID=$(sha256sum $XOS_ROOT/.xos | cut -d ' ' -f1)
+XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
 pkgid_text=$(
-  XOS=$XOS_ID \
-  BUILD_PKG=$BUILD_PKG \
-  ARCH=$ARCH \
-  OPT=$OPT \
+  XOS="$XOS_ID" \
+  BUILD_PKG="$BUILD_PKG" \
+  ARCH="$ARCH" \
+  OPT="$OPT" \
   ARGS="$ARGS" \
   DEPS="$deps_static" \
-  $XOS_ROOT/tools/pkgid $pkg
+  "$XOS_ROOT/tools/pkgid" "$pkg"
 )
-pkgid=$(echo $pkgid_text | sha256sum | cut -d ' ' -f1)
-BUILD_OUT=$BUILD_CACHE/$pkgid
+pkgid="$(echo "$pkgid_text" | sha256sum | cut -d ' ' -f1)"
+BUILD_OUT="$BUILD_CACHE/$pkgid"
 
-if [ -e $BUILD_OUT/.ok ]
+if [ -e "$BUILD_OUT/.ok" ]
 then
   rebuild=0
 else
@@ -170,81 +183,80 @@ PATH=$PATH
 rebuild?=$rebuild
 ---
 EOF
-  echo $pkgid
+  echo "$pkgid"
   exit 0
 fi
 
 # build if necessary
-if [ $rebuild = 1 ]
+if [ "$rebuild" = 1 ]
 then
-  rm -rf $BUILD_OUT
-  mkdir -p $BUILD_OUT/out $BUILD_OUT/tmp
-  echo "$pkgid_text" > $BUILD_OUT/pkgid
+  rm -rf "$BUILD_OUT"
+  mkdir -p "$BUILD_OUT/out" "$BUILD_OUT/tmp"
+  echo "$pkgid_text" > "$BUILD_OUT/pkgid"
 
   # build static deps
-  BUILD_DEPS=$BUILD_OUT/deps
-  if [ -e $BUILD_PKG/deps.txt ]
+  BUILD_DEPS="$BUILD_OUT/deps"
+  if [ -e "$BUILD_PKG/deps.txt" ]
   then
-    mkdir -p $BUILD_DEPS
-    cp $BUILD_PKG/deps.txt $BUILD_OUT
-    for dep in $(cat $BUILD_PKG/deps.txt)
-    do
-      ARCH=$ARCH \
-      OPT=$OPT \
-      BUILD_DEPS=$BUILD_DEPS \
-      BUILD_CACHE=$BUILD_CACHE \
-        $XOS_ROOT/tools/need $dep
-    done
+    mkdir -p "$BUILD_DEPS"
+    cp "$BUILD_PKG/deps.txt" "$BUILD_OUT"
+    while IFS= read -r dep; do
+      ARCH="$ARCH" \
+      OPT="$OPT" \
+      BUILD_DEPS="$BUILD_DEPS" \
+      BUILD_CACHE="$BUILD_CACHE" \
+        "$XOS_ROOT/tools/need" "$dep"
+    done < "$BUILD_PKG/deps.txt"
   fi
 
   # pkg-specific tools
-  pkg_tools_dir=$BUILD_OUT/tools
-  mkdir -p $pkg_tools_dir
-  cat <<EOF > $pkg_tools_dir/mktemp
+  pkg_tools_dir="$BUILD_OUT/tools"
+  mkdir -p "$pkg_tools_dir"
+  cat <<EOF > "$pkg_tools_dir/mktemp"
 #!/usr/bin/env sh
 set -e
-internal_mktemp \$@ $BUILD_OUT/tmp/tmpXXXXXX
+internal_mktemp \$@ "$BUILD_OUT/tmp/tmpXXXXXX"
 EOF
-  chmod +x $pkg_tools_dir/mktemp
+  chmod +x "$pkg_tools_dir/mktemp"
 
   # run build script
-  logfile=$BUILD_OUT/build.log
+  logfile="$BUILD_OUT/build.log"
   fail() {
-    >&2 cat $logfile
+    >&2 cat "$logfile"
     >&2 echo ""
     >&2 echo "error building pkg $pkg $pkgid"
     exit 1
   }
 
-  cd $BUILD_OUT/tmp
+  cd "$BUILD_OUT/tmp"
   env -i \
-    DRY=$DRY \
+    DRY="$DRY" \
     PATH="$pkg_tools_dir:$tools_dir:$PATH" \
-    ARCH=$ARCH \
-    ARCH_ISA=$ARCH_ISA \
-    ARCH_OS=$ARCH_OS \
-    ARCH_HOST=$ARCH_HOST \
-    ARCH_HOST_ISA=$ARCH_HOST_ISA \
-    ARCH_HOST_OS=$ARCH_HOST_OS \
-    OPT=$OPT \
-    OPT_ZIG=$OPT_ZIG \
-    XOS_ROOT=$XOS_ROOT \
-    XOS_PKG_ROOT=$XOS_PKG_ROOT \
-    BUILD_ROOT=$BUILD_ROOT \
-    BUILD_CACHE=$BUILD_CACHE \
-    BUILD_OUT=$BUILD_OUT/out \
-    BUILD_DEPS=$BUILD_DEPS \
-    BUILD_PKG=$BUILD_PKG \
-    XDG_CACHE_HOME=$BUILD_ROOT/xdgcache \
-  sh $BUILD_PKG/build.sh $ARGS > $logfile || fail
+    ARCH="$ARCH" \
+    ARCH_ISA="$ARCH_ISA" \
+    ARCH_OS="$ARCH_OS" \
+    ARCH_HOST="$ARCH_HOST" \
+    ARCH_HOST_ISA="$ARCH_HOST_ISA" \
+    ARCH_HOST_OS="$ARCH_HOST_OS" \
+    OPT="$OPT" \
+    OPT_ZIG="$OPT_ZIG" \
+    XOS_ROOT="$XOS_ROOT" \
+    XOS_PKG_ROOT="$XOS_PKG_ROOT" \
+    BUILD_ROOT="$BUILD_ROOT" \
+    BUILD_CACHE="$BUILD_CACHE" \
+    BUILD_OUT="$BUILD_OUT/out" \
+    BUILD_DEPS="$BUILD_DEPS" \
+    BUILD_PKG="$BUILD_PKG" \
+    XDG_CACHE_HOME="$BUILD_ROOT/xdgcache" \
+  sh "$BUILD_PKG/build.sh" "$ARGS" > "$logfile" || fail
 
   # ok
-  touch $BUILD_OUT/.ok
+  touch "$BUILD_OUT/.ok"
 fi
 
 # link to build/out
-rm -f $BUILD_ROOT/out
-ln -s $BUILD_OUT/out $BUILD_ROOT/out
+rm -f "$BUILD_ROOT/out"
+ln -s "$BUILD_OUT/out" "$BUILD_ROOT/out"
 
 # echo id
-echo $pkgid
+echo "$pkgid"

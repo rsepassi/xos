@@ -9,33 +9,33 @@ src=$1
 name=$2
 hash=$3
 
-dst=$BUILD_CACHE/$hash/file
-if [ -e $dst ]
+dst="$BUILD_CACHE/$hash/file"
+if [ -e "$dst" ]
 then
-  mkdir -p $BUILD_DEPS
-  ln -s $dst $BUILD_DEPS/$name
+  mkdir -p "$BUILD_DEPS"
+  ln -s "$dst" "$BUILD_DEPS/$name"
   exit 0
 fi
 
-tmpd=$(mktemp -d)
+tmpd="$(mktemp -d)"
 
-wget --no-check-certificate -q "$src" -O $tmpd/file
+wget --no-check-certificate -q "$src" -O "$tmpd/file"
 
-hash_got="$(sha256sum $tmpd/file | cut -d ' ' -f1)"
+hash_got="$(sha256sum "$tmpd/file" | cut -d ' ' -f1)"
 if [ "$hash" != "$hash_got" ]
 then
-  mkdir -p $BUILD_CACHE/$hash_got
-  echo "$src" > $BUILD_CACHE/$hash_got/src
-  mv $tmpd/file $BUILD_CACHE/$hash_got
+  mkdir -p "$BUILD_CACHE/$hash_got"
+  echo "$src" > "$BUILD_CACHE/$hash_got/src"
+  mv "$tmpd/file" "$BUILD_CACHE/$hash_got"
   >&2 echo "bad hash for $src"
   >&2 echo "expected $hash"
   >&2 echo "got $hash_got"
   exit 1
 fi
 
-mkdir -p $BUILD_CACHE/$hash
-echo "$src" > $BUILD_CACHE/$hash/src
-mv $tmpd/file $dst
+mkdir -p "$BUILD_CACHE/$hash"
+echo "$src" > "$BUILD_CACHE/$hash/src"
+mv "$tmpd/file" "$dst"
 
-mkdir -p $BUILD_DEPS
-ln -s $dst $BUILD_DEPS/$name
+mkdir -p "$BUILD_DEPS"
+ln -s "$dst" "$BUILD_DEPS/$name"

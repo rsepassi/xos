@@ -61,4 +61,4 @@ todo
 * dynamic dependency tracking
 * binary releases of xos for macos, linux, windows
 * additional command line tools (e.g. dry run, etc)
-* add make
+* prefix scripts with xos_
