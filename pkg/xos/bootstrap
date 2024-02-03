@@ -12,7 +12,7 @@ mktemp="$(which mktemp)"
 cat <<EOF > "$tools/internal_mktemp"
 #!/usr/bin/env sh
 set -e
-"$mktemp" "\$@"
+"$mktemp" \$@
 EOF
 chmod +x "$tools/internal_mktemp"
 

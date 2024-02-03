@@ -6,13 +6,20 @@ wip
 
 ---
 
-Usage
+usage: ARCH= OPT= build pkgname
 
-ARCH= OPT= build pkgname
+echoes pkgid on successful build
+build artifacts for last successful build available in build/out/
 
-ARCH is a zig triple, e.g. aarch64-linux-musl
-OPT is a C optimization option, one of:
-  0, 1, 2, 3, fast, s, z
+example:
+  ARCH=aarch64-linux-musl OPT=s build sqlite
+
+Env vars:
+  ARCH= zig target triple, defaults to host
+  OPT={Debug, Safe, Fast, Small, 0, 1, 2, 3, fast, s, z} optimization level
+  BUILD= directory for build artifacts, defaults to ./build
+  PKG= pkg/ directory path, defaults to ./pkg
+  DRY={1,0} if 1, log info and exit
 
 ---
 
@@ -34,9 +41,6 @@ build/out/
 
 ---
 
-cmd/
-  build: build a package
-
 pkg/: build scripts for packages
   <pkgname>/
     build.sh: build script
@@ -44,7 +48,8 @@ pkg/: build scripts for packages
       source; defaults to all files
     deps.txt (optional): pkg dependencies
 
-tools/
+pkg/xos/
+  build: build a package
   cc: zig cc wrapper
   ar: zig ar wrapper
   fetch: fetch a url and check hash
@@ -56,9 +61,20 @@ tools/
 
 ---
 
+to build xos given xos:
+build xos
+
+to build xos without xos:
+ARCH_HOST=aarch64-macos ./pkg/xos/bootstrap
+
+where ARCH_HOST can be
+{aarch64-macos, x86_64-macos, aarch64-linux, x86_64-linux}
+
+---
+
 todo
 
-* dynamic dependency tracking
+* dynamic dependency tracking (need)
 * binary releases of xos for macos, linux, windows
 * additional command line tools (e.g. dry run, etc)
 * prefix scripts with xos_
