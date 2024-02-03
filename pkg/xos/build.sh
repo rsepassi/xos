@@ -59,7 +59,7 @@ done
   cat <<EOF > "$tools/internal_mktemp"
 #!/usr/bin/env sh
 set -e
-busybox mktemp "\$@"
+busybox mktemp \$@
 EOF
   chmod +x "$tools/internal_mktemp"
 

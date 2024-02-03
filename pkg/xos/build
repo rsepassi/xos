@@ -12,8 +12,8 @@ example:
   ARCH=aarch64-linux-musl OPT=s build sqlite
 
 Env vars:
-  ARCH= zig target triple
-  OPT={0, 1, 2, 3, fast, s, z} optimization level
+  ARCH= zig target triple, defaults to host
+  OPT={Debug, Safe, Fast, Small, 0, 1, 2, 3, fast, s, z} optimization level
   BUILD= directory for build artifacts, defaults to ./build
   PKG= pkg/ directory path, defaults to ./pkg
   DRY={1,0} if 1, log info and exit
@@ -33,6 +33,13 @@ XOS_ROOT="$(get_xosroot)"
 
 if [ "$XOS_BOOTSTRAP" = 1 ]
 then
+  ARCH_HOST=${ARCH_HOST:-$(zig targets | grep "\"triple\"" | cut -d '"' -f4)}
+  if which zig
+  then
+    ARCH_HOST=$(zig targets | grep "\"triple\"" | cut -d '"' -f4)
+  else
+    echo "must specify ARCH_HOST= when bootstrapping"
+  fi
   export PATH="$XOS_ROOT/tools:$PATH"
 else
   export PATH="$XOS_ROOT/tools"
@@ -248,7 +255,7 @@ EOF
     BUILD_DEPS="$BUILD_DEPS" \
     BUILD_PKG="$BUILD_PKG" \
     XDG_CACHE_HOME="$BUILD_ROOT/xdgcache" \
-  sh "$BUILD_PKG/build.sh" "$ARGS" > "$logfile" || fail
+  sh "$BUILD_PKG/build.sh" $@ > "$logfile" || fail
 
   # ok
   touch "$BUILD_OUT/.ok"
