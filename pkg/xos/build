@@ -26,7 +26,7 @@ get_xosroot() {
   then
     echo "$XOS_ROOT"
   else
-    realpath $(dirname $(dirname $0))
+    realpath $(dirname $(dirname $(realpath $0)))
   fi
 }
 XOS_ROOT=$(get_xosroot)
