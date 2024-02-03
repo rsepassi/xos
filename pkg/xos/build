@@ -26,18 +26,17 @@ get_xosroot() {
   then
     echo "$XOS_ROOT"
   else
-    containing_dir=$(dirname $0)
-    if [ "$(basename $containing_dir)" = "cmd" ]
-    then
-      # called cmd/build
-      realpath $(dirname $containing_dir)
-    else
-      # called build/tools/build
-      realpath $(dirname $(dirname $containing_dir))
-    fi
+    realpath $(dirname $(dirname $0))
   fi
 }
 XOS_ROOT=$(get_xosroot)
+
+if [ "$XOS_BOOTSTRAP" = 1 ]
+then
+  export PATH="$XOS_ROOT/tools:$PATH"
+else
+  export PATH="$XOS_ROOT/tools"
+fi
 
 get_buildroot() {
   if [ ! -z "$BUILD_ROOT" ]
@@ -45,7 +44,7 @@ get_buildroot() {
     echo "$BUILD_ROOT"
   elif [ ! -z "$BUILD" ]
   then
-    echo "$BUILD"
+    realpath "$BUILD"
   else
     echo "$PWD/build"
   fi
@@ -60,7 +59,7 @@ get_pkgroot() {
     echo "$XOS_PKG_ROOT"
   elif [ ! -z "$PKG" ]
   then
-    echo "$PKG"
+    realpath "$PKG"
   elif [ -d "$PWD/pkg" ]
   then
     echo "$PWD/pkg"
@@ -85,12 +84,9 @@ then
   exit 1
 fi
 
-# seal PATH
+# local tools
 tools_dir=$BUILD_ROOT/tools
-XOS_ROOT=$XOS_ROOT \
-BUILD_CACHE=$BUILD_CACHE \
-  $XOS_ROOT/tools/link_tools $tools_dir
-export PATH="$tools_dir"
+$XOS_ROOT/tools/link_tools $tools_dir
 
 # Host and target ARCH
 ARCH_HOST=${ARCH_HOST:-$(zig targets | grep "\"triple\"" | cut -d '"' -f4)}
@@ -129,7 +125,7 @@ then
 fi
 
 # identify output hash
-XOS_ID=$(sha256sum $tools_dir/.xos | cut -d ' ' -f1)
+XOS_ID=$(sha256sum $XOS_ROOT/.xos | cut -d ' ' -f1)
 pkgid_text=$(
   XOS=$XOS_ID \
   BUILD_PKG=$BUILD_PKG \
@@ -149,10 +145,11 @@ else
   rebuild=1
 fi
 
-if [ $DRY = 1 ]
+if [ "$DRY" = 1 ]
 then
   >&2 cat <<EOF
 ---
+build $ARGS
 BUILD_PKG=$BUILD_PKG
 BUILD_OUT=$BUILD_OUT
 ARCH=$ARCH
@@ -222,7 +219,7 @@ EOF
   cd $BUILD_OUT/tmp
   env -i \
     DRY=$DRY \
-    PATH="$pkg_tools_dir:$PATH" \
+    PATH="$pkg_tools_dir:$tools_dir:$PATH" \
     ARCH=$ARCH \
     ARCH_ISA=$ARCH_ISA \
     ARCH_OS=$ARCH_OS \

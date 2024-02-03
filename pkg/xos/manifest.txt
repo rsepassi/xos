@@ -1,0 +1,12 @@
+ar
+bootstrap
+build
+build.sh
+cc
+deps.txt
+fetch
+fetch_urltxt
+link_tools
+need
+pkgid
+untar

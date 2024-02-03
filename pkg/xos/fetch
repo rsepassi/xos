@@ -1,6 +1,10 @@
 #!/usr/bin/env sh
 set -e
 
+# Env:
+# * BUILD_CACHE: stores download here
+# * BUILD_DEPS: links download here
+
 src=$1
 name=$2
 hash=$3
