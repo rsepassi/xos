@@ -127,8 +127,7 @@ EOF
 link_bootstrap0_os() {
   case $(uname) in
     Linux)
-      grep -q Alpine /etc/os-release
-      if [ $? = 0 ]
+      if grep -q Alpine /etc/os-release
       then
         link_system_tools "$bootstrap0_alpine"
       else
