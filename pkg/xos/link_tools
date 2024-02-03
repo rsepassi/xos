@@ -3,25 +3,25 @@ set -e
 
 tools_dir=$1
 
-[ -e $tools_dir/.ok ] && exit 0
+[ -e "$tools_dir/.ok" ] && exit 0
 
-mkdir -p $tools_dir
+mkdir -p "$tools_dir"
 
-cat <<EOF > $tools_dir/system
+cat <<EOF > "$tools_dir/system"
 #!/usr/bin/env sh
 set -e
-cmd=\$(PATH=$PATH which \$1)
+cmd="\$(PATH=$PATH which \$1)"
 shift
-\$cmd \$@
+"\$cmd" "\$@"
 EOF
-chmod +x $tools_dir/system
+chmod +x "$tools_dir/system"
 
-cat <<EOF > $tools_dir/system_export
+cat <<EOF > "$tools_dir/system_export"
 #!/usr/bin/env sh
 set -e
 export PATH="$PATH:\$PATH"
-\$@
+"\$@"
 EOF
-chmod +x $tools_dir/system_export
+chmod +x "$tools_dir/system_export"
 
-touch $tools_dir/.ok
+touch "$tools_dir/.ok"
