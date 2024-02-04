@@ -11,6 +11,8 @@ usage: ARCH= OPT= build pkgname
 echoes pkgid on successful build
 build artifacts for last successful build available in build/out/
 
+https://github.com/rsepassi/xos
+
 example:
   ARCH=aarch64-linux-musl OPT=s build sqlite
 
@@ -89,3 +91,4 @@ todo
 * binary releases of xos for macos, linux, windows
 * prefix scripts with xos_
 * traps
+* parallelism

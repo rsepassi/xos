@@ -8,6 +8,8 @@ usage: ARCH= OPT= build pkgname
 echoes pkgid on successful build
 build artifacts for last successful build available in build/out/
 
+https://github.com/rsepassi/xos
+
 example:
   ARCH=aarch64-linux-musl OPT=s build sqlite
 
@@ -26,7 +28,7 @@ get_xosroot() {
   then
     echo "$XOS_ROOT"
   else
-    realpath "$(dirname "$(dirname "$(realpath "$0")")")"
+    realpath "$(dirname "$(realpath "$0")")"
   fi
 }
 XOS_ROOT="$(get_xosroot)"
@@ -81,7 +83,7 @@ XOS_PKG_ROOT="$(get_pkgroot)"
 
 # process arguments
 pkg=$1
-ARGS=$@
+ARGS="$@"
 BUILD_PKG="$XOS_PKG_ROOT/$pkg"
 if [ -z "$pkg" ]
 then
@@ -147,8 +149,15 @@ then
   done < "$BUILD_PKG/deps.txt"
 fi
 
+# xos version
+if [ "$XOS_DEV" = 1 ]
+then
+  XOS_ID="dev"
+else
+  XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
+fi
+
 # identify output hash
-XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
 pkgid_text=$(
   XOS="$XOS_ID" \
   BUILD_PKG="$BUILD_PKG" \
@@ -241,6 +250,7 @@ EOF
   cd "$BUILD_OUT/tmp"
   env -i \
     DRY="$DRY" \
+    XOS_DEV="$XOS_DEV" \
     PATH="$pkg_tools_dir:$tools_dir:$PATH" \
     ARCH="$ARCH" \
     ARCH_ISA="$ARCH_ISA" \
@@ -258,7 +268,7 @@ EOF
     BUILD_DEPS="$BUILD_DEPS" \
     BUILD_PKG="$BUILD_PKG" \
     XDG_CACHE_HOME="$BUILD_ROOT/xdgcache" \
-  sh "$BUILD_PKG/build.sh" $@ > "$logfile" || fail
+  sh "$BUILD_PKG/build.sh" "$@" > "$logfile" || fail
 
   # ok
   touch "$BUILD_OUT/.ok"
