@@ -1,8 +1,3 @@
-set -e
-
-ARCH=${ARCH:-native}
-OPT=${OPT:-s}
-
 fetch_urltxt $BUILD_PKG/url.txt lmdb.tar.gz
 src=$(mktemp -d)
 untar $BUILD_DEPS/lmdb.tar.gz $src 3

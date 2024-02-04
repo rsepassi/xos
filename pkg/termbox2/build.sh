@@ -1,5 +1,3 @@
-set -e
-
 fetch_urltxt $BUILD_PKG/url.txt termbox2.h
 
 path=$(realpath $BUILD_DEPS/termbox2.h)

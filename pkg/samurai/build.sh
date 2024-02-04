@@ -1,8 +1,3 @@
-set -e
-
-ARCH=${ARCH:-native}
-OPT=${OPT:-s}
-
 file=samurai.tar.gz
 fetch_urltxt $BUILD_PKG/url.txt $file
 src=$(mktemp -d)

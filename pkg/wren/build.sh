@@ -1,8 +1,3 @@
-set -e
-
-ARCH=${ARCH:-native}
-OPT=${OPT:-s}
-
 fetch_urltxt $BUILD_PKG/url.txt wren.tar.gz
 src=$(mktemp -d)
 untar $BUILD_DEPS/wren.tar.gz $src

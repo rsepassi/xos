@@ -33,8 +33,7 @@ done
 
 mktemp="$(which mktemp)"
 cat <<EOF > "$tools/internal_mktemp"
-#!/usr/bin/env sh
-set -e
+#!/usr/bin/env sh -e
 $mktemp \$@
 EOF
   chmod +x "$tools/internal_mktemp"

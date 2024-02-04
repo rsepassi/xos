@@ -1,5 +1,3 @@
-set -e
-
 fetch_urltxt $BUILD_PKG/url.txt harfbuzz.tar.gz
 src=$(mktemp -d)
 untar $BUILD_DEPS/harfbuzz.tar.gz $src
