@@ -1,5 +1,3 @@
-set -e
-
 fetch_urltxt $BUILD_PKG/url.txt sdl.tar.gz
 src=$(mktemp -d)
 untar $BUILD_DEPS/sdl.tar.gz $src

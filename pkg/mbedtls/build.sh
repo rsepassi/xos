@@ -1,5 +1,3 @@
-set -e
-
 file=mbedtls.tar.gz
 fetch_urltxt $BUILD_PKG/url.txt $file
 src=$(mktemp -d)

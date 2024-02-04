@@ -1,5 +1,3 @@
-set -e
-
 if [ "$ARCH_HOST_OS" != "macos" ]
 then
   >&2 echo "macossdk can only be built on a mac"

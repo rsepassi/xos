@@ -1,5 +1,3 @@
-set -e
-
 if [ "$ARCH_OS" = "windows" ]
 then
   tarfile=busybox-w32.tar.gz

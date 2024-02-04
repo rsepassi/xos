@@ -1,9 +1,3 @@
-set -e
-
-# options
-ARCH=${ARCH:-native}
-OPT=${OPT:-s}
-
 # fetch
 fetch_urltxt $BUILD_PKG/url.txt md4c.tar.gz
 

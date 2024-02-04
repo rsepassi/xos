@@ -1,8 +1,3 @@
-set -e
-
-ARCH=${ARCH:-native}
-OPT=${OPT:-s}
-
 fetch_urltxt $BUILD_PKG/url.txt sqlite.zip
 src=$(mktemp -d)
 cd $src

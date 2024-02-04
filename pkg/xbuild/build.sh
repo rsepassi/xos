@@ -1,5 +1,3 @@
-set -e
-
 # options
 pkg=$2
 if [ -z $pkg ]

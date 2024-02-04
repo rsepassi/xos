@@ -152,6 +152,7 @@ fi
 # xos version
 if [ "$XOS_DEV" = 1 ]
 then
+  >&2 echo "warn: XOS_DEV=1"
   XOS_ID="dev"
 else
   XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
@@ -268,7 +269,7 @@ EOF
     BUILD_DEPS="$BUILD_DEPS" \
     BUILD_PKG="$BUILD_PKG" \
     XDG_CACHE_HOME="$BUILD_ROOT/xdgcache" \
-  sh "$BUILD_PKG/build.sh" "$@" > "$logfile" || fail
+  sh -e "$BUILD_PKG/build.sh" "$@" > "$logfile" || fail
 
   # ok
   touch "$BUILD_OUT/.ok"
