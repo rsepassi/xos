@@ -5,8 +5,8 @@ podman build \
   -t xos-bootstrap \
   .
 
-rm -rf build; mkdir -p build
-
+rm -rf bootstrap_out; mkdir -p bootstrap_out
 podman run \
-  -v $PWD/build:/root/xos/build \
+  -e "BOOTSTRAP_OUT=/root/bootstrap_out" \
+  -v $PWD/bootstrap_out:/root/bootstrap_out \
   xos-bootstrap

@@ -74,10 +74,12 @@ a podman container file and bootstrap script is provided
 
 or run directly
 
-ARCH_HOST=aarch64-macos ./pkg/xos/bootstrap/build.sh
+ARCH_HOST=aarch64-linux-musl \
+BOOTSTRAP_OUT=./bootstrap_out \
+  ./pkg/xos/bootstrap/build.sh
 
 where ARCH_HOST can be
-{aarch64-macos, x86_64-macos, aarch64-linux, x86_64-linux}
+{aarch64-macos, x86_64-macos, aarch64-linux-musl, x86_64-linux-musl}
 
 ---
 
@@ -85,5 +87,5 @@ todo
 
 * dynamic dependency tracking (need)
 * binary releases of xos for macos, linux, windows
-* additional command line tools (e.g. dry run, etc)
 * prefix scripts with xos_
+* traps
