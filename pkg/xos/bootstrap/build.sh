@@ -2,6 +2,12 @@
 set -e
 
 ARCH_HOST=${ARCH_HOST:-"x86_64-linux-musl"}
+BOOTSTRAP_OUT=${BOOTSTRAP_OUT:-"../bootstrap_out"}
+if [ ! -d "$BOOTSTRAP_OUT" ]
+then
+  echo "\$BOOTSTRAP_OUT must be set and exist. set to $BOOTSTRAP_OUT"
+  exit 1
+fi
 
 XOS_PKG="$(realpath "$(dirname "$(dirname "$0")")")"
 xos_root="$(mktemp -d)"
@@ -56,3 +62,20 @@ then
 fi
 
 echo "$xos1"
+
+# package it up
+xos_dir=$(realpath build/out)
+# copy zig
+zig_dir=$(realpath "$xos_dir"/zig)
+rm "$xos_dir"/zig
+cp -r $zig_dir "$xos_dir"/zig
+# copy busybox
+bb_bin=$(realpath "$xos_dir"/tools/busybox)
+rm "$xos_dir"/tools/busybox
+cp $bb_bin "$xos_dir"/tools
+
+tmp=$(mktemp -d)
+mv $xos_dir $tmp/xos
+cd $tmp
+tar cJf xos.tar.xz xos
+mv xos.tar.xz $BOOTSTRAP_OUT
