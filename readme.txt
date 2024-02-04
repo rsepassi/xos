@@ -64,8 +64,17 @@ pkg/xos/
 to build xos given xos:
 build xos
 
-to build xos without xos:
-ARCH_HOST=aarch64-macos ./pkg/xos/bootstrap
+---
+
+bootstrapping xos
+
+a podman container file and bootstrap script is provided
+
+./pkg/xos/bootstrap/podman_build.sh
+
+or run directly
+
+ARCH_HOST=aarch64-macos ./pkg/xos/bootstrap/build.sh
 
 where ARCH_HOST can be
 {aarch64-macos, x86_64-macos, aarch64-linux, x86_64-linux}
