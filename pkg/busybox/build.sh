@@ -1,10 +1,5 @@
 set -e
 
-ARCH=${ARCH:-native}
-OPT=${OPT:-s}
-
-src=$(mktemp -d)
-
 if [ "$ARCH_OS" = "windows" ]
 then
   tarfile=busybox-w32.tar.gz
@@ -21,9 +16,9 @@ else
 fi
 
 
+src=$(mktemp -d)
 fetch_urltxt $BUILD_PKG/$urlfile $tarfile
 untar $BUILD_DEPS/$tarfile $src
-
 cd $src
 
 toolchaindir=$(mktemp -d)

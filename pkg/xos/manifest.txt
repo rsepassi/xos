@@ -1,5 +1,4 @@
 ar
-bootstrap
 build
 build.sh
 cc
