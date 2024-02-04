@@ -7,10 +7,15 @@ bb="$BUILD_DEPS/busybox/bin/busybox"
 
 tools="$BUILD_OUT/tools"
 
+if [ "$ARCH_OS" = "windows" ]
+then
+  exe=".exe"
+fi
+
 mkdir -p "$tools"
 # cp -rL $zig $BUILD_OUT/zig
 ln -s "$zig" "$BUILD_OUT/zig"
-ln -s ../zig/zig "$tools"
+ln -s ../zig/"zig$exe" "$tools"/zig
 # cp $bb $tools
 ln -s "$bb" "$tools"
 
