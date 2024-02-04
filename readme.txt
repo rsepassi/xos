@@ -87,6 +87,7 @@ where ARCH_HOST can be
 
 todo
 
+* documentation
 * dynamic dependency tracking (need)
 * binary releases of xos for macos, linux, windows
 * prefix scripts with xos_
