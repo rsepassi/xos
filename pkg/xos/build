@@ -34,11 +34,12 @@ XOS_ROOT="$(get_xosroot)"
 if [ "$XOS_BOOTSTRAP" = 1 ]
 then
   ARCH_HOST=${ARCH_HOST:-$(zig targets | grep "\"triple\"" | cut -d '"' -f4)}
-  if which zig
+  if which zig > /dev/null
   then
     ARCH_HOST=$(zig targets | grep "\"triple\"" | cut -d '"' -f4)
   else
-    echo "must specify ARCH_HOST= when bootstrapping"
+    >&2 echo "must specify ARCH_HOST= when bootstrapping without zig"
+    exit 1
   fi
   export PATH="$XOS_ROOT/tools:$PATH"
 else
