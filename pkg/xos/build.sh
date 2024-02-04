@@ -69,7 +69,6 @@ EOF
   chmod +x "$tools/internal_mktemp"
 
 scripts="
-build
 fetch
 cc
 ar
@@ -83,6 +82,10 @@ for script in $scripts
 do
   cp "$BUILD_PKG/$script" "$tools"
 done
+
+cp "$BUILD_PKG/build" "$BUILD_OUT"
+ln -s ../build "$BUILD_OUT/tools/build"
+cp "$BUILD_PKG/readme.txt" "$BUILD_OUT"
 
 # xos id
 zigid="0.12.0-dev.2341+92211135f"
