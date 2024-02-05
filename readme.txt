@@ -93,3 +93,4 @@ todo
 * prefix scripts with xos_
 * traps
 * parallelism
+* detect dependency cycles

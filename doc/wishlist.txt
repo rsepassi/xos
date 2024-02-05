@@ -1,0 +1,12 @@
+entr
+dropbear ssh
+libtomcrypt, libtommath
+zlib, lz4, xz
+nproc
+scrapscript
+blake3
+parser generator (lemon)
+json5, msgpack
+chibi scheme
+mir
+static site generator
