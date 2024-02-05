@@ -1,0 +1,31 @@
+some notes on a static site generator
+
+---
+
+pages
+
+template: header, body, footer
+markdown or html
+sitemap?
+
+---
+
+blog features
+
+template
+listing
+dates
+rss
+
+---
+
+future features?
+
+cache-busting asset names (append timestamp)
+bundled static site server (for dev or prod)
+live reload
+
+---
+
+https://mkws.sh/docs
+https://romanzolotarev.com/ssg.html
