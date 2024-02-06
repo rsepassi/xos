@@ -90,3 +90,13 @@ todo
 * traps
 * parallelism
 * detect dependency cycles
+
+---
+
+inspirations
+
+Zig, by Andrew Kelley
+Cosmopolitan, by Justine Tunney
+redo, by Daniel J. Bernstein
+Nix, by Eelco Dolstra
+Alpine Linux, by Natanael Copa
