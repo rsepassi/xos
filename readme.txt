@@ -1,6 +1,9 @@
-cross-platform builds
+xos
+
+hermetic cross-platform builds
 
 uses zig for cross-compilation
+uses busybox for sh and other utilities
 
 wip
 
