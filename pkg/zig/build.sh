@@ -5,8 +5,8 @@ then
   file="zig-$ARCH_OS-$ARCH_ISA.zip"
   fetch_urltxt $urlf $file
   tmp=$(mktemp -d)
-  unzip -q "$BUILD_DEPS/$file" -d "$tmp"
   cd $tmp
+  unzip -q "$BUILD_DEPS/$file"
   cd $(ls)
   mv ./* "$BUILD_OUT"
 else
