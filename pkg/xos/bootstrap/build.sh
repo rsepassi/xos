@@ -48,6 +48,7 @@ esac
 
 # link tools
 scripts="
+build
 fetch
 cc
 ar
@@ -59,10 +60,9 @@ link_tools
 "
 for script in $scripts
 do
-  cp "$xospkg/src/$script" "$tools"
+  ln -s "$xospkg/src/$script" "$tools"
 done
-cp "$xospkg/src/build" "$out"
-ln -s ../build "$tools/build"
+ln -s tools/build "$out/build"
 sh -e "$tools/link_tools" "$tools"
 cat <<EOF > "$tools/internal_mktemp"
 #!/usr/bin/env sh
@@ -103,7 +103,6 @@ BUILD_DEPS="$tmp" \
 BUILD_CACHE="$cache" \
 BUILD_OUT="$tmp/make" \
 sh -ex "$xosroot/pkg/make/build.sh"
-cp "$tmp/make/bin/make" "$tools"
 
 # busybox
 mkdir "$tmp/busybox"
@@ -114,6 +113,7 @@ ARCH="$ARCH_ISA-$ARCH_OS-$arch_lib" \
 OPT="s" \
 ARCH_OS=$ARCH_OS \
 BUILD_DEPS="$tmp" \
+BUILD_TOOLDEPS="$tmp" \
 BUILD_CACHE="$cache" \
 BUILD_OUT="$tmp/busybox" \
 sh -ex "$xosroot/pkg/busybox/build.sh"
@@ -159,6 +159,7 @@ xz
 cmp
 tr
 od
+readlink
 "
 
 for tool in $bbtools

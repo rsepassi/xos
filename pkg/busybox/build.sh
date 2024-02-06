@@ -1,3 +1,5 @@
+make=$BUILD_TOOLDEPS/make/bin/make
+
 if [ "$ARCH_OS" = "windows" ]
 then
   tarfile=busybox-w32.tar.gz
@@ -132,7 +134,7 @@ for obj in $objs
 do
 CROSS_COMPILE="bbcross-" \
 CFLAGS="$cflags" \
-  make -j$(nproc) $obj
+  $make -j$(nproc) $obj
 done
 
 echo "linking..."

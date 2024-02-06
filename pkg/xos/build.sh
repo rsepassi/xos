@@ -30,6 +30,7 @@ ln -s ../zig/"zig$exe" "$tools"/zig
 
 # internal tools
 scripts="
+build
 fetch
 cc
 ar
@@ -43,8 +44,7 @@ for script in $scripts
 do
   cp "$BUILD_PKG/src/$script" "$tools"
 done
-cp "$BUILD_PKG/src/build" "$out"
-ln -s ../build "$tools/build"
+ln -s tools/build "$out"
 cat <<EOF > "$tools/internal_mktemp"
 #!/usr/bin/env sh
 set -e
@@ -92,6 +92,7 @@ xz
 cmp
 tr
 od
+readlink
 "
 for tool in $bbtools
 do

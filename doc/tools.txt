@@ -30,6 +30,7 @@ busybox:
   od           - oct/dec/hex/ascii dump
   ln           - symlink
   realpath     - resolve path
+  readlink     - follow symlink
   mkdir        - make directory
   mktemp       - make temporary directory
   chmod        - change permissions
@@ -98,6 +99,7 @@ mv
 need
 nproc
 od
+readlink
 realpath
 rm
 sed
