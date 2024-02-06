@@ -82,6 +82,7 @@ or run directly (on mac or linux)
 
 todo
 
+* tool deps (for host)
 * documentation
 * dynamic dependency tracking (need)
 * binary releases of xos for macos, linux, windows
