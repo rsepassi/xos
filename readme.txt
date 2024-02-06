@@ -51,7 +51,8 @@ pkg/: build scripts for packages
     build.sh: build script
     manifest.txt (optional): list files in <pkgname>/ that should be considered
       source; defaults to all files
-    deps.txt (optional): pkg dependencies
+    deps.txt (optional): pkg dependencies, built for target
+    tooldeps.txt (optional): pkg tool dependencies, built for host
 
 pkg/xos/
   build: build a package
@@ -85,7 +86,6 @@ or run directly (on mac or linux)
 
 todo
 
-* tool deps (for host)
 * documentation
 * dynamic dependency tracking (need)
 * binary releases of xos for macos, linux, windows

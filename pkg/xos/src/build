@@ -30,7 +30,35 @@ get_xosroot() {
   then
     echo "$XOS_ROOT"
   else
-    realpath "$(dirname "$(realpath "$0")")"
+    script="$0"
+    scriptdir=$(dirname "$script")
+    while [ ! -e "$scriptdir/.xos" ]
+    do
+      # internal tools/build
+      if [ "$(basename "$scriptdir")" = "tools" ]
+      then
+        scriptdir=$(dirname "$scriptdir")
+        break
+      fi
+
+      # external user link
+      link=$(readlink "$script" || echo "bad")
+      if [ "$link" = "bad" ]
+      then
+        >&2 echo "could not find xos/ root directory"
+        exit 1
+      fi
+
+      if [ -n "${link%%/*}" ]
+      then
+        script="$scriptdir/$link"
+        scriptdir=$(dirname "$script")
+      else
+        script="$link"
+        scriptdir=$(dirname "$link")
+      fi
+    done
+    realpath "$scriptdir"
   fi
 }
 XOS_ROOT="$(get_xosroot)"
@@ -152,6 +180,15 @@ then
   done < "$BUILD_PKG/deps.txt"
 fi
 
+tool_deps=""
+if [ -e "$BUILD_PKG/tooldeps.txt" ]
+then
+  while IFS= read -r dep; do
+    depid="$(ARCH="$ARCH_HOST" build "$dep")"
+    tool_deps="$tool_deps\n$depid  $dep"
+  done < "$BUILD_PKG/tooldeps.txt"
+fi
+
 # xos version
 if [ "$XOS_DEV" = 1 ]
 then
@@ -169,6 +206,7 @@ pkgid_text=$(
   OPT="$OPT" \
   ARGS="$ARGS" \
   DEPS="$deps_static" \
+  TOOLDEPS="$deps_static" \
   "$XOS_ROOT/tools/pkgid" "$pkg"
 )
 pkgid="$(echo "$pkgid_text" | sha256sum | cut -d ' ' -f1)"
@@ -200,7 +238,6 @@ XOS_ROOT=$XOS_ROOT
 XOS_PKG_ROOT=$XOS_PKG_ROOT
 BUILD_ROOT=$BUILD_ROOT
 BUILD_CACHE=$BUILD_CACHE
-BUILD_DEPS=$BUILD_DEPS
 XOS_ID=$XOS_ID
 PATH=$PATH
 rebuild?=$rebuild
@@ -230,6 +267,21 @@ then
       BUILD_CACHE="$BUILD_CACHE" \
         "$XOS_ROOT/tools/need" "$dep"
     done < "$BUILD_PKG/deps.txt"
+  fi
+
+  # build tool deps
+  BUILD_TOOLDEPS="$BUILD_OUT/tooldeps"
+  if [ -e "$BUILD_PKG/tooldeps.txt" ]
+  then
+    mkdir -p "$BUILD_TOOLDEPS"
+    cp "$BUILD_PKG/tooldeps.txt" "$BUILD_OUT"
+    while IFS= read -r dep; do
+      ARCH="$ARCH_HOST" \
+      OPT="2" \
+      BUILD_DEPS="$BUILD_TOOLDEPS" \
+      BUILD_CACHE="$BUILD_CACHE" \
+        "$XOS_ROOT/tools/need" "$dep"
+    done < "$BUILD_PKG/tooldeps.txt"
   fi
 
   # pkg-specific tools
@@ -270,6 +322,7 @@ EOF
     BUILD_CACHE="$BUILD_CACHE" \
     BUILD_OUT="$BUILD_OUT/out" \
     BUILD_DEPS="$BUILD_DEPS" \
+    BUILD_TOOLDEPS="$BUILD_TOOLDEPS" \
     BUILD_PKG="$BUILD_PKG" \
     XDG_CACHE_HOME="$BUILD_ROOT/xdgcache" \
   sh -e "$BUILD_PKG/build.sh" "$@" > "$logfile" || fail
