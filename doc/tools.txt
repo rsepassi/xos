@@ -1,5 +1,6 @@
-Build scripts are run with their PATH sealed. They have access to exactly these
-tools:
+Build scripts are run with their PATH sealed. They have access to exactly the
+tools listed below. Builds that explicitly want to escape the seal can use the
+`system` or `system_export` commands.
 
 busybox:
   busybox      - multi-tool
