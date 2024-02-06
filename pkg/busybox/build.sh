@@ -29,7 +29,10 @@ export BB_BUILD_ARCH=$ARCH
 cp $BUILD_PKG/$configfile .config
 if [ "$ARCH_OS" != "windows" ]
 then
-cp $BUILD_PKG/platform.h include/platform.h
+  cp $BUILD_PKG/platform.h include/platform.h
+elif [ "$ARCH_OS" != "macos" ]
+then
+  sed -i 's/CONFIG_NPROC=y/# CONFIG_NPROC is not set/g' .config
 fi
 
 if [ "$ARCH_OS" = "windows" ]
@@ -117,18 +120,11 @@ util-linux/lib.a
 "
 fi
 
-if which nproc > /dev/null
-then
-  par=$(nproc)
-else
-  par=8
-fi
-
 for obj in $objs
 do
 CROSS_COMPILE="bbcross-" \
 CFLAGS="$cflags" \
-  make -j$par $obj
+  make -j$(nproc) $obj
 done
 
 echo "linking..."

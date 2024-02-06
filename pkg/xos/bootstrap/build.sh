@@ -158,6 +158,19 @@ do
   ln -s busybox "$tools/$tool"
 done
 
+# nproc
+if [ "$ARCH_OS" = "macos" ]
+then
+  cat <<EOF > "$tools/nproc"
+#!/usr/bin/env sh
+exec sysctl -n hw.logicalcpu
+EOF
+  chmod +x "$tools/nproc"
+else
+  ln -s busybox "$tools/nproc"
+fi
+
+
 echo "xos bootstrap build" > "$out/readme.txt"
 echo "xos bootstrap build" > "$out/.xos"
 

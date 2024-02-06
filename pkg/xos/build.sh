@@ -98,6 +98,18 @@ do
   ln -s busybox "$tools/$tool"
 done
 
+# nproc
+if [ "$ARCH_OS" = "macos" ]
+then
+  cat <<EOF > "$tools/nproc"
+#!/usr/bin/env sh
+exec sysctl -n hw.logicalcpu
+EOF
+  chmod +x "$tools/nproc"
+else
+  ln -s busybox "$tools/nproc"
+fi
+
 # readme
 cp "$BUILD_PKG/src/readme.txt" "$out"
 
