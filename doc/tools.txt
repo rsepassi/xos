@@ -1,0 +1,120 @@
+Build scripts are run with their PATH sealed. They have access to exactly these
+tools:
+
+busybox:
+  busybox      - multi-tool
+
+  Shell
+  sh           - posix shell
+  env          - read and change environment
+  which        - program locate
+  xargs        - multi-exec
+
+  Stream/text processing
+  awk          - text processing
+  sed          - stream editor
+  cut          - cut parts of lines
+  grep         - find text
+  tr           - translate characters
+  sort         - sort lines
+  uniq         - uniquify
+  wc           - counts
+
+  File manipulation
+  touch        - create file, update modtime
+  cp           - copy
+  mv           - move files
+  rm           - remove files
+  ls           - list files
+  cat          - print file
+  od           - oct/dec/hex/ascii dump
+  ln           - symlink
+  realpath     - resolve path
+  mkdir        - make directory
+  mktemp       - make temporary directory
+  chmod        - change permissions
+  head         - read first lines
+  tail         - read last lines
+  basename     - strip leading directory
+  dirname      - strip trailing name
+  cmp          - compare files
+  diff         - compare files
+  find         - find files
+
+  Archives
+  tar          - tape archives
+  unzip        - extract zip archives
+
+  Hashing
+  sha256sum
+
+  Compression
+  gzip
+  bzip2
+  xz
+
+  Other
+  wget         - downloader
+  sleep
+
+xos:
+  fetch         - download url and compare hash
+  fetch_urltxt  - fetch from a txt file with a url and hash
+  untar         - extract tar archive
+  need          - dynamic dependency
+
+zig:
+  zig   - zig compiler
+  cc    - wrapper around zig cc
+  ar    - wrapper around zig ar
+
+
+Alphabetical listing:
+
+ar
+awk
+basename
+busybox
+bzip2
+cat
+cc
+chmod
+cmp
+cp
+cut
+diff
+dirname
+env
+fetch
+fetch_urltxt
+find
+grep
+gzip
+head
+ln
+ls
+mkdir
+mv
+need
+nproc
+od
+realpath
+rm
+sed
+sh
+sha256sum
+sleep
+sort
+tail
+tar
+touch
+tr
+uniq
+untar
+unzip
+wc
+wget
+which
+xargs
+xz
+zig
