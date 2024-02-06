@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 set -e
 
+[ "$V" = 1 ] && set -x
+
 usage() {
   cat <<EOF
 usage: ARCH= OPT= build pkgname
@@ -45,6 +47,7 @@ then
       exit 1
     fi
   fi
+  XOS_DEV=1
   export PATH="$XOS_ROOT/tools:$PATH"
 else
   export PATH="$XOS_ROOT/tools"

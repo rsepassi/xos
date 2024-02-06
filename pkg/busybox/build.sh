@@ -117,16 +117,21 @@ util-linux/lib.a
 "
 fi
 
+if which nproc > /dev/null
+then
+  par=$(nproc)
+else
+  par=8
+fi
+
 for obj in $objs
 do
 CROSS_COMPILE="bbcross-" \
 CFLAGS="$cflags" \
-  system_export make -j16 $obj
+  system_export make -j$par $obj
 done
 
 echo "linking..."
-cc --target=$ARCH -s -O$OPT -o busybox \
-  $(echo $objs) $ldflags -lc
-
 mkdir -p $BUILD_OUT/bin
-cp busybox $BUILD_OUT/bin/busybox
+cc --target=$ARCH -s -O$OPT -o $BUILD_OUT/bin/busybox \
+  $(echo $objs) $ldflags -lc

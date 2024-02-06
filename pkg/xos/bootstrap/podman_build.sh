@@ -1,12 +1,11 @@
 #!/usr/bin/env sh
 
-podman build \
-  -f ./pkg/xos/bootstrap/build.containerfile \
-  -t xos-bootstrap \
-  .
-
-rm -rf bootstrap_out; mkdir -p bootstrap_out
+build="build/bootstrap"
+mkdir -p $build
 podman run \
-  -e "BOOTSTRAP_OUT=/root/bootstrap_out" \
-  -v $PWD/bootstrap_out:/root/bootstrap_out \
-  xos-bootstrap
+  -e "BOOTSTRAP_BUILD=/root/xos/$build" \
+  -e "BOOTSTRAP_CONTAINER_BUILD=1" \
+  -v "$PWD/$build":/root/xos/$build \
+  -v "$PWD/pkg":/root/xos/pkg:ro \
+  alpine:3.19 \
+  /root/xos/pkg/xos/bootstrap/build.sh

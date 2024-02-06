@@ -70,18 +70,13 @@ build xos
 
 bootstrapping xos
 
-a podman container file and bootstrap script is provided
+a podman alpine-based bootstrap script is provided
 
 ./pkg/xos/bootstrap/podman_build.sh
 
-or run directly
+or run directly (on mac or linux)
 
-ARCH_HOST=aarch64-linux-musl \
-BOOTSTRAP_OUT=./bootstrap_out \
-  ./pkg/xos/bootstrap/build.sh
-
-where ARCH_HOST can be
-{aarch64-macos, x86_64-macos, aarch64-linux-musl, x86_64-linux-musl}
+./pkg/xos/bootstrap/build.sh
 
 ---
 

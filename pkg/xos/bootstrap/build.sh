@@ -1,22 +1,53 @@
 #!/usr/bin/env sh
-set -e
 
-ARCH_HOST=${ARCH_HOST:-"x86_64-linux-musl"}
-BOOTSTRAP_OUT=${BOOTSTRAP_OUT:-"../bootstrap_out"}
-if [ ! -d "$BOOTSTRAP_OUT" ]
-then
-  echo "\$BOOTSTRAP_OUT must be set and exist. set to $BOOTSTRAP_OUT"
-  exit 1
-fi
+set -ex
 
-XOS_PKG="$(realpath "$(dirname "$(dirname "$0")")")"
-xos_root="$(mktemp -d)"
-tools="$xos_root/tools"
-mkdir -p "$tools"
-touch "$xos_root/.xos"
+# setup dirs
+xosroot="$PWD"
+xospkg="$xosroot/pkg/xos"
+buildroot="$(realpath "${BOOTSTRAP_BUILD:-$PWD/build/bootstrap}")"
+out="$buildroot/out"
+tools="$out/tools"
+cache="$buildroot/cache"
+tmp="$buildroot/tmp"
+rm -rf $tmp $out
+mkdir -p "$tools" "$cache" "$tmp"
 
+# system id
+case $(uname) in
+  Linux)
+    ARCH_OS="linux"
+    arch_lib="musl"
+    if [ "$BOOTSTRAP_CONTAINER_BUILD" = 1 ]
+    then
+      apk add make xz
+    fi
+    ;;
+  Darwin)
+    ARCH_OS="macos"
+    arch_lib="none"
+    ;;
+  *)
+    echo "unknown os $(uname)"
+    exit 1
+    ;;
+esac
+
+case $(uname -m) in
+  arm64|aarch64)
+    ARCH_ISA="aarch64"
+    ;;
+  x86_64)
+    ARCH_ISA="x86_64"
+    ;;
+  *)
+    echo "unknown isa $(uname -m)"
+    exit 1
+    ;;
+esac
+
+# link tools
 scripts="
-build
 fetch
 cc
 ar
@@ -28,53 +59,90 @@ link_tools
 "
 for script in $scripts
 do
-cp "$XOS_PKG/$script" "$tools"
+  cp "$xospkg/src/$script" "$tools"
+done
+cp "$xospkg/src/build" "$out"
+ln -s ../build "$tools/build"
+sh -e "$tools/link_tools" "$tools"
+cat <<EOF > "$tools/internal_mktemp"
+#!/usr/bin/env sh
+exec busybox mktemp \$@
+EOF
+chmod +x "$tools/internal_mktemp"
+
+# zig
+zigout="$out/zig"
+mkdir -p $zigout
+
+PATH="$tools:$PATH" \
+BUILD_PKG="$xosroot/pkg/zig" \
+ARCH_OS=$ARCH_OS \
+ARCH_ISA=$ARCH_ISA \
+BUILD_DEPS="$tmp" \
+BUILD_CACHE="$cache" \
+BUILD_OUT="$zigout" \
+sh -ex "$xosroot/pkg/zig/build.sh"
+ln -s ../zig/zig "$tools/zig"
+
+# busybox
+mkdir "$tmp/busybox"
+
+PATH="$tools:$PATH" \
+BUILD_PKG="$xosroot/pkg/busybox" \
+ARCH="$ARCH_ISA-$ARCH_OS-$arch_lib" \
+OPT="s" \
+ARCH_OS=$ARCH_OS \
+BUILD_DEPS="$tmp" \
+BUILD_CACHE="$cache" \
+BUILD_OUT="$tmp/busybox" \
+sh -ex "$xosroot/pkg/busybox/build.sh"
+cp "$tmp/busybox/bin/busybox" "$tools"
+
+# link busybox
+bbtools="
+mkdir
+ls
+rm
+mv
+cp
+ln
+basename
+dirname
+realpath
+tar
+gzip
+unzip
+wget
+sha256sum
+cat
+cut
+grep
+head
+tail
+which
+env
+touch
+find
+sed
+sleep
+bzip2
+awk
+wc
+xargs
+sort
+uniq
+diff
+chmod
+sh
+xz
+"
+
+for tool in $bbtools
+do
+  ln -s busybox "$tools/$tool"
 done
 
-mktemp="$(which mktemp)"
-cat <<EOF > "$tools/internal_mktemp"
-#!/usr/bin/env sh -e
-$mktemp \$@
-EOF
-  chmod +x "$tools/internal_mktemp"
+echo "xos bootstrap build" > "$out/readme.txt"
+echo "xos bootstrap build" > "$out/.xos"
 
-XOS_BOOTSTRAP=1 \
-ARCH_HOST=$ARCH_HOST \
-  "$tools/build" zig
-ln -s "$(realpath ./build/out/zig)" "$tools"
-
-XOS_BOOTSTRAP=1 \
-ARCH_HOST=$ARCH_HOST \
-  "$tools/build" xos
-
-# build xos with bootstrap xos
-xos1=$(./build/out/tools/build xos)
-
-# build xos with xos
-xos2=$(./build/out/tools/build xos)
-
-# make sure there's no change
-if [ "$xos1" != "$xos2" ]
-then
-  echo "failed bootstrap"
-  exit 1
-fi
-
-echo "$xos1"
-
-# package it up
-xos_dir=$(realpath build/out)
-# copy zig
-zig_dir=$(realpath "$xos_dir"/zig)
-rm "$xos_dir"/zig
-cp -r $zig_dir "$xos_dir"/zig
-# copy busybox
-bb_bin=$(realpath "$xos_dir"/tools/busybox)
-rm "$xos_dir"/tools/busybox
-cp $bb_bin "$xos_dir"/tools
-
-tmp=$(mktemp -d)
-mv $xos_dir $tmp/xos
-cd $tmp
-tar cJf xos.tar.xz xos
-mv xos.tar.xz $BOOTSTRAP_OUT
+echo "bootstrap ok"
