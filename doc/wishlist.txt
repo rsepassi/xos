@@ -11,3 +11,14 @@ json5, msgpack
 chibi scheme
 mir
 static site generator
+justfile
+sdl_image
+vt100 sdl terminal
+text editor (vis, micro)
+mtm, tmux
+libbtc
+crdt
+gui lib
+zk libs
+http
+libgit, stagit
