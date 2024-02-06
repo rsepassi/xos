@@ -30,7 +30,7 @@ Env vars:
 
 Example
 
-# ./cmd/build md4c
+# build md4c
 f48ea956bd4032922d1be258afa96d033f7c90578ab2d0116efd1392d8d037f3
 # tree build/out/
 build/out/
@@ -54,20 +54,10 @@ pkg/: build scripts for packages
     deps.txt (optional): pkg dependencies, built for target
     tooldeps.txt (optional): pkg tool dependencies, built for host
 
-pkg/xos/
-  build: build a package
-  cc: zig cc wrapper
-  ar: zig ar wrapper
-  fetch: fetch a url and check hash
-  fetch_urltxt: fetch a url and check hash, reading url and hash from file
-  link_tools: link all tools needed by xos builds
-  need: build a dependency and link it into $BUILD_DEPS
-  pkgid: compute identifier for pkg build
-  untar: clean tar extraction
-
 ---
 
 to build xos given xos:
+
 build xos
 
 ---
