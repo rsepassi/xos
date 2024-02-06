@@ -8,9 +8,10 @@ out="$(mktemp -d)"
 tools="$out/tools"
 mkdir -p $tools
 
-# zig+busybox
+# zig+make+busybox
 zig="$BUILD_DEPS/zig"
 bb="$BUILD_DEPS/busybox/bin/busybox"
+make="$BUILD_DEPS/make/bin/make"
 if [ "$ARCH_OS" = "windows" ]
 then
   exe=".exe"
@@ -19,9 +20,11 @@ if [ "$mode" = "release" ]
 then
   cp -rL "$zig" "$out/zig"
   cp "$bb" "$tools"
+  cp "$make" "$tools"
 else
   ln -s "$zig" "$out/zig"
   ln -s "$bb" "$tools"
+  ln -s "$make" "$tools"
 fi
 ln -s ../zig/"zig$exe" "$tools"/zig
 
@@ -86,6 +89,9 @@ diff
 chmod
 sh
 xz
+cmp
+tr
+od
 "
 for tool in $bbtools
 do

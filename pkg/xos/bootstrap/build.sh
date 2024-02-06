@@ -71,8 +71,7 @@ EOF
 chmod +x "$tools/internal_mktemp"
 
 # zig
-zigout="$out/zig"
-mkdir -p $zigout
+mkdir -p "$out/zig"
 
 PATH="$tools:$PATH" \
 BUILD_PKG="$xosroot/pkg/zig" \
@@ -80,9 +79,23 @@ ARCH_OS=$ARCH_OS \
 ARCH_ISA=$ARCH_ISA \
 BUILD_DEPS="$tmp" \
 BUILD_CACHE="$cache" \
-BUILD_OUT="$zigout" \
+BUILD_OUT="$out/zig" \
 sh -ex "$xosroot/pkg/zig/build.sh"
 ln -s ../zig/zig "$tools/zig"
+
+# make
+mkdir "$tmp/make"
+PATH="$tools:$PATH" \
+BUILD_PKG="$xosroot/pkg/make" \
+ARCH="$ARCH_ISA-$ARCH_OS-$arch_lib" \
+OPT_ZIG="ReleaseSmall" \
+ARCH_OS=$ARCH_OS \
+ARCH_ISA=$ARCH_ISA \
+BUILD_DEPS="$tmp" \
+BUILD_CACHE="$cache" \
+BUILD_OUT="$tmp/make" \
+sh -ex "$xosroot/pkg/make/build.sh"
+cp "$tmp/make/bin/make" "$tools"
 
 # busybox
 mkdir "$tmp/busybox"
@@ -135,6 +148,9 @@ diff
 chmod
 sh
 xz
+cmp
+tr
+od
 "
 
 for tool in $bbtools

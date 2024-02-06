@@ -128,7 +128,7 @@ for obj in $objs
 do
 CROSS_COMPILE="bbcross-" \
 CFLAGS="$cflags" \
-  system_export make -j$par $obj
+  make -j$par $obj
 done
 
 echo "linking..."
