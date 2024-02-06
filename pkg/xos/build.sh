@@ -103,7 +103,7 @@ if [ "$ARCH_OS" = "macos" ]
 then
   cat <<EOF > "$tools/nproc"
 #!/usr/bin/env sh
-exec sysctl -n hw.logicalcpu
+exec system sysctl -n hw.logicalcpu
 EOF
   chmod +x "$tools/nproc"
 else
