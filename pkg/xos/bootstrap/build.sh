@@ -170,7 +170,6 @@ else
   ln -s busybox "$tools/nproc"
 fi
 
-
 echo "xos bootstrap build" > "$out/readme.txt"
 echo "xos bootstrap build" > "$out/.xos"
 

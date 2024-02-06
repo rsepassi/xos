@@ -27,12 +27,20 @@ export PATH="$toolchaindir:$PATH"
 export BB_BUILD_ARCH=$ARCH
 
 cp $BUILD_PKG/$configfile .config
+if [ "$ARCH_OS" = "macos" ]
+then
+  # this is just for bootstrapping
+  sed=sed
+  if which gsed > /dev/null
+  then
+    sed=gsed
+  fi
+  $sed -i 's/CONFIG_NPROC=y/# CONFIG_NPROC is not set/g' .config
+fi
+
 if [ "$ARCH_OS" != "windows" ]
 then
   cp $BUILD_PKG/platform.h include/platform.h
-elif [ "$ARCH_OS" != "macos" ]
-then
-  sed -i 's/CONFIG_NPROC=y/# CONFIG_NPROC is not set/g' .config
 fi
 
 if [ "$ARCH_OS" = "windows" ]
