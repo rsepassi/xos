@@ -1,4 +1,5 @@
 entr
+xz
 dropbear ssh
 libtomcrypt, libtommath
 zlib, lz4, xz

@@ -1,24 +1,55 @@
-# TODO:
-# * add_system_commands has to happen live
 set -e
 
+mode=$2
+
+out="$(mktemp -d)"
+
+# setup output dirs
+tools="$out/tools"
+mkdir -p $tools
+
+# zig+busybox
 zig="$BUILD_DEPS/zig"
 bb="$BUILD_DEPS/busybox/bin/busybox"
-
-tools="$BUILD_OUT/tools"
-
 if [ "$ARCH_OS" = "windows" ]
 then
   exe=".exe"
 fi
-
-mkdir -p "$tools"
-# cp -rL $zig $BUILD_OUT/zig
-ln -s "$zig" "$BUILD_OUT/zig"
+if [ "$mode" = "release" ]
+then
+  cp -rL "$zig" "$out/zig"
+  cp "$bb" "$tools"
+else
+  ln -s "$zig" "$out/zig"
+  ln -s "$bb" "$tools"
+fi
 ln -s ../zig/"zig$exe" "$tools"/zig
-# cp $bb $tools
-ln -s "$bb" "$tools"
 
+# internal tools
+scripts="
+fetch
+cc
+ar
+fetch_urltxt
+need
+pkgid
+untar
+link_tools
+"
+for script in $scripts
+do
+  cp "$BUILD_PKG/src/$script" "$tools"
+done
+cp "$BUILD_PKG/src/build" "$out"
+ln -s ../build "$tools/build"
+cat <<EOF > "$tools/internal_mktemp"
+#!/usr/bin/env sh
+set -e
+busybox mktemp \$@
+EOF
+chmod +x "$tools/internal_mktemp"
+
+# link busybox
 bbtools="
 mkdir
 ls
@@ -54,38 +85,15 @@ uniq
 diff
 chmod
 sh
+xz
 "
-
 for tool in $bbtools
 do
-  ln -s busybox "$BUILD_OUT/tools/$tool"
+  ln -s busybox "$tools/$tool"
 done
 
-  cat <<EOF > "$tools/internal_mktemp"
-#!/usr/bin/env sh
-set -e
-busybox mktemp \$@
-EOF
-  chmod +x "$tools/internal_mktemp"
-
-scripts="
-fetch
-cc
-ar
-fetch_urltxt
-need
-pkgid
-untar
-link_tools
-"
-for script in $scripts
-do
-  cp "$BUILD_PKG/$script" "$tools"
-done
-
-cp "$BUILD_PKG/build" "$BUILD_OUT"
-ln -s ../build "$BUILD_OUT/tools/build"
-cp "$BUILD_PKG/readme.txt" "$BUILD_OUT"
+# readme
+cp "$BUILD_PKG/src/readme.txt" "$out"
 
 # xos id
 zigid="0.12.0-dev.2341+92211135f"
@@ -97,4 +105,15 @@ xosid() {
   sha256sum $files
 }
 cd "$BUILD_PKG"
-xosid > "$BUILD_OUT/.xos"
+xosid > "$out/.xos"
+
+if [ "$mode" = "release" ]
+then
+  mv "$out" "$BUILD_OUT/xos"
+  cd "$BUILD_OUT"
+  tar czf xos.tar.gz xos
+  rm -rf ./xos
+else
+  cd "$out"
+  mv ./* ./.xos "$BUILD_OUT"
+fi

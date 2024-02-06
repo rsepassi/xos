@@ -11,5 +11,6 @@ mkdir -p "$dst"
 if [ -z "$src" ]
 then
   >&2 echo "missing src for tar, dst=$dst"
+  exit 1
 fi
 tar xf "$src" -C "$dst" "--strip-components=$strip"
