@@ -69,6 +69,14 @@ cat <<EOF > "$tools/internal_mktemp"
 exec busybox mktemp \$@
 EOF
 chmod +x "$tools/internal_mktemp"
+if [ "$ARCH_OS" = "macos" ]
+then
+  cat <<EOF > "$tools/nproc"
+#!/usr/bin/env sh
+exec system sysctl -n hw.logicalcpu
+EOF
+  chmod +x "$tools/nproc"
+fi
 
 # zig
 mkdir -p "$out/zig"
@@ -158,15 +166,8 @@ do
   ln -s busybox "$tools/$tool"
 done
 
-# nproc
-if [ "$ARCH_OS" = "macos" ]
+if [ "$ARCH_OS" != "macos" ]
 then
-  cat <<EOF > "$tools/nproc"
-#!/usr/bin/env sh
-exec sysctl -n hw.logicalcpu
-EOF
-  chmod +x "$tools/nproc"
-else
   ln -s busybox "$tools/nproc"
 fi
 
