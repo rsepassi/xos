@@ -298,7 +298,7 @@ CONFIG_MV=y
 # CONFIG_NICE is not set
 # CONFIG_NL is not set
 # CONFIG_NOHUP is not set
-# CONFIG_NPROC is not set
+CONFIG_NPROC=y
 CONFIG_OD=y
 # CONFIG_PASTE is not set
 CONFIG_PRINTENV=y

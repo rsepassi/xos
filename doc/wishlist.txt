@@ -3,7 +3,6 @@ xz
 dropbear ssh
 libtomcrypt, libtommath
 zlib, lz4, xz
-nproc
 scrapscript
 blake3
 parser generator (lemon)
@@ -22,3 +21,4 @@ gui lib
 zk libs
 http
 libgit, stagit
+whisper
