@@ -92,3 +92,4 @@ Cosmopolitan, by Justine Tunney
 redo, by Daniel J. Bernstein
 Nix, by Eelco Dolstra
 Alpine Linux, by Natanael Copa
+Oasis Linux, by Michael Forney
