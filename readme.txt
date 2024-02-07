@@ -79,7 +79,6 @@ todo
 * documentation
 * dynamic dependency tracking (need)
 * binary releases of xos for macos, linux, windows
-* prefix scripts with xos_
 * traps
 * parallelism
 * detect dependency cycles

@@ -4,8 +4,7 @@ set -ex
 
 # setup dirs
 xosroot="$PWD"
-xospkg="$xosroot/pkg/xos"
-buildroot="$(realpath "${BOOTSTRAP_BUILD:-$PWD/build/bootstrap}")"
+buildroot="$(realpath "${BOOTSTRAP_BUILD:-$xosroot/build/bootstrap}")"
 out="$buildroot/out"
 tools="$out/tools"
 cache="$buildroot/cache"
@@ -20,7 +19,7 @@ case $(uname) in
     arch_lib="musl"
     if [ "$BOOTSTRAP_CONTAINER_BUILD" = 1 ]
     then
-      apk add make xz
+      apk add xz
     fi
     ;;
   Darwin)
@@ -48,27 +47,27 @@ esac
 
 # link tools
 scripts="
-build
 fetch
 cc
 ar
 fetch_urltxt
 need
-pkgid
 untar
-link_tools
+xos_internal_build
+xos_internal_pkgid
+xos_internal_link_tools
 "
 for script in $scripts
 do
-  ln -s "$xospkg/src/$script" "$tools"
+  ln -s "$xosroot/pkg/xos/src/$script" "$tools"
 done
-ln -s tools/build "$out/build"
-sh -e "$tools/link_tools" "$tools"
-cat <<EOF > "$tools/internal_mktemp"
+ln -s tools/xos_internal_build "$out/build"
+sh -e "$tools/xos_internal_link_tools" "$tools"
+cat <<EOF > "$tools/xos_internal_mktemp"
 #!/usr/bin/env sh
 exec busybox mktemp \$@
 EOF
-chmod +x "$tools/internal_mktemp"
+chmod +x "$tools/xos_internal_mktemp"
 if [ "$ARCH_OS" = "macos" ]
 then
   cat <<EOF > "$tools/nproc"

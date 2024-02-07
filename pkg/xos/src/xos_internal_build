@@ -129,7 +129,7 @@ fi
 
 # local tools
 tools_dir="$BUILD_ROOT/tools"
-"$XOS_ROOT/tools/link_tools" "$tools_dir"
+"$XOS_ROOT/tools/xos_internal_link_tools" "$tools_dir"
 
 # Host and target ARCH
 ARCH_HOST=${ARCH_HOST:-$(zig targets | grep "\"triple\"" | cut -d '"' -f4)}
@@ -175,7 +175,7 @@ deps_static=""
 if [ -e "$BUILD_PKG/deps.txt" ]
 then
   while IFS= read -r dep; do
-    depid="$(build "$dep")"
+    depid="$(xos_internal_build "$dep")"
     deps_static="$deps_static\n$depid  $dep"
   done < "$BUILD_PKG/deps.txt"
 fi
@@ -184,7 +184,7 @@ tool_deps=""
 if [ -e "$BUILD_PKG/tooldeps.txt" ]
 then
   while IFS= read -r dep; do
-    depid="$(ARCH="$ARCH_HOST" build "$dep")"
+    depid="$(ARCH="$ARCH_HOST" xos_internal_build "$dep")"
     tool_deps="$tool_deps\n$depid  $dep"
   done < "$BUILD_PKG/tooldeps.txt"
 fi
@@ -207,7 +207,7 @@ pkgid_text=$(
   ARGS="$ARGS" \
   DEPS="$deps_static" \
   TOOLDEPS="$deps_static" \
-  "$XOS_ROOT/tools/pkgid" "$pkg"
+  "$XOS_ROOT/tools/xos_internal_pkgid" "$pkg"
 )
 pkgid="$(echo "$pkgid_text" | sha256sum | cut -d ' ' -f1)"
 BUILD_OUT="$BUILD_CACHE/$pkgid"
@@ -290,7 +290,7 @@ then
   cat <<EOF > "$pkg_tools_dir/mktemp"
 #!/usr/bin/env sh
 set -e
-internal_mktemp \$@ "$BUILD_OUT/tmp/tmpXXXXXX"
+xos_internal_mktemp \$@ "$BUILD_OUT/tmp/tmpXXXXXX"
 EOF
   chmod +x "$pkg_tools_dir/mktemp"
 

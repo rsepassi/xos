@@ -1,11 +1,11 @@
 build.sh
 deps.txt
 src/ar
-src/build
 src/cc
 src/fetch
 src/fetch_urltxt
-src/link_tools
 src/need
-src/pkgid
 src/untar
+src/xos_internal_build
+src/xos_internal_link_tools
+src/xos_internal_pkgid

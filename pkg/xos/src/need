@@ -22,7 +22,7 @@ then
   exit 1
 fi
 
-pkgid=$(ARCH=$ARCH OPT=$OPT build $pkg "$@")
+pkgid=$(ARCH=$ARCH OPT=$OPT xos_internal_build $pkg "$@")
 
 mkdir -p "$BUILD_DEPS"
 ln -s "$BUILD_CACHE/$pkgid/out" "$dst"
