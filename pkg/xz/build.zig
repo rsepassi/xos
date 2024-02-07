@@ -1,6 +1,3 @@
-// genfiles
-// config.h
-
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
@@ -35,7 +32,7 @@ pub fn build(b: *std.Build) void {
     }
     lib.linkLibC();
     const headers = b.addInstallDirectory(.{
-        .source_dir = .{ .path = "src/liblzma/api"},
+        .source_dir = .{ .path = "src/liblzma/api" },
         .install_dir = .header,
         .install_subdir = "",
         .include_extensions = &.{".h"},
@@ -168,29 +165,29 @@ const lib_src_files = [_][]const u8{
 };
 
 const xz_src_files = [_][]const u8{
-"src/xz/args.c",
-"src/xz/coder.c",
-"src/xz/file_io.c",
-"src/xz/hardware.c",
-"src/xz/list.c",
-"src/xz/main.c",
-"src/xz/message.c",
-"src/xz/mytime.c",
-"src/xz/options.c",
-"src/xz/signals.c",
-"src/xz/suffix.c",
-"src/xz/util.c",
-"src/common/tuklib_progname.c",
-"src/common/tuklib_exit.c",
-"src/common/tuklib_mbstr_width.c",
-"src/common/tuklib_mbstr_fw.c",
-"src/common/tuklib_cpucores.c",
-"src/common/tuklib_open_stdxxx.c",
-"src/common/tuklib_physmem.c",
+    "src/xz/args.c",
+    "src/xz/coder.c",
+    "src/xz/file_io.c",
+    "src/xz/hardware.c",
+    "src/xz/list.c",
+    "src/xz/main.c",
+    "src/xz/message.c",
+    "src/xz/mytime.c",
+    "src/xz/options.c",
+    "src/xz/signals.c",
+    "src/xz/suffix.c",
+    "src/xz/util.c",
+    "src/common/tuklib_progname.c",
+    "src/common/tuklib_exit.c",
+    "src/common/tuklib_mbstr_width.c",
+    "src/common/tuklib_mbstr_fw.c",
+    "src/common/tuklib_cpucores.c",
+    "src/common/tuklib_open_stdxxx.c",
+    "src/common/tuklib_physmem.c",
 };
 
 const xzdec_src_files = [_][]const u8{
-"src/xzdec/xzdec.c",
-"src/common/tuklib_exit.c",
-"src/common/tuklib_progname.c",
+    "src/xzdec/xzdec.c",
+    "src/common/tuklib_exit.c",
+    "src/common/tuklib_progname.c",
 };
