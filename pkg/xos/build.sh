@@ -30,27 +30,27 @@ ln -s ../zig/"zig$exe" "$tools"/zig
 
 # internal tools
 scripts="
-build
 fetch
 cc
 ar
 fetch_urltxt
 need
-pkgid
 untar
-link_tools
+xos_internal_build
+xos_internal_pkgid
+xos_internal_link_tools
 "
 for script in $scripts
 do
   cp "$BUILD_PKG/src/$script" "$tools"
 done
 ln -s tools/build "$out"
-cat <<EOF > "$tools/internal_mktemp"
+cat <<EOF > "$tools/xos_internal_mktemp"
 #!/usr/bin/env sh
 set -e
 busybox mktemp \$@
 EOF
-chmod +x "$tools/internal_mktemp"
+chmod +x "$tools/xos_internal_mktemp"
 
 # link busybox
 bbtools="
