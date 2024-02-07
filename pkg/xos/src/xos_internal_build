@@ -75,7 +75,6 @@ then
       exit 1
     fi
   fi
-  XOS_DEV=1
   export PATH="$XOS_ROOT/tools:$PATH"
 else
   export PATH="$XOS_ROOT/tools"
@@ -190,13 +189,7 @@ then
 fi
 
 # xos version
-if [ "$XOS_DEV" = 1 ]
-then
-  >&2 echo "warn: XOS_DEV=1"
-  XOS_ID="dev"
-else
-  XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
-fi
+XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
 
 # identify output hash
 pkgid_text=$(
@@ -306,7 +299,6 @@ EOF
   cd "$BUILD_OUT/tmp"
   env -i \
     DRY="$DRY" \
-    XOS_DEV="$XOS_DEV" \
     PATH="$pkg_tools_dir:$tools_dir:$PATH" \
     ARCH="$ARCH" \
     ARCH_ISA="$ARCH_ISA" \
