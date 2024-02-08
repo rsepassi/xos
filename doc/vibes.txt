@@ -5,3 +5,4 @@ everything is scriptable, flexible, pipeable
 Nielsen's 10 Usability Heuristics for User Interface Design
 anarchic, in the egalitarian sense, dignity of the individual
 legos + applications made of them
+cross-platform runit

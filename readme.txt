@@ -82,6 +82,7 @@ todo
 * traps
 * parallelism
 * detect dependency cycles
+* toolchains? (go, rust, ...)
 
 ---
 
