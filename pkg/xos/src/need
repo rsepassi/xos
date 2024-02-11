@@ -25,4 +25,4 @@ fi
 pkgid=$(ARCH=$ARCH OPT=$OPT xos_internal_build $pkg "$@")
 
 mkdir -p "$BUILD_DEPS"
-ln -s "$BUILD_CACHE/$pkgid/out" "$dst"
+ln -s "$XOS_BUILD_CACHE/$pkgid/out" "$dst"
