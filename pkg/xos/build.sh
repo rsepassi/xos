@@ -125,6 +125,7 @@ xosid() {
 }
 cd "$BUILD_PKG"
 xosid > "$out/.xos"
+sha256sum "$out/.xos" | cut -d' ' -f1 > "$out/.xos_id"
 echo "$ARCH" > "$out/.xos_host"
 
 if [ "$mode" = "release" ]

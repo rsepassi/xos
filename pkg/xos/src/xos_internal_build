@@ -169,8 +169,8 @@ get_arch_host() {
 # get directories
 export XOS_ROOT="$(get_xosroot)"
 export XOS_BUILD_ROOT="$(get_buildroot)"
-export XOS_BUILD_CACHE="$XOS_BUILD_ROOT/cache"
 export XOS_PKG_ROOT="$(get_pkgroot)"
+XOS_BUILD_CACHE="$XOS_BUILD_ROOT/cache"
 
 # seal up path
 export PATH="$XOS_ROOT/tools"
@@ -237,8 +237,7 @@ export OPT_ZIG
   deps_tools=$(get_tool_deps "$BUILD_PKG/tooldeps.txt")
 
 # xos version
-[ -n "$XOS_ID" ] || \
-  export XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
+[ -n "$XOS_ID" ] || export XOS_ID="$(cat "$XOS_ROOT/.xos_id")"
 
 # identify output hash
 pkgid_text=$(
