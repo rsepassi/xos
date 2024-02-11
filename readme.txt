@@ -77,12 +77,12 @@ or run directly (on mac or linux)
 todo
 
 * documentation
-* dynamic dependency tracking (need)
 * binary releases of xos for macos, linux, windows
 * traps
 * parallelism
 * detect dependency cycles
 * toolchains? (go, rust, ...)
+* cache/tmp growth, reaping
 
 ---
 

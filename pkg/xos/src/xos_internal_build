@@ -1,8 +1,6 @@
 #!/usr/bin/env sh
 set -e
 
-[ "$V" = 1 ] && set -x
-
 usage() {
   cat <<EOF
 usage: ARCH= OPT= build pkgname
@@ -22,6 +20,19 @@ Env vars:
   PKG= pkg/ directory path, defaults to ./pkg
   DRY={1,0} if 1, log info and exit
 EOF
+}
+
+argsquote() {
+  [ $# = 0 ] && return
+  while :
+  do
+    printf "'"
+    printf %s "$1" | sed "s/'/'\\\\''/g"
+    shift
+    [ $# = 0 ] && break
+    printf "' "
+  done
+  printf "'\n"
 }
 
 # get xos/ root directory
@@ -61,9 +72,6 @@ get_xosroot() {
     realpath "$scriptdir"
   fi
 }
-XOS_ROOT="$(get_xosroot)"
-
-export PATH="$XOS_ROOT/tools"
 
 get_buildroot() {
   if [ -n "$XOS_BUILD_ROOT" ]
@@ -76,8 +84,6 @@ get_buildroot() {
     echo "$PWD/build"
   fi
 }
-XOS_BUILD_ROOT="$(get_buildroot)"
-XOS_BUILD_CACHE="$XOS_BUILD_ROOT/cache"
 
 # get pkg dir
 get_pkgroot() {
@@ -94,17 +100,85 @@ get_pkgroot() {
     >&2 echo "could not find ./pkg dir. specify PKG= or run next to a pkg/ dir."
   fi
 }
-XOS_PKG_ROOT="$(get_pkgroot)"
 
-# process arguments
-pkg=$1
-ARGS="$@"
-BUILD_PKG="$XOS_PKG_ROOT/$pkg"
-if [ -z "$pkg" ]
-then
-  usage
+get_deps() {
+  depstxt="$1"
+  arch="$2"
+  deps=""
+  while IFS= read -r dep; do
+    depid="$(ARCH="$arch" xos_internal_build "$dep")"
+    deps="$deps$depid  $dep\n"
+  done < "$depstxt"
+  echo "$deps"
+}
+
+get_static_deps() {
+  get_deps "$1" $ARCH
+}
+
+get_tool_deps() {
+  get_deps "$1" $ARCH_HOST
+}
+
+link_deps() {
+  deps="$1"
+  depdir="$2"
+  mkdir -p "$depdir"
+
+  tmpf="$BUILD_OUT/tmp/depsids.txt"
+  printf "$deps\n" > "$tmpf"
+
+  while IFS= read -r line
+  do
+    depid=$(echo $line | cut -d' ' -f1)
+    depname=$(echo $line | cut -d' ' -f2)
+    ln -s "$XOS_BUILD_CACHE/$depid/out" "$depdir/$depname"
+  done < "$tmpf"
+
+  IFS="$oldifs"
+}
+
+get_arch_host() {
+  if [ -n "$ARCH_HOST" ]
+  then
+    echo "$ARCH_HOST"
+    return
+  fi
+
+  if which zig > /dev/null
+  then
+    zig targets | grep "\"triple\"" | cut -d '"' -f4
+    return
+  fi
+
+  if [ -e "$XOS_ROOT/.xos_host" ]
+  then
+    cat "$XOS_ROOT/.xos_host"
+    return
+  fi
+
+  >&2 echo "could not determine ARCH_HOST, please set manually"
   exit 1
-fi
+}
+
+# script start
+
+[ "$#" = 0 ] && { usage; exit 1; }
+[ "$V" = 1 ] && set -x
+
+# get directories
+export XOS_ROOT="$(get_xosroot)"
+export XOS_BUILD_ROOT="$(get_buildroot)"
+export XOS_BUILD_CACHE="$XOS_BUILD_ROOT/cache"
+export XOS_PKG_ROOT="$(get_pkgroot)"
+
+# seal up path
+export PATH="$XOS_ROOT/tools"
+
+# determine package
+pkg=$1
+ARGS="$(argsquote "$@")"
+BUILD_PKG="$XOS_PKG_ROOT/$pkg"
 if [ ! -e "$BUILD_PKG/build.sh" ]
 then
   >&2 echo "unrecognized pkg $pkg, missing build.sh"
@@ -113,11 +187,12 @@ fi
 
 # local tools
 tools_dir="$XOS_BUILD_CACHE/tools"
-"$XOS_ROOT/tools/xos_internal_link_tools" "$tools_dir"
+[ -e "$tools_dir/.ok" ] || \
+  "$XOS_ROOT/tools/xos_internal_link_tools" "$tools_dir"
 
 # Host and target ARCH
-ARCH_HOST=${ARCH_HOST:-$(zig targets | grep "\"triple\"" | cut -d '"' -f4)}
-ARCH=${ARCH:-$ARCH_HOST}
+export ARCH_HOST=$(get_arch_host)
+export ARCH=${ARCH:-$ARCH_HOST}
 ARCH_HOST_ISA=$(echo "$ARCH_HOST" | cut -d '-' -f1)
 ARCH_HOST_OS=$(echo "$ARCH_HOST" | cut -d '-' -f2 | cut -d '.' -f1)
 ARCH_ISA=$(echo "$ARCH" | cut -d '-' -f1)
@@ -153,28 +228,17 @@ case $OPT in
     exit 1
     ;;
 esac
+export OPT
+export OPT_ZIG
 
-# static dependencies
-deps_static=""
-if [ -e "$BUILD_PKG/deps.txt" ]
-then
-  while IFS= read -r dep; do
-    depid="$(xos_internal_build "$dep")"
-    deps_static="$deps_static\n$depid  $dep"
-  done < "$BUILD_PKG/deps.txt"
-fi
-
-tool_deps=""
-if [ -e "$BUILD_PKG/tooldeps.txt" ]
-then
-  while IFS= read -r dep; do
-    depid="$(ARCH="$ARCH_HOST" xos_internal_build "$dep")"
-    tool_deps="$tool_deps\n$depid  $dep"
-  done < "$BUILD_PKG/tooldeps.txt"
-fi
+[ -e "$BUILD_PKG/deps.txt" ] && \
+  deps_static=$(get_static_deps "$BUILD_PKG/deps.txt")
+[ -e "$BUILD_PKG/tooldeps.txt" ] && \
+  deps_tools=$(get_tool_deps "$BUILD_PKG/tooldeps.txt")
 
 # xos version
-XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
+[ -n "$XOS_ID" ] || \
+  export XOS_ID="$(sha256sum "$XOS_ROOT/.xos" | cut -d ' ' -f1)"
 
 # identify output hash
 pkgid_text=$(
@@ -184,7 +248,7 @@ pkgid_text=$(
   OPT="$OPT" \
   ARGS="$ARGS" \
   DEPS="$deps_static" \
-  TOOLDEPS="$deps_static" \
+  TOOLDEPS="$deps_tools" \
   "$XOS_ROOT/tools/xos_internal_pkgid" "$pkg"
 )
 pkgid="$(echo "$pkgid_text" | sha256sum | cut -d ' ' -f1)"
@@ -193,6 +257,22 @@ BUILD_OUT="$XOS_BUILD_CACHE/$pkgid"
 if [ -e "$BUILD_OUT/.ok" ]
 then
   rebuild=0
+  if [ -e "$BUILD_OUT/dyndeps.txt" ]
+  then
+    while IFS= read -r line
+    do
+      [ -z "$line" ] && continue
+      depid=$(echo $line | cut -d' ' -f1)
+      depname=$(echo $line | cut -d' ' -f2)
+      depargs=$(echo $line | cut -d' ' -f3-)
+      depid2=$(eval "xos_internal_build $depargs")
+      if [ "$depid" != "$depid2" ]
+      then
+        rebuild=1
+        break
+      fi
+    done < "$BUILD_OUT/dyndeps.txt"
+  fi
 else
   rebuild=1
 fi
@@ -232,35 +312,15 @@ then
   mkdir -p "$BUILD_OUT/out" "$BUILD_OUT/tmp"
   echo "$pkgid_text" > "$BUILD_OUT/pkgid"
 
-  # build static deps
+  # link static deps
   BUILD_DEPS="$BUILD_OUT/deps"
-  if [ -e "$BUILD_PKG/deps.txt" ]
-  then
-    mkdir -p "$BUILD_DEPS"
-    cp "$BUILD_PKG/deps.txt" "$BUILD_OUT"
-    while IFS= read -r dep; do
-      ARCH="$ARCH" \
-      OPT="$OPT" \
-      BUILD_DEPS="$BUILD_DEPS" \
-      XOS_BUILD_CACHE="$XOS_BUILD_CACHE" \
-        "$XOS_ROOT/tools/need" "$dep"
-    done < "$BUILD_PKG/deps.txt"
-  fi
+  [ -e "$BUILD_PKG/deps.txt" ] && \
+    link_deps "$deps_static" "$BUILD_DEPS"
 
-  # build tool deps
+  # link tool deps
   BUILD_TOOLDEPS="$BUILD_OUT/tooldeps"
-  if [ -e "$BUILD_PKG/tooldeps.txt" ]
-  then
-    mkdir -p "$BUILD_TOOLDEPS"
-    cp "$BUILD_PKG/tooldeps.txt" "$BUILD_OUT"
-    while IFS= read -r dep; do
-      ARCH="$ARCH_HOST" \
-      OPT="2" \
-      BUILD_DEPS="$BUILD_TOOLDEPS" \
-      XOS_BUILD_CACHE="$XOS_BUILD_CACHE" \
-        "$XOS_ROOT/tools/need" "$dep"
-    done < "$BUILD_PKG/tooldeps.txt"
-  fi
+  [ -e "$BUILD_PKG/tooldeps.txt" ] && \
+    link_deps "$deps_tools" "$BUILD_TOOLDEPS"
 
   # pkg-specific tools
   pkg_tools_dir="$BUILD_OUT/tools"
@@ -276,7 +336,7 @@ EOF
   logfile="$BUILD_OUT/build.log"
   fail() {
     >&2 cat "$logfile"
-    >&2 echo ""
+    >&2 echo
     >&2 echo "error building pkg $pkg $pkgid"
     exit 1
   }
@@ -284,7 +344,7 @@ EOF
   cd "$BUILD_OUT/tmp"
   env -i \
     DRY="$DRY" \
-    PATH="$pkg_tools_dir:$tools_dir:$PATH" \
+    PATH="$pkg_tools_dir:$tools_dir:$XOS_ROOT/tools" \
     HOME="$BUILD_OUT/tmp" \
     USER="xos" \
     XDG_CACHE_HOME="$XOS_BUILD_CACHE/xdg" \
@@ -292,6 +352,7 @@ EOF
     XOS_PKG_ROOT="$XOS_PKG_ROOT" \
     XOS_BUILD_ROOT="$XOS_BUILD_ROOT" \
     XOS_BUILD_CACHE="$XOS_BUILD_CACHE" \
+    XOS_BUILD_OUT="$BUILD_OUT" \
     ARCH="$ARCH" \
     ARCH_ISA="$ARCH_ISA" \
     ARCH_OS="$ARCH_OS" \

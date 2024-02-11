@@ -2,8 +2,23 @@
 set -e
 
 pkg=$1
-name=${2:-$pkg}
+name=$2
 
+if [ -z "$name" ] || [ "$name" = "--" ]
+then
+  name=$pkg
+fi
+
+dst=$BUILD_DEPS/$name
+if [ -d "$dst" ]
+then
+  >&2 echo "error in need: destination already exists. consider passing a name."
+  >&2 echo "dst=$dst"
+  exit 1
+fi
+
+# set $@ to build args, if any
+shift
 while [ "$#" -gt 0 ]
 do
 	if [ "$1" = "--" ]
@@ -14,15 +29,27 @@ do
 	shift
 done
 
-dst=$BUILD_DEPS/$name
-if [ -d "$dst" ]
-then
-  >&2 echo "error in need: destination already exists. consider passing a name."
-  >&2 echo "dst=$dst"
-  exit 1
-fi
-
+# build
 pkgid=$(ARCH=$ARCH OPT=$OPT xos_internal_build $pkg "$@")
 
+# link
 mkdir -p "$BUILD_DEPS"
 ln -s "$XOS_BUILD_CACHE/$pkgid/out" "$dst"
+
+# log the dynamic dependency
+argsquote() {
+  [ $# = 0 ] && return
+  printf " "
+  while :
+  do
+    printf "'"
+    printf %s "$1" | sed "s/'/'\\\\''/g"
+    shift
+    [ $# = 0 ] && break
+    printf "' "
+  done
+  printf "'\n"
+}
+printf "$pkgid  $name  $pkg" >> "$XOS_BUILD_OUT/dyndeps.txt"
+argsquote "$@" >> "$XOS_BUILD_OUT/dyndeps.txt"
+printf "\n" >> "$XOS_BUILD_OUT/dyndeps.txt"
