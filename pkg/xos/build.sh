@@ -112,7 +112,7 @@ else
 fi
 
 # readme
-cp "$BUILD_PKG/src/readme.txt" "$out"
+cp "$BUILD_PKG/src/dist_readme.txt" "$out"
 
 # xos id
 zigid="0.12.0-dev.2341+92211135f"
