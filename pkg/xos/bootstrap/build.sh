@@ -85,7 +85,7 @@ BUILD_PKG="$xosroot/pkg/zig" \
 ARCH_OS=$ARCH_OS \
 ARCH_ISA=$ARCH_ISA \
 BUILD_DEPS="$tmp" \
-BUILD_CACHE="$cache" \
+XOS_BUILD_CACHE="$cache" \
 BUILD_OUT="$out/zig" \
 sh -ex "$xosroot/pkg/zig/build.sh"
 ln -s ../zig/zig "$tools/zig"
@@ -99,7 +99,7 @@ OPT_ZIG="ReleaseSmall" \
 ARCH_OS=$ARCH_OS \
 ARCH_ISA=$ARCH_ISA \
 BUILD_DEPS="$tmp" \
-BUILD_CACHE="$cache" \
+XOS_BUILD_CACHE="$cache" \
 BUILD_OUT="$tmp/make" \
 sh -ex "$xosroot/pkg/make/build.sh"
 
@@ -113,7 +113,7 @@ OPT="s" \
 ARCH_OS=$ARCH_OS \
 BUILD_DEPS="$tmp" \
 BUILD_TOOLDEPS="$tmp" \
-BUILD_CACHE="$cache" \
+XOS_BUILD_CACHE="$cache" \
 BUILD_OUT="$tmp/busybox" \
 sh -ex "$xosroot/pkg/busybox/build.sh"
 cp "$tmp/busybox/bin/busybox" "$tools"
