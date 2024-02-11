@@ -125,6 +125,7 @@ xosid() {
 }
 cd "$BUILD_PKG"
 xosid > "$out/.xos"
+echo "$ARCH" > "$out/.xos_host"
 
 if [ "$mode" = "release" ]
 then

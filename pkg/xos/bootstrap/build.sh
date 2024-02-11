@@ -44,6 +44,7 @@ case $(uname -m) in
     exit 1
     ;;
 esac
+ARCH="$ARCH_ISA-$ARCH_OS-$arch_lib"
 
 # link tools
 scripts="
@@ -94,7 +95,7 @@ ln -s ../zig/zig "$tools/zig"
 mkdir "$tmp/make"
 PATH="$tools:$PATH" \
 BUILD_PKG="$xosroot/pkg/make" \
-ARCH="$ARCH_ISA-$ARCH_OS-$arch_lib" \
+ARCH="$ARCH" \
 OPT_ZIG="ReleaseSmall" \
 ARCH_OS=$ARCH_OS \
 ARCH_ISA=$ARCH_ISA \
@@ -108,7 +109,7 @@ mkdir "$tmp/busybox"
 
 PATH="$tools:$PATH" \
 BUILD_PKG="$xosroot/pkg/busybox" \
-ARCH="$ARCH_ISA-$ARCH_OS-$arch_lib" \
+ARCH="$ARCH" \
 OPT="s" \
 ARCH_OS=$ARCH_OS \
 BUILD_DEPS="$tmp" \
@@ -173,5 +174,6 @@ fi
 
 echo "xos bootstrap build" > "$out/readme.txt"
 echo "xos bootstrap build" > "$out/.xos"
+echo "$ARCH" > "$out/.xos_host"
 
 echo "bootstrap ok"
