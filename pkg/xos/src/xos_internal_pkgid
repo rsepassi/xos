@@ -16,14 +16,16 @@ else
 fi
 srcfiles_hash="$(sha256sum $srcfiles)"
 
-echo "--- BEGIN XOS PKG ---"
-echo "PKG=$pkg"
-echo "ARGS=$ARGS"
-echo "ARCH=$ARCH"
-echo "OPT=$OPT"
-echo "SRCS="
-echo "$srcfiles_hash"
-echo "DEPS=$DEPS"
-echo "TOOLS=$TOOLDEPS"
-echo "XOS=$XOS"
-echo "--- END XOS PKG ---"
+cat <<EOF
+--- BEGIN XOS PKG ---
+PKG=$pkg
+ARGS=$ARGS
+ARCH=$ARCH
+OPT=$OPT
+SRCS=
+$srcfiles_hash
+DEPS=$DEPS
+TOOLS=$TOOLDEPS
+XOS=$XOS
+--- END XOS PKG ---
+EOF
