@@ -76,13 +76,13 @@ or run directly (on mac or linux)
 
 todo
 
-* documentation
-* binary releases of xos for macos, linux, windows
-* traps
 * parallelism
-* detect dependency cycles
-* toolchains? (go, rust, ...)
+* pkg-config like functionality
+* binary releases of xos for macos, linux, windows
+* documentation
 * cache/tmp growth, reaping
+* detect dependency cycles?
+* toolchains? (go, rust, ...)
 
 ---
 
