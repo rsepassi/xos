@@ -138,6 +138,20 @@ link_deps() {
   IFS="$oldifs"
 }
 
+stale_dyndeps() {
+  dyndeps="$1"
+  while IFS= read -r line
+  do
+    [ -z "$line" ] && continue
+    depid=$(echo $line | cut -d' ' -f1)
+    depname=$(echo $line | cut -d' ' -f2)
+    depargs=$(echo $line | cut -d' ' -f3-)
+    depid2=$(eval "xos_internal_build $depargs")
+    [ "$depid" != "$depid2" ] && return 0
+  done < "$dyndeps"
+  return 1
+}
+
 get_arch_host() {
   if [ -n "$ARCH_HOST" ]
   then
@@ -239,7 +253,7 @@ export OPT_ZIG
 # xos version
 [ -n "$XOS_ID" ] || export XOS_ID="$(cat "$XOS_ROOT/.xos_id")"
 
-# identify output hash
+# identify pkg id
 pkgid_text=$(
   XOS="$XOS_ID" \
   BUILD_PKG="$BUILD_PKG" \
@@ -255,22 +269,11 @@ BUILD_OUT="$XOS_BUILD_CACHE/$pkgid"
 
 if [ -e "$BUILD_OUT/.ok" ]
 then
-  rebuild=0
-  if [ -e "$BUILD_OUT/dyndeps.txt" ]
+  if [ -e "$BUILD_OUT/dyndeps.txt" ] && stale_dyndeps "$BUILD_OUT/dyndeps.txt"
   then
-    while IFS= read -r line
-    do
-      [ -z "$line" ] && continue
-      depid=$(echo $line | cut -d' ' -f1)
-      depname=$(echo $line | cut -d' ' -f2)
-      depargs=$(echo $line | cut -d' ' -f3-)
-      depid2=$(eval "xos_internal_build $depargs")
-      if [ "$depid" != "$depid2" ]
-      then
-        rebuild=1
-        break
-      fi
-    done < "$BUILD_OUT/dyndeps.txt"
+    rebuild=1
+  else
+    rebuild=0
   fi
 else
   rebuild=1
@@ -331,7 +334,7 @@ xos_internal_mktemp \$@ "$BUILD_OUT/tmp/tmpXXXXXX"
 EOF
   chmod +x "$pkg_tools_dir/mktemp"
 
-  # run build script
+  # setup log and fail fn
   logfile="$BUILD_OUT/build.log"
   fail() {
     >&2 cat "$logfile"
@@ -340,6 +343,7 @@ EOF
     exit 1
   }
 
+  # run build script
   cd "$BUILD_OUT/tmp"
   env -i \
     DRY="$DRY" \
