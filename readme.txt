@@ -83,6 +83,7 @@ todo
 * cache/tmp growth, reaping
 * detect dependency cycles?
 * toolchains? (go, rust, ...)
+* sandboxing (bwrap, sandbox-exec)
 
 ---
 
