@@ -6,9 +6,9 @@ build:
   check usage
   check verbose
   detect directories
-  seal path
   check pkg exists
   link system tools
+  seal path
   setup target+host arch
   setup opt
   check static+tool deps
