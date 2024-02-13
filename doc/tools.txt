@@ -10,6 +10,7 @@ busybox:
   env          - read and change environment
   which        - program locate
   xargs        - multi-exec
+  expr         - evaluate expression
 
   Stream/text processing
   awk          - text processing
@@ -25,7 +26,8 @@ busybox:
   touch        - create file, update modtime
   cp           - copy
   mv           - move files
-  rm           - remove files
+  rm           - remove files and directories
+  rmdir        - remove directories
   ls           - list files
   cat          - print file
   od           - oct/dec/hex/ascii dump
@@ -60,64 +62,16 @@ busybox:
   sleep
 
 xos:
-  fetch         - download url and compare hash
-  fetch_urltxt  - fetch from a txt file with a url and hash
-  untar         - extract tar archive
-  need          - dynamic dependency
+  fetch          - download url and compare hash
+  fetch_urltxt   - fetch from a txt file with a url and hash
+  untar          - extract tar archive
+  need           - dynamic dependency
+  system         - use the system PATH for a command
+  system_export  - use the system PATH for a command (with PATH exported)
 
 zig:
-  zig   - zig compiler
-  cc    - wrapper around zig cc
-  ar    - wrapper around zig ar
-
-
-Alphabetical listing:
-
-ar
-awk
-basename
-busybox
-bzip2
-cat
-cc
-chmod
-cmp
-cp
-cut
-diff
-dirname
-env
-fetch
-fetch_urltxt
-find
-grep
-gzip
-head
-ln
-ls
-mkdir
-mv
-need
-nproc
-od
-readlink
-realpath
-rm
-sed
-sh
-sha256sum
-sleep
-sort
-tail
-tar
-touch
-tr
-uniq
-untar
-unzip
-wc
-wget
-which
-xargs
-xz
-zig
+  zig      - zig compiler
+  cc       - wrapper around zig cc
+  ar       - wrapper around zig ar
+  rc       - wrapper around zig rc
+  windres  - wrapper around zig rc
