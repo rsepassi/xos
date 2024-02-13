@@ -186,9 +186,6 @@ export XOS_BUILD_ROOT="$(get_buildroot)"
 export XOS_PKG_ROOT="$(get_pkgroot)"
 XOS_BUILD_CACHE="$XOS_BUILD_ROOT/cache"
 
-# seal up path
-export PATH="$XOS_ROOT/tools"
-
 # determine package
 pkg=$1
 ARGS="$(argsquote "$@")"
@@ -203,6 +200,11 @@ fi
 tools_dir="$XOS_BUILD_CACHE/tools"
 [ -e "$tools_dir/.ok" ] || \
   "$XOS_ROOT/tools/xos_internal_link_tools" "$tools_dir"
+
+# seal up PATH
+# needs to happen after xos_internal_link_tools so that it can read the
+# system PATH
+export PATH="$XOS_ROOT/tools"
 
 # Host and target ARCH
 export ARCH_HOST=$(get_arch_host)
@@ -337,38 +339,45 @@ EOF
   # setup log and fail fn
   logfile="$BUILD_OUT/build.log"
   fail() {
-    >&2 cat "$logfile"
-    >&2 echo
-    >&2 echo "error building pkg $pkg $pkgid"
+    [ "$DEBUG" != 1 ] && >&2 cat "$logfile"
+    >&2 printf "\nerror building pkg $pkg $pkgid\n"
     exit 1
   }
 
   # run build script
   cd "$BUILD_OUT/tmp"
-  env -i \
-    DRY="$DRY" \
-    PATH="$pkg_tools_dir:$tools_dir:$XOS_ROOT/tools" \
-    HOME="$BUILD_OUT/tmp" \
-    USER="xos" \
-    XDG_CACHE_HOME="$XOS_BUILD_CACHE/xdg" \
-    XOS_ROOT="$XOS_ROOT" \
-    XOS_PKG_ROOT="$XOS_PKG_ROOT" \
-    XOS_BUILD_ROOT="$XOS_BUILD_ROOT" \
-    XOS_BUILD_CACHE="$XOS_BUILD_CACHE" \
-    XOS_BUILD_OUT="$BUILD_OUT" \
-    ARCH="$ARCH" \
-    ARCH_ISA="$ARCH_ISA" \
-    ARCH_OS="$ARCH_OS" \
-    ARCH_HOST="$ARCH_HOST" \
-    ARCH_HOST_ISA="$ARCH_HOST_ISA" \
-    ARCH_HOST_OS="$ARCH_HOST_OS" \
-    OPT="$OPT" \
-    OPT_ZIG="$OPT_ZIG" \
-    BUILD_OUT="$BUILD_OUT/out" \
-    BUILD_DEPS="$BUILD_DEPS" \
-    BUILD_TOOLDEPS="$BUILD_TOOLDEPS" \
-    BUILD_PKG="$BUILD_PKG" \
-  sh -e "$BUILD_PKG/build.sh" "$@" > "$logfile" || fail
+  script="$BUILD_PKG/build.sh"
+  (
+    if [ "$DEBUG" != 1 ]
+    then
+      exec > "$logfile"
+    fi
+    env -i \
+      DRY="$DRY" \
+      DEBUG="$DEBUG" \
+      PATH="$pkg_tools_dir:$tools_dir:$XOS_ROOT/tools" \
+      HOME="$BUILD_OUT/tmp" \
+      USER="xos" \
+      XDG_CACHE_HOME="$XOS_BUILD_CACHE/xdg" \
+      XOS_ROOT="$XOS_ROOT" \
+      XOS_PKG_ROOT="$XOS_PKG_ROOT" \
+      XOS_BUILD_ROOT="$XOS_BUILD_ROOT" \
+      XOS_BUILD_CACHE="$XOS_BUILD_CACHE" \
+      XOS_BUILD_OUT="$BUILD_OUT" \
+      ARCH="$ARCH" \
+      ARCH_ISA="$ARCH_ISA" \
+      ARCH_OS="$ARCH_OS" \
+      ARCH_HOST="$ARCH_HOST" \
+      ARCH_HOST_ISA="$ARCH_HOST_ISA" \
+      ARCH_HOST_OS="$ARCH_HOST_OS" \
+      OPT="$OPT" \
+      OPT_ZIG="$OPT_ZIG" \
+      BUILD_OUT="$BUILD_OUT/out" \
+      BUILD_DEPS="$BUILD_DEPS" \
+      BUILD_TOOLDEPS="$BUILD_TOOLDEPS" \
+      BUILD_PKG="$BUILD_PKG" \
+    sh -e "$script" "$@" || fail
+  )
 
   # ok
   touch "$BUILD_OUT/.ok"
