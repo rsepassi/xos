@@ -7,6 +7,7 @@ pub fn build(b: *std.Build) void {
 
     const mbedtls = b.option([]const u8, "mbedtls", "mbedtls root");
     const brotli = b.option([]const u8, "brotli", "brotli root");
+    const nghttp2 = b.option([]const u8, "nghttp2", "nghttp2 root");
 
     const lib = b.addStaticLibrary(.{
         .name = "curl",
@@ -17,10 +18,12 @@ pub fn build(b: *std.Build) void {
     lib.defineCMacro("HAVE_CONFIG_H", null);
     lib.defineCMacro("BUILDING_LIBCURL", null);
     lib.defineCMacro("CURL_STATICLIB", null);
+    lib.defineCMacro("NGHTTP2_STATICLIB", null);
     lib.addIncludePath(.{ .path = "include" });
     lib.addIncludePath(.{ .path = "lib" });
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ mbedtls.?, "include" }) });
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ brotli.?, "include" }) });
+    lib.addIncludePath(.{ .path = b.pathJoin(&.{ nghttp2.?, "include" }) });
     lib.addCSourceFiles(.{ .files = &lib_src_files, .flags = &cflags });
     switch (os) {
         .macos => {
@@ -77,6 +80,7 @@ pub fn build(b: *std.Build) void {
         else => "a",
     };
 
+    exe.linkLibrary(lib);
     exe.addObjectFile(.{ .path = b.pathJoin(&.{
         mbedtls.?,
         b.fmt("lib/{s}mbedtls.{s}", .{ libprefix, libsuffix }),
@@ -93,7 +97,10 @@ pub fn build(b: *std.Build) void {
         brotli.?,
         b.fmt("lib/{s}brotli.{s}", .{ libprefix, libsuffix }),
     }) });
-    exe.linkLibrary(lib);
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{
+        nghttp2.?,
+        b.fmt("lib/{s}nghttp2.{s}", .{ libprefix, libsuffix }),
+    }) });
     exe.linkLibC();
     b.installArtifact(exe);
 }

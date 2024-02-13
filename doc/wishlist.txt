@@ -19,7 +19,7 @@ libbtc
 crdt
 gui lib
 zk libs
-http2, http3
+http3
 git, libgit, stagit
 whisper
 regex (pcre, tre)
