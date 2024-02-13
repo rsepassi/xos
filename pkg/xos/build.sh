@@ -33,6 +33,8 @@ scripts="
 fetch
 cc
 ar
+rc
+windres
 fetch_urltxt
 need
 untar
@@ -44,6 +46,7 @@ for script in $scripts
 do
   cp "$BUILD_PKG/src/$script" "$tools"
 done
+ln -s cc "$tools/ld"
 ln -s tools/build "$out"
 cat <<EOF > "$tools/xos_internal_mktemp"
 #!/usr/bin/env sh
@@ -93,6 +96,8 @@ cmp
 tr
 od
 readlink
+expr
+rmdir
 "
 for tool in $bbtools
 do

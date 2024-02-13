@@ -51,6 +51,8 @@ scripts="
 fetch
 cc
 ar
+rc
+windres
 fetch_urltxt
 need
 untar
@@ -62,8 +64,8 @@ for script in $scripts
 do
   ln -s "$xosroot/pkg/xos/src/$script" "$tools"
 done
+ln -s cc "$tools/ld"
 ln -s tools/xos_internal_build "$out/build"
-sh -e "$tools/xos_internal_link_tools" "$tools"
 cat <<EOF > "$tools/xos_internal_mktemp"
 #!/usr/bin/env sh
 exec busybox mktemp \$@
@@ -160,6 +162,8 @@ cmp
 tr
 od
 readlink
+expr
+rmdir
 "
 
 for tool in $bbtools
