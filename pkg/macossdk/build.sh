@@ -4,7 +4,7 @@ then
   exit 1
 fi
 
-# from https://github.com/hexops/xcode-frameworks
+# based on https://github.com/hexops/xcode-frameworks
 
 sdk='/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk'
 frameworks="$sdk/System/Library/Frameworks"
@@ -40,6 +40,7 @@ cp -RL $frameworks/CFNetwork.framework ./Frameworks/CFNetwork.framework
 cp -RL $frameworks/ApplicationServices.framework ./Frameworks/ApplicationServices.framework
 cp -RL $frameworks/ImageIO.framework ./Frameworks/ImageIO.framework
 cp -RL $frameworks/Symbols.framework ./Frameworks/Symbols.framework
+cp -RL $frameworks/SystemConfiguration.framework ./Frameworks/SystemConfiguration.framework
 
 # Audio frameworks
 cp -RL $frameworks/AudioToolbox.framework ./Frameworks/AudioToolbox.framework
