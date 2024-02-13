@@ -132,7 +132,7 @@ link_deps() {
   do
     depid=$(echo $line | cut -d' ' -f1)
     depname=$(echo $line | cut -d' ' -f2)
-    ln -s "$XOS_BUILD_CACHE/$depid/out" "$depdir/$depname"
+    ln -s "$XOS_BUILD_CACHE/pkg/$depid/out" "$depdir/$depname"
   done < "$tmpf"
 
   IFS="$oldifs"
@@ -267,7 +267,7 @@ pkgid_text=$(
   "$XOS_ROOT/tools/xos_internal_pkgid" "$pkg"
 )
 pkgid="$(echo "$pkgid_text" | sha256sum | cut -d ' ' -f1)"
-BUILD_OUT="$XOS_BUILD_CACHE/$pkgid"
+BUILD_OUT="$XOS_BUILD_CACHE/pkg/$pkgid"
 
 if [ -e "$BUILD_OUT/.ok" ]
 then

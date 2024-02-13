@@ -34,7 +34,7 @@ pkgid=$(ARCH=$ARCH OPT=$OPT xos_internal_build $pkg "$@")
 
 # link
 mkdir -p "$BUILD_DEPS"
-ln -s "$XOS_BUILD_CACHE/$pkgid/out" "$dst"
+ln -s "$XOS_BUILD_CACHE/pkg/$pkgid/out" "$dst"
 
 # log the dynamic dependency
 argsquote() {
