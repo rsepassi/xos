@@ -2,6 +2,8 @@ build.sh
 deps.txt
 src/ar
 src/cc
+src/rc
+src/windres
 src/fetch
 src/fetch_urltxt
 src/need

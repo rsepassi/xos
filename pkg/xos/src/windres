@@ -1,0 +1,138 @@
+#!/usr/bin/env sh
+
+rcargs=""
+
+while [ "$#" -gt 0 ]
+do
+  case $1 in
+  -I*)
+    inc=$(echo $1 | cut -c3-)
+    rcargs="$rcargs /i $inc"
+    ;;
+  -D*)
+    def=$(echo $1 | cut -c3-)
+    rcargs="$rcargs /d $def"
+    ;;
+  -U*)
+    def=$(echo $1 | cut -c3-)
+    rcargs="$rcargs /u $def"
+    ;;
+  -i|--input)
+    shift
+    fname=$1
+    rcargs="$rcargs $fname"
+    ;;
+  -o|--output)
+    shift
+    fname=$1
+    rcargs="$rcargs $fname"
+    ;;
+  *)
+    >&2 echo "unrecognized windres argument $1"
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+exec rc $rcargs
+
+# Example usage from curl build:
+# windres -I../include -DCURL_EMBED_MANIFEST  -i curl.rc -o curl.o
+#
+# zig rc --help
+#
+# Usage: zig rc [options] [--] <INPUT> [<OUTPUT>]
+# 
+# Supported Win32 RC Options:
+#   /?, /h                  Print this help and exit.
+#   /v                      Verbose (print progress messages).
+#   /d <name>[=<value>]     Define a symbol (during preprocessing).
+#   /u <name>               Undefine a symbol (during preprocessing).
+#   /fo <value>             Specify output file path.
+#   /l <value>              Set default language using hexadecimal id (ex: 409).
+#   /ln <value>             Set default language using language name (ex: en-us).
+#   /i <value>              Add an include path.
+#   /x                      Ignore INCLUDE environment variable.
+#   /c <value>              Set default code page (ex: 65001).
+#   /w                      Warn on invalid code page in .rc (instead of error).
+#   /y                      Suppress warnings for duplicate control IDs.
+#   /n                      Null-terminate all strings in string tables.
+#   /sl <value>             Specify string literal length limit in percentage (1-100)
+#                           where 100 corresponds to a limit of 8192. If the /sl
+#                           option is not specified, the default limit is 4097.
+#   /p                      Only run the preprocessor and output a .rcpp file.
+# 
+# 
+#
+# 
+# windres
+# 
+# -i filename
+# --input filename
+# The name of the input file. If this option is not used, then windres will use the first non-option argument as the input file name. If there are no non-option arguments, then windres will read from standard input. windres can not read a COFF file from standard input.
+# 
+# -o filename
+# --output filename
+# The name of the output file. If this option is not used, then windres will use the first non-option argument, after any used for the input file name, as the output file name. If there is no non-option argument, then windres will write to standard output. windres can not write a COFF file to standard output. Note, for compatibility with rc the option -fo is also accepted, but its use is not recommended.
+# 
+# -J format
+# --input-format format
+# The input format to read. format may be ‘res’, ‘rc’, or ‘coff’. If no input format is specified, windres will guess, as described above.
+# 
+# -O format
+# --output-format format
+# The output format to generate. format may be ‘res’, ‘rc’, or ‘coff’. If no output format is specified, windres will guess, as described above.
+# 
+# -F target
+# --target target
+# Specify the BFD format to use for a COFF file as input or output. This is a BFD target name; you can use the --help option to see a list of supported targets. Normally windres will use the default format, which is the first one listed by the --help option. Target Selection.
+# 
+# --preprocessor program
+# When windres reads an rc file, it runs it through the C preprocessor first. This option may be used to specify the preprocessor to use. The default preprocessor is gcc.
+# 
+# --preprocessor-arg option
+# When windres reads an rc file, it runs it through the C preprocessor first. This option may be used to specify additional text to be passed to preprocessor on its command line. This option can be used multiple times to add multiple options to the preprocessor command line. If the --preprocessor option has not been specified then a default set of preprocessor arguments will be used, with any --preprocessor-arg options being placed after them on the command line. These default arguments are -E, -xc-header and -DRC_INVOKED.
+# 
+# -I directory
+# --include-dir directory
+# Specify an include directory to use when reading an rc file. windres will pass this to the preprocessor as an -I option. windres will also search this directory when looking for files named in the rc file. If the argument passed to this command matches any of the supported formats (as described in the -J option), it will issue a deprecation warning, and behave just like the -J option. New programs should not use this behaviour. If a directory happens to match a format, simple prefix it with ‘./’ to disable the backward compatibility.
+# 
+# -D target
+# --define sym[=val]
+# Specify a -D option to pass to the preprocessor when reading an rc file.
+# 
+# -U target
+# --undefine sym
+# Specify a -U option to pass to the preprocessor when reading an rc file.
+# 
+# -r
+# Ignored for compatibility with rc.
+# 
+# -v
+# Enable verbose mode. This tells you what the preprocessor is if you didn’t specify one.
+# 
+# -c val
+# --codepage val
+# Specify the default codepage to use when reading an rc file. val should be a hexadecimal prefixed by ‘0x’ or decimal codepage code. The valid range is from zero up to 0xffff, but the validity of the codepage is host and configuration dependent.
+# 
+# -l val
+# --language val
+# Specify the default language to use when reading an rc file. val should be a hexadecimal language code. The low eight bits are the language, and the high eight bits are the sublanguage.
+# 
+# --use-temp-file
+# Use a temporary file to instead of using popen to read the output of the preprocessor. Use this option if the popen implementation is buggy on the host (eg., certain non-English language versions of Windows 95 and Windows 98 are known to have buggy popen where the output will instead go the console).
+# 
+# --no-use-temp-file
+# Use popen, not a temporary file, to read the output of the preprocessor. This is the default behaviour.
+# 
+# -h
+# --help
+# Prints a usage summary.
+# 
+# -V
+# --version
+# Prints the version number for windres.
+# 
+# --yydebug
+# If windres is compiled with YYDEBUG defined as 1, this will turn on parser debugging.

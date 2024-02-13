@@ -1,3 +1,2 @@
 #!/usr/bin/env sh
-set -e
-zig ar $@
+exec zig ar "$@"
