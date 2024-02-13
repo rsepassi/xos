@@ -6,6 +6,7 @@ pub fn build(b: *std.Build) void {
     const os = target.result.os.tag;
 
     const mbedtls = b.option([]const u8, "mbedtls", "mbedtls root");
+    const brotli = b.option([]const u8, "brotli", "brotli root");
 
     const lib = b.addStaticLibrary(.{
         .name = "curl",
@@ -19,6 +20,7 @@ pub fn build(b: *std.Build) void {
     lib.addIncludePath(.{ .path = "include" });
     lib.addIncludePath(.{ .path = "lib" });
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ mbedtls.?, "include" }) });
+    lib.addIncludePath(.{ .path = b.pathJoin(&.{ brotli.?, "include" }) });
     lib.addCSourceFiles(.{ .files = &lib_src_files, .flags = &cflags });
     switch (os) {
         .macos => {
@@ -47,8 +49,6 @@ pub fn build(b: *std.Build) void {
     exe.addIncludePath(.{ .path = "include" });
     exe.addIncludePath(.{ .path = "lib" });
     exe.addIncludePath(.{ .path = "src" });
-    lib.addIncludePath(.{ .path = b.pathJoin(&.{ mbedtls.?, "include" }) });
-    lib.addLibraryPath(.{ .path = b.pathJoin(&.{ mbedtls.?, "lib" }) });
     exe.addCSourceFiles(.{ .files = &exe_src_files, .flags = &cflags });
     switch (os) {
         .macos => {
@@ -67,9 +67,32 @@ pub fn build(b: *std.Build) void {
         },
         else => {},
     }
-    exe.addObjectFile(.{ .path = b.pathJoin(&.{ mbedtls.?, "lib/libmbedtls.a" }) });
-    exe.addObjectFile(.{ .path = b.pathJoin(&.{ mbedtls.?, "lib/libmbedcrypto.a" }) });
-    exe.addObjectFile(.{ .path = b.pathJoin(&.{ mbedtls.?, "lib/libmbedx509.a" }) });
+
+    const libprefix = switch (os) {
+        .windows => "",
+        else => "lib",
+    };
+    const libsuffix = switch (os) {
+        .windows => "lib",
+        else => "a",
+    };
+
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{
+        mbedtls.?,
+        b.fmt("lib/{s}mbedtls.{s}", .{ libprefix, libsuffix }),
+    }) });
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{
+        mbedtls.?,
+        b.fmt("lib/{s}mbedcrypto.{s}", .{ libprefix, libsuffix }),
+    }) });
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{
+        mbedtls.?,
+        b.fmt("lib/{s}mbedx509.{s}", .{ libprefix, libsuffix }),
+    }) });
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{
+        brotli.?,
+        b.fmt("lib/{s}brotli.{s}", .{ libprefix, libsuffix }),
+    }) });
     exe.linkLibrary(lib);
     exe.linkLibC();
     b.installArtifact(exe);

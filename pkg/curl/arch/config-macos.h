@@ -17,10 +17,10 @@
 /* #undef CURL_DEFAULT_SSL_BACKEND */
 
 /* disable alt-svc */
-#define CURL_DISABLE_ALTSVC 1
+/* #undef CURL_DISABLE_ALTSVC */
 
 /* to disable AWS sig support */
-#define CURL_DISABLE_AWS 1
+/* #undef CURL_DISABLE_AWS */
 
 /* to disable basic authentication */
 /* #undef CURL_DISABLE_BASIC_AUTH */
@@ -50,19 +50,19 @@
 /* #undef CURL_DISABLE_FORM_API */
 
 /* to disable FTP */
-#define CURL_DISABLE_FTP 1
+/* #undef CURL_DISABLE_FTP */
 
 /* to disable curl_easy_options */
 /* #undef CURL_DISABLE_GETOPTIONS */
 
 /* to disable Gopher */
-#define CURL_DISABLE_GOPHER 1
+/* #undef CURL_DISABLE_GOPHER */
 
 /* disable headers-api */
 /* #undef CURL_DISABLE_HEADERS_API */
 
 /* disable alt-svc */
-#define CURL_DISABLE_HSTS 1
+/* #undef CURL_DISABLE_HSTS */
 
 /* to disable HTTP */
 /* #undef CURL_DISABLE_HTTP */
@@ -71,7 +71,7 @@
 /* #undef CURL_DISABLE_HTTP_AUTH */
 
 /* to disable IMAP */
-#define CURL_DISABLE_IMAP 1
+/* #undef CURL_DISABLE_IMAP */
 
 /* to disable kerberos authentication */
 /* #undef CURL_DISABLE_KERBEROS_AUTH */
@@ -89,7 +89,7 @@
 /* #undef CURL_DISABLE_MIME */
 
 /* to disable MQTT */
-#define CURL_DISABLE_MQTT 1
+/* #undef CURL_DISABLE_MQTT */
 
 /* to disable negotiate authentication */
 /* #undef CURL_DISABLE_NEGOTIATE_AUTH */
@@ -107,34 +107,34 @@
 /* #undef CURL_DISABLE_PARSEDATE */
 
 /* to disable POP3 */
-#define CURL_DISABLE_POP3 1
+/* #undef CURL_DISABLE_POP3 */
 
 /* disable progress-meter */
 /* #undef CURL_DISABLE_PROGRESS_METER */
 
 /* to disable proxies */
-#define CURL_DISABLE_PROXY 1
+/* #undef CURL_DISABLE_PROXY */
 
 /* to disable RTSP */
-#define CURL_DISABLE_RTSP 1
+/* #undef CURL_DISABLE_RTSP */
 
 /* disable DNS shuffling */
 /* #undef CURL_DISABLE_SHUFFLE_DNS */
 
 /* to disable SMB/CIFS */
-#define CURL_DISABLE_SMB 1
+/* #undef CURL_DISABLE_SMB */
 
 /* to disable SMTP */
 /* #undef CURL_DISABLE_SMTP */
 
 /* to disable socketpair support */
-#define CURL_DISABLE_SOCKETPAIR 1
+/* #undef CURL_DISABLE_SOCKETPAIR */
 
 /* to disable TELNET */
 /* #undef CURL_DISABLE_TELNET */
 
 /* to disable TFTP */
-#define CURL_DISABLE_TFTP 1
+/* #undef CURL_DISABLE_TFTP */
 
 /* to disable verbose strings */
 /* #undef CURL_DISABLE_VERBOSE_STRINGS */
@@ -176,10 +176,10 @@
 #define HAVE_BOOL_T 1
 
 /* if BROTLI is in use */
-/* #undef HAVE_BROTLI */
+#define HAVE_BROTLI 1
 
 /* Define to 1 if you have the <brotli/decode.h> header file. */
-/* #undef HAVE_BROTLI_DECODE_H */
+#define HAVE_BROTLI_DECODE_H 1
 
 /* Define to 1 if you have the __builtin_available function. */
 #define HAVE_BUILTIN_AVAILABLE 1
@@ -931,7 +931,7 @@
 #define USE_UNIX_SOCKETS 1
 
 /* enable websockets support */
-/* #undef USE_WEBSOCKETS */
+#define USE_WEBSOCKETS 1
 
 /* Define to 1 if you are building a Windows target with crypto API support.
    */
