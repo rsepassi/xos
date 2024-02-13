@@ -1,3 +1,6 @@
+Below command produces lib/curl_config.h for mac. Small tweaks produce it for
+linux and windows.
+
 sdk=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 sysroot=$sdk
 ldflags="-L$sdk/usr/lib -F$sdk/System/Library/Frameworks -framework CoreFoundation -framework CoreServices -framework SystemConfiguration -framework CFNetwork"
@@ -50,5 +53,3 @@ LIBS="-lobjc -lc" \
   --without-libidn2 \
   --without-nghttp2 \
   --with-sysroot="$sysroot"
-
-# lib/curl_config.h

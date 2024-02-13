@@ -16,7 +16,7 @@ then
   zigopt="-Dsysroot=$BUILD_DEPS/macossdk"
 fi
 
-zig build -Doptimize=$OPT_ZIG -Dtarget=$ARCH $zigopt
+zig build -Doptimize=$OPT_ZIG -Dtarget=$ARCH $zigopt -Dmbedtls="$BUILD_DEPS/mbedtls"
 
 # install
 ln -s $PWD/zig-out/bin "$BUILD_OUT/bin"
