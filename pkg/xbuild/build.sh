@@ -10,11 +10,11 @@ shift  # pkg
 
 archs="
 aarch64-linux-musl
+aarch64-macos
+aarch64-windows-gnu
 x86_64-linux-musl
 x86_64-macos
-aarch64-macos
 x86_64-windows-gnu
-aarch64-windows-gnu
 "
 
 for arch in $archs

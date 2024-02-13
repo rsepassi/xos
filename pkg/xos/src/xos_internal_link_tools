@@ -3,8 +3,6 @@ set -e
 
 tools_dir=$1
 
-[ -e "$tools_dir/.ok" ] && exit 0
-
 mkdir -p "$tools_dir"
 
 cat <<EOF > "$tools_dir/system"
@@ -12,7 +10,7 @@ cat <<EOF > "$tools_dir/system"
 set -e
 cmd="\$(PATH=$PATH which \$1)"
 shift
-"\$cmd" \$@
+"\$cmd" "\$@"
 EOF
 chmod +x "$tools_dir/system"
 
@@ -20,7 +18,7 @@ cat <<EOF > "$tools_dir/system_export"
 #!/usr/bin/env sh
 set -e
 export PATH="$PATH:\$PATH"
-\$@
+"\$@"
 EOF
 chmod +x "$tools_dir/system_export"
 
