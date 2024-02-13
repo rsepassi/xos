@@ -5,6 +5,8 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const os = target.result.os.tag;
 
+    const mbedtls = b.option([]const u8, "mbedtls", "mbedtls root");
+
     const lib = b.addStaticLibrary(.{
         .name = "curl",
         .target = target,
@@ -16,6 +18,7 @@ pub fn build(b: *std.Build) void {
     lib.defineCMacro("CURL_STATICLIB", null);
     lib.addIncludePath(.{ .path = "include" });
     lib.addIncludePath(.{ .path = "lib" });
+    lib.addIncludePath(.{ .path = b.pathJoin(&.{ mbedtls.?, "include" }) });
     lib.addCSourceFiles(.{ .files = &lib_src_files, .flags = &cflags });
     switch (os) {
         .macos => {
@@ -44,6 +47,8 @@ pub fn build(b: *std.Build) void {
     exe.addIncludePath(.{ .path = "include" });
     exe.addIncludePath(.{ .path = "lib" });
     exe.addIncludePath(.{ .path = "src" });
+    lib.addIncludePath(.{ .path = b.pathJoin(&.{ mbedtls.?, "include" }) });
+    lib.addLibraryPath(.{ .path = b.pathJoin(&.{ mbedtls.?, "lib" }) });
     exe.addCSourceFiles(.{ .files = &exe_src_files, .flags = &cflags });
     switch (os) {
         .macos => {
@@ -62,6 +67,9 @@ pub fn build(b: *std.Build) void {
         },
         else => {},
     }
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{ mbedtls.?, "lib/libmbedtls.a" }) });
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{ mbedtls.?, "lib/libmbedcrypto.a" }) });
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{ mbedtls.?, "lib/libmbedx509.a" }) });
     exe.linkLibrary(lib);
     exe.linkLibC();
     b.installArtifact(exe);
