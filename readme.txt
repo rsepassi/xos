@@ -76,6 +76,7 @@ or run directly (on mac or linux)
 
 todo
 
+* allow pointing to alt repos
 * parallelism
 * pkg-config like functionality
 * binary releases of xos for macos, linux, windows
