@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+
+set -e
+
+case $1 in
+  lib)
+    lib=$2
+    name="lib$lib".a
+    [ "$ARCH_OS" = "windows" ] && name="$lib.lib"
+    echo $name
+    ;;
+  exe)
+    bin=$2
+    name="$bin"
+    [ "$ARCH_OS" = "windows" ] && name="$bin.exe"
+    echo $name
+    ;;
+  *)
+    >&2 echo "unrecognized zig command"
+    exit 1
+    ;;
+esac

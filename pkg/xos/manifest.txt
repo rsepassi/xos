@@ -11,3 +11,4 @@ src/untar
 src/xos_internal_build
 src/xos_internal_link_tools
 src/xos_internal_pkgid
+src/zigi
