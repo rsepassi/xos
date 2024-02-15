@@ -49,17 +49,14 @@ void wrenErrorFn(WrenVM* vm, WrenErrorType errorType,
 void wrenRead(WrenVM* vm) {
   int sz = 1024 * 8;
   char* buf = malloc(sz);
-  char c;
+  int c;
   int i = 0;
   while ((c = getchar()) != EOF) {
     buf[i++] = c;
     if (i >= sz) {
-      int newsz = sz * 2;
-      char* newbuf = malloc(newsz);
-      CHECK(newbuf != NULL, "could not allocate %d bytes for stdin", newsz);
-      memcpy(newbuf, buf, sz);
-      sz = newsz;
-      buf = newbuf;
+      sz *= 2;
+      buf = realloc(buf, sz);
+      CHECK(buf != NULL, "could not allocate %d bytes for stdin", sz);
     }
   }
   buf[i] = '\0';
@@ -83,6 +80,15 @@ void wrenArg(WrenVM* vm) {
   wrenSetSlotBytes(vm, 0, ctx->argv[n], strlen(ctx->argv[n]));
 }
 
+void wrenEnv(WrenVM* vm) {
+  WrenType t = wrenGetSlotType(vm, 1);
+  CHECK(t == WREN_TYPE_STRING, "must pass a string to io.env");
+  int len = 0;
+  const char* s = wrenGetSlotBytes(vm, 1, &len);
+  const char* val = getenv(s);
+  wrenSetSlotBytes(vm, 0, val, strlen(val));
+}
+
 WrenForeignMethodFn bindForeignMethod(
     WrenVM* vm,
     const char* module,
@@ -95,6 +101,7 @@ WrenForeignMethodFn bindForeignMethod(
   if (!strcmp(signature, "write(_)")) return wrenWrite;
   if (!strcmp(signature, "read()")) return wrenRead;
   if (!strcmp(signature, "arg(_)")) return wrenArg;
+  if (!strcmp(signature, "env(_)")) return wrenEnv;
   fprintf(stderr, "unexpected foreign method");
   exit(1);
 }
@@ -114,7 +121,7 @@ WrenVM* setupWren(void* userdata) {
 void usage() {
   static char* usage_str = \
     "  wrensh command line utility\n"
-    "    wrensh <wren src> [args...]\n"
+    "    wrensh [args...] wren_src\n"
     "  \n"
     "  https://wren.io\n"
     "  \n"
@@ -132,9 +139,9 @@ int main(int argc, char** argv) {
 
   Ctx ctx = {.argc = argc, .argv = argv};
   WrenVM* wren = setupWren(&ctx);
-  char* io_src = "class io {\n  foreign static write(s)\n  foreign static read()\n  foreign static arg(i)\n}";
+  char* io_src = "class io {\n  foreign static write(s)\n  foreign static read()\n  foreign static arg(i)\n  foreign static env(name)\n}";
   CHECK(wrenInterpret(wren, "io", io_src) == WREN_RESULT_SUCCESS);
-  char* user_src = argv[1];
+  char* user_src = argv[argc - 1];
   CHECK(wrenInterpret(wren, "main", "import \"io\" for io") == WREN_RESULT_SUCCESS);
   CHECK(wrenInterpret(wren, "main", user_src) == WREN_RESULT_SUCCESS);
 }
