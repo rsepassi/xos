@@ -186,6 +186,12 @@ export XOS_BUILD_ROOT="$(get_buildroot)"
 export XOS_PKG_ROOT="$(get_pkgroot)"
 XOS_BUILD_CACHE="$XOS_BUILD_ROOT/cache"
 
+if [ "$XOS_SH" != "1" ]
+then
+  export XOS_SH=1
+  exec "$XOS_ROOT/tools/sh" "$0" "$@"
+fi
+
 # determine package
 pkg=$1
 ARGS="$(argsquote "$@")"
@@ -359,6 +365,7 @@ EOF
       HOME="$BUILD_OUT/tmp" \
       USER="xos" \
       XDG_CACHE_HOME="$XOS_BUILD_CACHE/xdg" \
+      XOS_SH=1 \
       XOS_ROOT="$XOS_ROOT" \
       XOS_PKG_ROOT="$XOS_PKG_ROOT" \
       XOS_BUILD_ROOT="$XOS_BUILD_ROOT" \
