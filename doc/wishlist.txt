@@ -37,3 +37,8 @@ gitea, forgejo, fossil
 myip
 ffmpeg
 capn proto, flatbuffers
+
+missing xplatform:
+sdl2+sdl2_ttf for linux
+samurai for windows
+termbox2 for windows
