@@ -110,7 +110,8 @@ rm ./Frameworks/CloudKit.framework/Versions/A/CloudKit.tbd
 find Frameworks | grep '/Versions/A/' | xargs rm -rf
 find Frameworks | grep '/Versions/C/' | xargs rm -rf
 
-mkdir -p $BUILD_OUT/System/Library $BUILD_OUT/usr
-mv ./Frameworks $BUILD_OUT/System/Library
-mv ./lib $BUILD_OUT/usr
-mv ./include $BUILD_OUT/usr
+out="$BUILD_OUT/sdk"
+mkdir -p "$out/System/Library" "$out/usr"
+mv ./Frameworks "$out/System/Library"
+mv ./lib "$out/usr"
+mv ./include "$out/usr"
