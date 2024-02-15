@@ -19,7 +19,8 @@ cp "$BUILD_PKG/arch/config-$ARCH_OS.h" lib/curl_config.h
 zig build -Doptimize=$OPT_ZIG -Dtarget=$ARCH $zigopt \
   -Dmbedtls="$BUILD_DEPS/mbedtls" \
   -Dbrotli="$BUILD_DEPS/brotli" \
-  -Dnghttp2="$BUILD_DEPS/nghttp2"
+  -Dnghttp2="$BUILD_DEPS/nghttp2" \
+  -Dzlib="$BUILD_DEPS/zlib"
 
 # fetch certificate bundle
 fetch "https://curl.se/ca/cacert-2023-12-12.pem" \
