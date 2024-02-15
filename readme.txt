@@ -86,7 +86,6 @@ todo
 * toolchains? (go, rust, ...)
 * sandboxing (bwrap, sandbox-exec)
 * replace "need macossdk" with prebuilt urls
-* ensure that build is running in busybox sh
 
 ---
 
