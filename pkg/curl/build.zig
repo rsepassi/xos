@@ -8,6 +8,7 @@ pub fn build(b: *std.Build) void {
     const mbedtls = b.option([]const u8, "mbedtls", "mbedtls root");
     const brotli = b.option([]const u8, "brotli", "brotli root");
     const nghttp2 = b.option([]const u8, "nghttp2", "nghttp2 root");
+    const zlib = b.option([]const u8, "zlib", "zlib root");
 
     const lib = b.addStaticLibrary(.{
         .name = "curl",
@@ -24,6 +25,7 @@ pub fn build(b: *std.Build) void {
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ mbedtls.?, "include" }) });
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ brotli.?, "include" }) });
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ nghttp2.?, "include" }) });
+    lib.addIncludePath(.{ .path = b.pathJoin(&.{ zlib.?, "include" }) });
     lib.addCSourceFiles(.{ .files = &lib_src_files, .flags = &cflags });
     switch (os) {
         .macos => {
@@ -100,6 +102,10 @@ pub fn build(b: *std.Build) void {
     exe.addObjectFile(.{ .path = b.pathJoin(&.{
         nghttp2.?,
         b.fmt("lib/{s}nghttp2.{s}", .{ libprefix, libsuffix }),
+    }) });
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{
+        zlib.?,
+        b.fmt("lib/{s}z.{s}", .{ libprefix, libsuffix }),
     }) });
     exe.linkLibC();
     b.installArtifact(exe);
