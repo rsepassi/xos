@@ -7,7 +7,8 @@ fetch \
   lempar.c \
   "4cfe425b513895dd11af7d3cde963920a2daeb7f5731f706e6973bfc79f207ed"
 
-mkdir $BUILD_OUT/bin
+mkdir "$BUILD_OUT/bin"
 cc -static -s --target=$ARCH -O$OPT \
-  $BUILD_DEPS/lemon.c -o $BUILD_OUT/bin/lemon -lc
-ln -s $BUILD_DEPS/lempar.c $BUILD_OUT
+  "$BUILD_DEPS/lemon.c" -o "$BUILD_OUT/bin/lemon" -lc
+mkdir -p "$BUILD_OUT/share"
+cp "$BUILD_DEPS/lempar.c" "$BUILD_OUT/share"
