@@ -294,7 +294,7 @@ sure both macros are undefined; an emulation function will then be used. */
 #define STDC_HEADERS 1
 
 /* Define to any value to enable support for Just-In-Time compiling. */
-/* #undef SUPPORT_JIT */
+#define SUPPORT_JIT 1
 
 /* Define to any value to allow pcre2grep to be linked with libbz2, so that it
    is able to handle .bz2 files. */
@@ -320,7 +320,7 @@ sure both macros are undefined; an emulation function will then be used. */
 
 /* Define to any value to enable JIT support in pcre2grep. Note that this will
    have no effect unless SUPPORT_JIT is also defined. */
-/* #undef SUPPORT_PCRE2GREP_JIT */
+#define SUPPORT_PCRE2GREP_JIT 1
 
 /* Define to any value to enable the 16 bit PCRE2 library. */
 /* #undef SUPPORT_PCRE2_16 */
