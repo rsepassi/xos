@@ -16,7 +16,6 @@ touch zstd.c
   && lib_addl_srcs=decompress/huf_decompress_amd64.S
 zig build-lib -target $ARCH -O $OPT_ZIG \
   -DXXH_NAMESPACE=ZSTD_ -DDEBUGLEVEL=0 -DZSTD_LEGACY_SUPPORT=5 \
-  -DZSTD_BUILD_STATIC -DZSTD_BUILD_SHARED=OFF \
   zstd.c common/*.c compress/*.c decompress/*.c dictBuilder/*.c legacy/*.c \
   $lib_addl_srcs \
   -lc
