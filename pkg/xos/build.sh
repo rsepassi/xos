@@ -99,6 +99,7 @@ od
 readlink
 expr
 rmdir
+patch
 "
 for tool in $bbtools
 do
