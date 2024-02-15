@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-exec zig cc -nostdinc -nostdlib "$@"
+exec zig cc -nostdinc -nostdlib --sysroot=/dev/null "$@"
