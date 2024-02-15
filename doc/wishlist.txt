@@ -1,4 +1,3 @@
-regex (pcre, tre)
 dns, ddns
 c-ares
 bubblewrap
