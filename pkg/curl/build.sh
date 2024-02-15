@@ -20,7 +20,8 @@ zig build -Doptimize=$OPT_ZIG -Dtarget=$ARCH $zigopt \
   -Dmbedtls="$BUILD_DEPS/mbedtls" \
   -Dbrotli="$BUILD_DEPS/brotli" \
   -Dnghttp2="$BUILD_DEPS/nghttp2" \
-  -Dzlib="$BUILD_DEPS/zlib"
+  -Dzlib="$BUILD_DEPS/zlib" \
+  -Dzstd="$BUILD_DEPS/zstd"
 
 # fetch certificate bundle
 fetch "https://curl.se/ca/cacert-2023-12-12.pem" \
