@@ -68,7 +68,7 @@ void wrenReadN(WrenVM* vm) {
   CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.read(n)");
   int n = (int)wrenGetSlotDouble(vm, 1);
   char* buf = malloc(n);
-  CHECK(buf != NULL, "could not allocate %d bytes for stdin", sz);
+  CHECK(buf != NULL, "could not allocate %d bytes for stdin", n);
   int nread = fread(buf, 1, n, stdin);
   wrenSetSlotBytes(vm, 0, buf, nread);
 }
@@ -139,7 +139,7 @@ void usage() {
     "  io.read(): read stdin in full\n"
     "  io.read(n): read n bytes from stdin\n"
     "  io.write(s): write to stdout\n"
-    "  io.arg(i): read args[i]\n";
+    "  io.arg(i): read args[i]\n"
     "  io.env(name): read env var\n";
   fputs(usage_str, stderr);
   exit(0);
