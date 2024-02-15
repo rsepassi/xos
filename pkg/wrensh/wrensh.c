@@ -63,6 +63,16 @@ void wrenRead(WrenVM* vm) {
   wrenSetSlotBytes(vm, 0, buf, i);
 }
 
+void wrenReadN(WrenVM* vm) {
+  WrenType t = wrenGetSlotType(vm, 1);
+  CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.read(n)");
+  int n = (int)wrenGetSlotDouble(vm, 1);
+  char* buf = malloc(n);
+  CHECK(buf != NULL, "could not allocate %d bytes for stdin", sz);
+  int nread = fread(buf, 1, n, stdin);
+  wrenSetSlotBytes(vm, 0, buf, nread);
+}
+
 void wrenWrite(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
   CHECK(t == WREN_TYPE_STRING, "must pass a string to io.write");
@@ -100,6 +110,7 @@ WrenForeignMethodFn bindForeignMethod(
         isStatic, "unexpected foreign method");
   if (!strcmp(signature, "write(_)")) return wrenWrite;
   if (!strcmp(signature, "read()")) return wrenRead;
+  if (!strcmp(signature, "read(_)")) return wrenReadN;
   if (!strcmp(signature, "arg(_)")) return wrenArg;
   if (!strcmp(signature, "env(_)")) return wrenEnv;
   fprintf(stderr, "unexpected foreign method");
@@ -125,9 +136,11 @@ void usage() {
     "  \n"
     "  https://wren.io\n"
     "  \n"
-    "  io.read: read stdin in full\n"
-    "  io.write: write to stdout\n"
+    "  io.read(): read stdin in full\n"
+    "  io.read(n): read n bytes from stdin\n"
+    "  io.write(s): write to stdout\n"
     "  io.arg(i): read args[i]\n";
+    "  io.env(name): read env var\n";
   fputs(usage_str, stderr);
   exit(0);
 }
@@ -139,7 +152,7 @@ int main(int argc, char** argv) {
 
   Ctx ctx = {.argc = argc, .argv = argv};
   WrenVM* wren = setupWren(&ctx);
-  char* io_src = "class io {\n  foreign static write(s)\n  foreign static read()\n  foreign static arg(i)\n  foreign static env(name)\n}";
+  char* io_src = "class io {\n  foreign static write(s)\n  foreign static read()\n  foreign static read(n)\n  foreign static arg(i)\n  foreign static env(name)\n}";
   CHECK(wrenInterpret(wren, "io", io_src) == WREN_RESULT_SUCCESS);
   char* user_src = argv[argc - 1];
   CHECK(wrenInterpret(wren, "main", "import \"io\" for io") == WREN_RESULT_SUCCESS);
