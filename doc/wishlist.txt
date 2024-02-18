@@ -2,7 +2,6 @@ dns, ddns
 c-ares
 bubblewrap
 libssh2
-entr
 dropbear ssh
 libtomcrypt, libtommath
 json5, jsonl, msgpack
@@ -39,3 +38,4 @@ missing xplatform:
 sdl2+sdl2_ttf for linux
 samurai for windows
 termbox2 for windows
+entr for windows
