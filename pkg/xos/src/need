@@ -4,12 +4,17 @@ set -e
 pkg=$1
 name=$2
 
+NEEDARCH=${NEEDARCH:-$ARCH}
+NEEDOPT=${NEEDOPT:-$OPT}
+NEEDDEPS=${NEEDDEPS:-$BUILD_DEPS}
+NEEDTXT=${NEEDTXT:-dyndeps.txt}
+
 if [ -z "$name" ] || [ "$name" = "--" ]
 then
   name=$pkg
 fi
 
-dst=$BUILD_DEPS/$name
+dst=$NEEDDEPS/$name
 if [ -d "$dst" ]
 then
   >&2 echo "error in need: destination already exists. consider passing a name."
@@ -30,10 +35,10 @@ do
 done
 
 # build
-pkgid=$(ARCH=$ARCH OPT=$OPT xos_internal_build $pkg "$@")
+pkgid=$(ARCH=$NEEDARCH OPT=$NEEDOPT xos_internal_build $pkg "$@")
 
 # link
-mkdir -p "$BUILD_DEPS"
+mkdir -p "$NEEDDEPS"
 ln -s "$XOS_BUILD_CACHE/pkg/$pkgid/out" "$dst"
 
 # log the dynamic dependency
@@ -50,6 +55,6 @@ argsquote() {
   done
   printf "'\n"
 }
-printf "$pkgid  $name  $pkg" >> "$XOS_BUILD_OUT/dyndeps.txt"
-argsquote "$@" >> "$XOS_BUILD_OUT/dyndeps.txt"
-printf "\n" >> "$XOS_BUILD_OUT/dyndeps.txt"
+printf "$pkgid  $name  $pkg" >> "$XOS_BUILD_OUT/$NEEDTXT"
+argsquote "$@" >> "$XOS_BUILD_OUT/$NEEDTXT"
+printf "\n" >> "$XOS_BUILD_OUT/$NEEDTXT"

@@ -140,16 +140,22 @@ link_deps() {
 
 stale_dyndeps() {
   dyndeps="$1"
+  arch=${2:-$ARCH}
+
   while IFS= read -r line
   do
     [ -z "$line" ] && continue
     depid=$(echo $line | cut -d' ' -f1)
     depname=$(echo $line | cut -d' ' -f2)
     depargs=$(echo $line | cut -d' ' -f3-)
-    depid2=$(eval "xos_internal_build $depargs")
+    depid2=$(eval "ARCH=$arch xos_internal_build $depargs")
     [ "$depid" != "$depid2" ] && return 0
   done < "$dyndeps"
   return 1
+}
+
+stale_dyntooldeps() {
+  stale_dyndeps $1 $ARCH_HOST
 }
 
 get_arch_host() {
@@ -280,6 +286,9 @@ then
   if [ -e "$BUILD_OUT/dyndeps.txt" ] && stale_dyndeps "$BUILD_OUT/dyndeps.txt"
   then
     rebuild=1
+  elif [ -e "$BUILD_OUT/dyntooldeps.txt" ] && stale_dyntooldeps "$BUILD_OUT/dyntooldeps.txt"
+  then
+    rebuild=1
   else
     rebuild=0
   fi
@@ -358,6 +367,10 @@ EOF
     then
       exec > "$logfile"
     fi
+
+    # rm pkg arg, pass through the rest
+    shift
+
     env -i \
       DRY="$DRY" \
       DEBUG="$DEBUG" \

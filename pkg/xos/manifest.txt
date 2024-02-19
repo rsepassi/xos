@@ -2,11 +2,13 @@ build.sh
 deps.txt
 src/ar
 src/cc
+src/c++
 src/rc
 src/windres
 src/fetch
 src/fetch_urltxt
 src/need
+src/needtool
 src/untar
 src/xos_internal_build
 src/xos_internal_link_tools

@@ -32,11 +32,13 @@ ln -s ../zig/"zig$exe" "$tools"/zig
 scripts="
 fetch
 cc
+c++
 ar
 rc
 windres
 fetch_urltxt
 need
+needtool
 untar
 xos_internal_build
 xos_internal_pkgid
