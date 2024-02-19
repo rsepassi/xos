@@ -81,6 +81,7 @@ todo
 * pkg-config like functionality
 * binary releases of xos for macos, linux, windows
 * documentation
+* un{tar/zip} caching
 * cache/tmp growth, reaping
 * detect dependency cycles?
 * toolchains? (go, rust, ...)
