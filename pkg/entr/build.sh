@@ -16,7 +16,7 @@ then
 fi
 
 bin=$(zigi exe entr)
-zig cc -target $ARCH -O$OPT -o $bin \
+cc -target $ARCH -O$OPT -o $bin \
   entr.c \
   -DRELEASE="\"5.5\"" \
   $cargs \
