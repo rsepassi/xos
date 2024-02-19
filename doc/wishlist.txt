@@ -9,8 +9,6 @@ chibi scheme
 mir
 static site generator
 justfile
-sdl_image
-vt100 sdl terminal
 text editor (vis, micro, vim)
 mtm, tmux
 libbtc
@@ -20,7 +18,6 @@ zk libs
 http3
 git, libgit, stagit
 whisper
-audio (sdl audio, tinywav)
 vpn (wireguard)
 p2p (syncthing)
 payments (cosmos/tendermint?)
@@ -33,6 +30,24 @@ gitea, forgejo, fossil
 myip
 ffmpeg
 capn proto, flatbuffers
+json-rpc
+chriso/intern
+antirez/sds
+struct/isoalloc
+minicoro
+
+gui:
+pty
+sokol, sokol_gp, sokol_gfx
+stb_image
+sdl_image
+zaudio
+tinywav
+vt100 terminal emulator
+microui
+nuklear
+miniaudio
+lvgl
 
 missing xplatform:
 sdl2+sdl2_ttf for linux
