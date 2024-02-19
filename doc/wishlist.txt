@@ -35,6 +35,7 @@ chriso/intern
 antirez/sds
 struct/isoalloc
 minicoro
+certbot equivalent
 
 gui:
 pty
