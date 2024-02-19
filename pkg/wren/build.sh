@@ -6,7 +6,8 @@ untar $BUILD_DEPS/wren.tar.gz $src
 cd $src/src/vm
 touch wren.c
 zig build-lib -target $ARCH -O $OPT_ZIG wren.c *.c \
-  -I "$src"/src/include -DWREN_OPT_META=0 -DWREN_OPT_RANDOM=0
+  -I "$src"/src/include -DWREN_OPT_META=0 -DWREN_OPT_RANDOM=0 \
+  -lc
 
 # install
 out="$BUILD_OUT"
