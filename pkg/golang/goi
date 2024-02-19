@@ -1,0 +1,110 @@
+#!/usr/bin/env sh
+
+set -e
+
+goos() {
+case $ARCH_OS in
+  macos)
+    os="darwin"
+    ;;
+  *)
+    os=$ARCH_OS
+    ;;
+esac
+echo $os
+}
+
+goarch() {
+case $ARCH_ISA in
+  aarch64)
+    isa="arm64"
+    ;;
+  x86_64)
+    isa="amd64"
+    ;;
+  *)
+    isa="$ARCH_ISA"
+    ;;
+esac
+echo $isa
+}
+
+ccos() {
+case $GOOS in
+  darwin)
+    os="macos"
+    ;;
+  *)
+    os=$GOOS
+    ;;
+esac
+echo $os
+}
+
+ccarch() {
+case $GOARCH in
+  arm64)
+    isa="aarch64"
+    ;;
+  amd64)
+    isa="x86_64"
+    ;;
+  *)
+    isa="$GOARCH"
+    ;;
+esac
+echo $isa
+}
+
+cclib() {
+  os=$(ccos)
+  case $os in
+  macos)
+    lib="none"
+    ;;
+  linux)
+    lib="musl"
+    ;;
+  windows)
+    lib="gnu"
+    ;;
+  *)
+    >&2 echo "unrecognized os $os"
+    exit 1
+    ;;
+esac
+echo $lib
+}
+
+cctarget() {
+  arch=$(ccarch)
+  os=$(ccos)
+  lib=$(cclib)
+  echo "$arch-$os-$lib"
+}
+
+case $1 in
+  os)
+    os=${GOOS:-$(goos)}
+    echo $os
+    ;;
+  arch)
+    arch=${GOARCH:-$(goarch)}
+    echo $arch
+    ;;
+  ccos)
+    [ -n "$GOOS" ] || { >&2 echo "GOOS must be set"; exit 1; }
+    ccos
+    ;;
+  ccarch)
+    [ -n "$GOARCH" ] || { >&2 echo "GOARCH must be set"; exit 1; }
+    ccarch
+    ;;
+  cctarget)
+    cctarget
+    ;;
+  *)
+    >&2 echo "unrecognized goi command $1"
+    exit 1
+    ;;
+esac

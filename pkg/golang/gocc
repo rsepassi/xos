@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+
+set -e
+
+getmacsdk() {
+  if [ ! -d "$BUILD_DEPS/macossdk" ]
+  then
+      need macossdk -- dl
+  fi
+}
+
+if [ "$GOOS" = "darwin" ]
+then
+  getmacsdk
+  sdk="$BUILD_DEPS/macossdk/sdk"
+  cflags="--sysroot=$sdk -L$sdk/usr/lib -F$sdk/System/Library/Frameworks"
+fi
+
+# Go passes -x to the linker but zig cc doesn't support it
+filtered_args=""
+for arg in "$@"; do
+  if [ "$arg" != "-Wl,-x" ]
+	then
+    filtered_args="$filtered_args \"$arg\""
+  fi
+done
+
+eval "exec cc -target $(goi cctarget) -O$OPT $filtered_args $cflags"
