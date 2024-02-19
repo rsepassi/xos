@@ -1,3 +1,15 @@
+if [ "$1" = "dl" ]
+then
+  url="https://github.com/rsepassi/xos/releases/download/macos-sdk-14.2-v3/macsdk.tar.xz"
+  hash="848bf8d57a2f912360344d23a19c175a31b1d8b69d2a12ec6130e486be0aa3c7"
+  file="macsdk.tar.xz"
+
+  fetch "$url" "$file" "$hash"
+  untar "$BUILD_DEPS/$file" "$BUILD_OUT" 0
+
+  exit 0
+fi
+
 if [ "$ARCH_HOST_OS" != "macos" ]
 then
   >&2 echo "macossdk can only be built on a mac"
@@ -24,10 +36,10 @@ rm -rf ./include/apache2
 
 # General libraries
 mkdir -p lib/
-cp $libs/libobjc.tbd ./lib/
-cp $libs/libobjc.A.tbd ./lib/
-cp -L $libs/libiconv.tbd ./lib/
-cp -L $libs/libcharset.1.tbd ./lib/
+for l in $libs/*.tbd
+do
+  cp "$(realpath $l)" ./lib/$(basename $l)
+done
 
 # General frameworks
 cp -RL $frameworks/CoreFoundation.framework ./Frameworks/CoreFoundation.framework

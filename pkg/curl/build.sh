@@ -9,12 +9,8 @@ cd $src
 
 if [ "$ARCH_OS" = "macos" ]
 then
-  fetch "https://github.com/rsepassi/xos/releases/download/mac-os-sdk-14.2-v2/macsdk.tar.xz" \
-    macsdk.tar.xz \
-    "769ccba02b4b7feb2030282102afb132d84bf405081fb2bd36f83278e59aa627"
-  macsdk=$(mktemp -d)
-  untar "$BUILD_DEPS/macsdk.tar.xz" "$macsdk"
-  zigopt="-Dsysroot=$macsdk"
+  need macossdk -- dl
+  zigopt="-Dsysroot=$BUILD_DEPS/macossdk/sdk"
 fi
 
 # build

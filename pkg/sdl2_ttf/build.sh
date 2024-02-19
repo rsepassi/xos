@@ -9,13 +9,8 @@ HB_lib=$BUILD_DEPS/harfbuzz/lib/libharfbuzz.a
 Brotli_lib=$BUILD_DEPS/brotli/lib/libbrotli.a
 if [ "$ARCH_OS" = "macos" ]
 then
-  fetch_urltxt $BUILD_PKG/url-macos.txt macsdk.tar.xz
-  macsdk=$(mktemp -d)
-  untar $BUILD_DEPS/macsdk.tar.xz $macsdk
-
-  # Use a local build of macossdk instead
-  # need macossdk macossdk
-  # macsdk=$(realpath $BUILD_DEPS/macossdk)
+  need macossdk -- dl
+  macsdk="$BUILD_DEPS/macossdk/sdk"
 
   linkargs="\
   -F $macsdk/System/Library/Frameworks \
