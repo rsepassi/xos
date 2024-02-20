@@ -9,8 +9,7 @@ PATH="$BUILD_TOOLDEPS/golang/bin:$PATH"
 
 bin=$(zigi exe ssserve)
 
-go build -ldflags="-s -w" \
-  -o $bin "$BUILD_PKG/serve.go"
+gobuild -o $bin "$BUILD_PKG/serve.go"
 
 mkdir "$BUILD_OUT/bin"
 mv $bin "$BUILD_OUT/bin"

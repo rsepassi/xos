@@ -5,13 +5,14 @@ getgopath() {
 }
 
 gotools="$(dirname "$0")"
+goi="$gotools/goi"
 go=$(getgopath)
 
 GOTMPDIR="$HOME/gotmp"
 mkdir -p $GOTMPDIR
 
-GOOS=${GOOS:-$(goi os)}
-GOARCH=${GOARCH:-$(goi arch)}
+GOOS=${GOOS:-$($goi os)}
+GOARCH=${GOARCH:-$($goi arch)}
 
 exec env \
 PATH="$gotools:$PATH" \
@@ -22,6 +23,7 @@ GOENV="/dev/null" \
 GOMODCACHE="$XDG_CACHE_HOME/go/modcache" \
 GOTMPDIR="$GOTMPDIR" \
 GOTOOLCHAIN="local" \
+CGO_ENABLED=1 \
 AR="ar" \
 CC="gocc" \
 CXX="goc++" \

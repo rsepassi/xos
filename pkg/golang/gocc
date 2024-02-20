@@ -25,4 +25,4 @@ for arg in "$@"; do
   fi
 done
 
-eval "exec cc -target $(goi cctarget) -O$OPT $filtered_args $cflags"
+eval "exec cc -target $(goi cctarget) -O$OPT $filtered_args $cflags -s -w -lc"

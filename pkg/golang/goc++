@@ -24,4 +24,4 @@ for arg in "$@"; do
   fi
 done
 
-eval "exec c++ -target $(goi cctarget) -O$OPT $filtered_args $cflags"
+eval "exec c++ -target $(goi cctarget) -O$OPT $filtered_args $cflags -s -w -lc++ -lc"
