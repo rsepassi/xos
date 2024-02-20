@@ -1,4 +1,4 @@
-if [ "$1" = "dl" ]
+if [ "$1" != "local" ]
 then
   url="https://github.com/rsepassi/xos/releases/download/macos-sdk-14.2-v3/macsdk.tar.xz"
   hash="848bf8d57a2f912360344d23a19c175a31b1d8b69d2a12ec6130e486be0aa3c7"

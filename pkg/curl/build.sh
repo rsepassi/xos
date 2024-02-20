@@ -9,7 +9,7 @@ cd $src
 
 if [ "$ARCH_OS" = "macos" ]
 then
-  need macossdk -- dl
+  need macossdk
   zigopt="-Dsysroot=$BUILD_DEPS/macossdk/sdk"
 fi
 

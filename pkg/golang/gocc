@@ -5,7 +5,7 @@ set -e
 getmacsdk() {
   if [ ! -d "$BUILD_DEPS/macossdk" ]
   then
-      need macossdk -- dl
+      need macossdk
   fi
 }
 
