@@ -15,6 +15,16 @@
     } \
   } while(0)
 
+#define WREN_CHECK_HELPER(cond, fmt, ...) do { \
+    if (!(cond)) { \
+      sprintf(wrenErrorStr, fmt "%s", __VA_ARGS__); \
+      wrenError(vm); \
+      return; \
+    } \
+  } while(0)
+#define WREN_CHECK(cond, ...) \
+  WREN_CHECK_HELPER(cond, __VA_ARGS__, "");
+
 
 typedef struct {
   int argc;
@@ -22,6 +32,12 @@ typedef struct {
 } Ctx;
 
 static const int maxpathlen = 4096;
+static char wrenErrorStr[4096];
+
+void wrenError(WrenVM* vm) {
+  wrenSetSlotBytes(vm, 0, wrenErrorStr, strlen(wrenErrorStr));
+  wrenAbortFiber(vm, 0);
+}
 
 void wrenWriteFn(WrenVM* vm, const char* text) {
   fprintf(stderr, "%s", text);
@@ -69,7 +85,7 @@ void wrenRead(WrenVM* vm) {
 
 void wrenReadN(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
-  CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.read(n)");
+  WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.read(n)");
   int n = (int)wrenGetSlotDouble(vm, 1);
   char* buf = malloc(n);
   CHECK(buf != NULL, "could not allocate %d bytes for stdin", n);
@@ -80,7 +96,7 @@ void wrenReadN(WrenVM* vm) {
 
 void wrenWrite(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
-  CHECK(t == WREN_TYPE_STRING, "must pass a string to io.write");
+  WREN_CHECK(t == WREN_TYPE_STRING, "must pass a string to io.write");
   int len = 0;
   const char* s = wrenGetSlotBytes(vm, 1, &len);
   fprintf(stdout, "%.*s", len, s);
@@ -88,16 +104,16 @@ void wrenWrite(WrenVM* vm) {
 
 void wrenArg(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
-  CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.arg");
+  WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.arg");
   int n = (int)wrenGetSlotDouble(vm, 1);
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
-  CHECK(n < ctx->argc, "only %d args", ctx->argc);
+  WREN_CHECK(n < ctx->argc, "only %d args", ctx->argc);
   wrenSetSlotBytes(vm, 0, ctx->argv[n], strlen(ctx->argv[n]));
 }
 
 void wrenEnv(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
-  CHECK(t == WREN_TYPE_STRING, "must pass a string to io.env");
+  WREN_CHECK(t == WREN_TYPE_STRING, "must pass a string to io.env");
   int len = 0;
   const char* s = wrenGetSlotBytes(vm, 1, &len);
   const char* val = getenv(s);
@@ -106,21 +122,24 @@ void wrenEnv(WrenVM* vm) {
 
 void wrenExit(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
-  CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.arg");
+  WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.exit");
   int n = (int)wrenGetSlotDouble(vm, 1);
   exit(n);
 }
 
-void findexe(char* exe, char* exepath) {
+int findexe(char* exe, char* exepath) {
   int exelen = strlen(exe);
   if (exe[0] == '/' || exe[0] == '\\') {
     // absolute path
     memcpy(exepath, exe, exelen);
-    return;
+    return 0;
   }
 
   char* path = getenv("PATH");
-  CHECK(path, "no PATH set");
+  if (!path) {
+    sprintf(wrenErrorStr, "no PATH set");
+    return -1;
+  }
   int pathlen = strlen(path);
 
   for (char *z = path, *p = path; *z != NULL; p = z+1) {
@@ -133,15 +152,16 @@ void findexe(char* exe, char* exepath) {
     memcpy(exepath+segmentlen+1, exe, exelen);
     exepath[segmentlen + exelen + 1] = '\0';
 
-    if (access(exepath, F_OK) == 0) return;
+    if (access(exepath, F_OK) == 0) return 0;
   }
 
-  CHECK(false, "could not find %s in PATH", exe);
+  sprintf(wrenErrorStr, "could not find %s in PATH", exe);
+  return -1;
 }
 
 void wrenExec(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
-  CHECK(t == WREN_TYPE_LIST, "must pass a list to execv");
+  WREN_CHECK(t == WREN_TYPE_LIST, "must pass a list to exec");
   int nslots = wrenGetSlotCount(vm);
 
   wrenEnsureSlots(vm, 4);
@@ -157,12 +177,15 @@ void wrenExec(WrenVM* vm) {
 
   // path lookup using "which"
   char path[maxpathlen];
-  findexe(argv[0], &path);
+  if (findexe(argv[0], &path) != 0) {
+    wrenError(vm);
+    return;
+  }
 
   if (nslots == 3) {
     // with env
     WrenType t = wrenGetSlotType(vm, 2);
-    CHECK(t == WREN_TYPE_LIST, "must pass a list to execv");
+    WREN_CHECK(t == WREN_TYPE_LIST, "must pass a list to exec");
     int argc = wrenGetListCount(vm, 2);
     const char** env = malloc((argc + 1) * sizeof(char*));
     env[argc] = NULL;
@@ -176,7 +199,7 @@ void wrenExec(WrenVM* vm) {
     execvp(path, argv);
   }
 
-  CHECK(false, "execv failed");
+  WREN_CHECK(false, "exec failed");
 }
 
 
@@ -195,8 +218,8 @@ WrenForeignMethodFn bindForeignMethod(
   if (!strcmp(signature, "arg(_)")) return wrenArg;
   if (!strcmp(signature, "env(_)")) return wrenEnv;
   if (!strcmp(signature, "exit(_)")) return wrenExit;
-  if (!strcmp(signature, "execv(_)")) return wrenExec;
-  if (!strcmp(signature, "execv(_,_)")) return wrenExec;
+  if (!strcmp(signature, "exec(_)")) return wrenExec;
+  if (!strcmp(signature, "exec(_,_)")) return wrenExec;
   fprintf(stderr, "unexpected foreign method %s", signature);
   exit(1);
 }
@@ -226,8 +249,8 @@ void usage() {
     "  io.arg(i): read args[i]\n"
     "  io.env(name): read env var\n"
     "  io.exit(c): exit with code c\n"
-    "  io.execv(argv): replace current process with argv\n"
-    "  io.execv(argv, env): replace current process with argv and env\n";
+    "  io.exec(argv): replace current process with argv\n"
+    "  io.exec(argv, env): replace current process with argv and env\n";
   fputs(usage_str, stderr);
   exit(0);
 }
@@ -247,11 +270,11 @@ int main(int argc, char** argv) {
       "  foreign static arg(i)\n"
       "  foreign static env(name)\n"
       "  foreign static exit(c)\n"
-      "  foreign static execv(argv)\n"
-      "  foreign static execv(argv, env)\n"
+      "  foreign static exec(argv)\n"
+      "  foreign static exec(argv, env)\n"
       "}\n";
   CHECK(wrenInterpret(wren, "io", io_src) == WREN_RESULT_SUCCESS, "bad io src");
   char* user_src = argv[argc - 1];
   CHECK(wrenInterpret(wren, "main", "import \"io\" for io") == WREN_RESULT_SUCCESS);
-  CHECK(wrenInterpret(wren, "main", user_src) == WREN_RESULT_SUCCESS);
+  return wrenInterpret(wren, "main", user_src);
 }
