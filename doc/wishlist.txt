@@ -37,6 +37,7 @@ struct/isoalloc
 minicoro
 certbot equivalent
 torrent client
+ocr? (easyocr, paddleocr)
 
 gui:
 pty
@@ -49,6 +50,9 @@ microui
 nuklear
 miniaudio
 lvgl
+tomolt/libschrift
+raylib
+raudio
 
 missing xplatform:
 samurai for windows
