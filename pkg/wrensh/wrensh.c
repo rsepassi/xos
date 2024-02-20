@@ -99,6 +99,13 @@ void wrenEnv(WrenVM* vm) {
   wrenSetSlotBytes(vm, 0, val, strlen(val));
 }
 
+void wrenExit(WrenVM* vm) {
+  WrenType t = wrenGetSlotType(vm, 1);
+  CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.arg");
+  int n = (int)wrenGetSlotDouble(vm, 1);
+  exit(n);
+}
+
 WrenForeignMethodFn bindForeignMethod(
     WrenVM* vm,
     const char* module,
@@ -113,6 +120,7 @@ WrenForeignMethodFn bindForeignMethod(
   if (!strcmp(signature, "read(_)")) return wrenReadN;
   if (!strcmp(signature, "arg(_)")) return wrenArg;
   if (!strcmp(signature, "env(_)")) return wrenEnv;
+  if (!strcmp(signature, "exit(_)")) return wrenExit;
   fprintf(stderr, "unexpected foreign method");
   exit(1);
 }
@@ -140,7 +148,8 @@ void usage() {
     "  io.read(n): read n bytes from stdin\n"
     "  io.write(s): write to stdout\n"
     "  io.arg(i): read args[i]\n"
-    "  io.env(name): read env var\n";
+    "  io.env(name): read env var\n"
+    "  io.exit(c): exit with code c\n";
   fputs(usage_str, stderr);
   exit(0);
 }
@@ -152,7 +161,7 @@ int main(int argc, char** argv) {
 
   Ctx ctx = {.argc = argc, .argv = argv};
   WrenVM* wren = setupWren(&ctx);
-  char* io_src = "class io {\n  foreign static write(s)\n  foreign static read()\n  foreign static read(n)\n  foreign static arg(i)\n  foreign static env(name)\n}";
+  char* io_src = "class io {\n  foreign static write(s)\n  foreign static read()\n  foreign static read(n)\n  foreign static arg(i)\n  foreign static env(name)\n  foreign static exit(c)\n}";
   CHECK(wrenInterpret(wren, "io", io_src) == WREN_RESULT_SUCCESS);
   char* user_src = argv[argc - 1];
   CHECK(wrenInterpret(wren, "main", "import \"io\" for io") == WREN_RESULT_SUCCESS);

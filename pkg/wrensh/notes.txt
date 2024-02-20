@@ -1,0 +1,15 @@
+Subprocess
+
+env
+cwd
+argv
+stdin,stdout,stderr
+
+
+sh exec (ie program=sh), or process.Child
+close inherited fds
+
+
+pipelines
+
+exit code
