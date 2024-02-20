@@ -11,7 +11,8 @@ untar "$BUILD_DEPS/$file" "$src"
 cd $src/cmd/caddy
 
 bin=$(zigi exe caddy)
-gobuild -o $bin
+GOOS=$(goi os) GOARCH=$(goi arch) \
+  gobuild -o $bin
 
 mkdir "$BUILD_OUT/bin"
 mv $bin "$BUILD_OUT/bin"

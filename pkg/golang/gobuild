@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-exec go build -ldflags="-s -w -linkmode=external" "$@"
+exec go build -ldflags="-linkmode=external -extldflags -s -w" "$@"

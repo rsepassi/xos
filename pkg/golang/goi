@@ -34,6 +34,9 @@ case $GOOS in
   darwin)
     os="macos"
     ;;
+  "")
+    isa="$ARCH_HOST_OS"
+    ;;
   *)
     os=$GOOS
     ;;
@@ -48,6 +51,9 @@ case $GOARCH in
     ;;
   amd64)
     isa="x86_64"
+    ;;
+  "")
+    isa="$ARCH_HOST_ISA"
     ;;
   *)
     isa="$GOARCH"

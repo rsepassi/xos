@@ -9,7 +9,8 @@ PATH="$BUILD_TOOLDEPS/golang/bin:$PATH"
 
 bin=$(zigi exe ssserve)
 
-gobuild -o $bin "$BUILD_PKG/serve.go"
+GOOS=$(goi os) GOARCH=$(goi arch) \
+  gobuild -o $bin "$BUILD_PKG/serve.go"
 
 mkdir "$BUILD_OUT/bin"
 mv $bin "$BUILD_OUT/bin"

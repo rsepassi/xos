@@ -11,13 +11,8 @@ go=$(getgopath)
 GOTMPDIR="$HOME/gotmp"
 mkdir -p $GOTMPDIR
 
-GOOS=${GOOS:-$($goi os)}
-GOARCH=${GOARCH:-$($goi arch)}
-
 exec env \
 PATH="$gotools:$PATH" \
-GOOS=$GOOS \
-GOARCH=$GOARCH \
 GOCACHE="$XDG_CACHE_HOME/go/cache" \
 GOENV="/dev/null" \
 GOMODCACHE="$XDG_CACHE_HOME/go/modcache" \

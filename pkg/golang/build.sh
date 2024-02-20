@@ -59,6 +59,7 @@ mkdir "$BUILD_OUT/bin"
 cp \
   "$BUILD_PKG/go" \
   "$BUILD_PKG/gobuild" \
+  "$BUILD_PKG/gorun" \
   "$BUILD_PKG/goi" \
   "$BUILD_PKG/gocc" \
   "$BUILD_PKG/goc++" \
