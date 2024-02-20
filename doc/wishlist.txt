@@ -36,6 +36,7 @@ antirez/sds
 struct/isoalloc
 minicoro
 certbot equivalent
+torrent client
 
 gui:
 pty

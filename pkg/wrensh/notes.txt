@@ -4,12 +4,13 @@ env
 cwd
 argv
 stdin,stdout,stderr
-
-
-sh exec (ie program=sh), or process.Child
-close inherited fds
-
+exit code
 
 pipelines
 
-exit code
+close inherited fds?
+
+signals
+job control
+
+wildcards/globs
