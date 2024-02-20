@@ -4,7 +4,7 @@ set -ex
 
 # setup dirs
 xosroot="$PWD"
-buildroot="$(realpath "${BOOTSTRAP_BUILD:-$xosroot/build/bootstrap}")"
+buildroot="${BOOTSTRAP_BUILD:-$xosroot/build/bootstrap}"
 out="$buildroot/out"
 tools="$out/tools"
 cache="$buildroot/cache"
