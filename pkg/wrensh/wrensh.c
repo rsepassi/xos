@@ -21,7 +21,7 @@ typedef struct {
   char** argv;
 } Ctx;
 
-static const int maxpathlen = 1024;
+static const int maxpathlen = 4096;
 
 void wrenWriteFn(WrenVM* vm, const char* text) {
   fprintf(stderr, "%s", text);
@@ -111,31 +111,32 @@ void wrenExit(WrenVM* vm) {
   exit(n);
 }
 
-void which(char* exe, char* path) {
+void findexe(char* exe, char* exepath) {
   int exelen = strlen(exe);
   if (exe[0] == '/' || exe[0] == '\\') {
     // absolute path
-    memcpy(path, exe, exelen);
+    memcpy(exepath, exe, exelen);
     return;
   }
 
-  char cmd[128] = "which ";
+  char* path = getenv("PATH");
+  CHECK(path, "no PATH set");
+  int pathlen = strlen(path);
 
-  int cmdlen = 6 + exelen;
-  memcpy(cmd + 6, exe, exelen);
-  cmd[cmdlen] = '\0';
+  for (char *z = path, *p = path; *z != NULL; p = z+1) {
+    z = strchr(p, ':');
+    if (!z) z = &path[pathlen];
 
-  FILE* fp = popen(cmd, "r");
-  CHECK(fp != NULL, "which failed to spawn");
+    int segmentlen = z-p;
+    memcpy(exepath, p, segmentlen);
+    exepath[segmentlen] = '/';
+    memcpy(exepath+segmentlen+1, exe, exelen);
+    exepath[segmentlen + exelen + 1] = '\0';
 
-  char* out = fgets(path, maxpathlen, fp);
-  CHECK(out != NULL, "which stdout read failed");
-  int outlen = strlen(out);
-  CHECK(out[outlen - 1] == '\n', "path is too long");
-  out[outlen - 1] = '\0';
+    if (access(exepath, F_OK) == 0) return;
+  }
 
-  int returnCode = pclose(fp);
-  CHECK(returnCode == 0, "command %s not found", exe);
+  CHECK(false, "could not find %s in PATH", exe);
 }
 
 void wrenExec(WrenVM* vm) {
@@ -156,7 +157,7 @@ void wrenExec(WrenVM* vm) {
 
   // path lookup using "which"
   char path[maxpathlen];
-  which(argv[0], &path);
+  findexe(argv[0], &path);
 
   if (nslots == 3) {
     // with env
