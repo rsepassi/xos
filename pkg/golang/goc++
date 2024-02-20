@@ -12,7 +12,7 @@ if [ "$GOOS" = "darwin" ]
 then
   getmacsdk
   sdk="$BUILD_DEPS/macossdk/sdk"
-  cflags="--sysroot=$sdk -L$sdk/usr/lib -F$sdk/System/Library/Frameworks"
+  cflags="--sysroot=$sdk -I$sdk/usr/include -L$sdk/usr/lib -F$sdk/System/Library/Frameworks"
 fi
 
 # Go passes -x to the linker but zig cc doesn't support it
