@@ -1,2 +1,0 @@
-https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.22.0/SDL2_ttf-2.22.0.tar.gz
-d48cbd1ce475b9e178206bf3b72d56b66d84d44f64ac05803328396234d67723

@@ -41,7 +41,6 @@ gui:
 pty
 sokol, sokol_gp, sokol_gfx
 stb_image
-sdl_image
 zaudio
 tinywav
 vt100 terminal emulator
@@ -51,7 +50,6 @@ miniaudio
 lvgl
 
 missing xplatform:
-sdl2+sdl2_ttf for linux
 samurai for windows
 termbox2 for windows
 entr for windows

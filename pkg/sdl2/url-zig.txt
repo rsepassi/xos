@@ -1,2 +1,0 @@
-https://raw.githubusercontent.com/andrewrk/SDL/db4a162/build.zig
-e568ac78956b969a82e0fa0fccdb39a383f1b3c3bd0631df70a629b628ce9d2c

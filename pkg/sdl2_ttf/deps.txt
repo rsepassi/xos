@@ -1,4 +1,0 @@
-sdl2
-brotli
-freetype
-harfbuzz
