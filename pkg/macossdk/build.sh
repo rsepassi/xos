@@ -118,10 +118,6 @@ rm ./Frameworks/OpenGL.framework/Versions/A/Libraries/3425AMD/libLLVMContainer.t
 # 444K
 rm ./Frameworks/CloudKit.framework/Versions/A/CloudKit.tbd
 
-# Now that /Versions/Current symlinks are realized, we no longer need the duplicate
-find Frameworks | grep '/Versions/A/' | xargs rm -rf
-find Frameworks | grep '/Versions/C/' | xargs rm -rf
-
 out="$BUILD_OUT/sdk"
 mkdir -p "$out/System/Library" "$out/usr"
 mv ./Frameworks "$out/System/Library"
