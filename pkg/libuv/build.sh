@@ -38,10 +38,9 @@ case "$ARCH_OS" in
       src/unix/random-getrandom.c
       src/unix/random-sysctl-linux.c
     "
-    flags="-I./src/unix -D_GNU_SOURCE"
+    flags="-I./src/unix -D_GNU_SOURCE -DHAVE_DLFCN_H=1 -DHAVE_PTHREAD_PRIO_INHERIT=1"
     headers="
     include/uv/linux.h
-    include/uv/errno.h
     include/uv/unix.h
     "
     ;;
@@ -57,9 +56,10 @@ case "$ARCH_OS" in
       src/unix/proctitle.c
       src/unix/random-getentropy.c
     "
-    flags="-I./src/unix -D_DARWIN_USE_64_BIT_INODE=1 -D_DARWIN_UNLIMITED_SELECT=1"
+    flags="-I./src/unix -D_DARWIN_USE_64_BIT_INODE=1 -D_DARWIN_UNLIMITED_SELECT=1 -DHAVE_DLFCN_H=1 -DHAVE_PTHREAD_PRIO_INHERIT=1"
     headers="
     include/uv/darwin.h
+    include/uv/unix.h
     "
     ;;
 
@@ -90,7 +90,7 @@ case "$ARCH_OS" in
       src/win/winapi.c
       src/win/winsock.c
     "
-    flags="-I./src/win -DWIN32_LEAN_AND_MEAN"
+    flags="-I./src/win -DWIN32_LEAN_AND_MEAN -D_FILE_OFFSET_BITS=64"
     headers="
     include/uv/win.h
     include/uv/tree.h
@@ -120,8 +120,6 @@ zig build-lib -target $ARCH -O $OPT_ZIG \
   -DHAVE_SYS_TYPES_H=1 \
   -DHAVE_UNISTD_H=1 \
   -DSTDC_HEADERS=1 \
-  -DHAVE_DLFCN_H=1 \
-  -DHAVE_PTHREAD_PRIO_INHERIT=1 \
   $flags \
   -I./include -I./src \
   -lc \
