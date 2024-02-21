@@ -104,6 +104,10 @@ void wrenWrite(WrenVM* vm) {
   fprintf(stdout, "%.*s", len, s);
 }
 
+void wrenFlush(WrenVM* vm) {
+  fflush(stdout);
+}
+
 void wrenArg(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
   WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.arg");
@@ -220,6 +224,7 @@ WrenForeignMethodFn bindForeignMethod(
         !strcmp(className, "io") &&
         isStatic, "unexpected foreign method");
   if (!strcmp(signature, "write(_)")) return wrenWrite;
+  if (!strcmp(signature, "flush()")) return wrenFlush;
   if (!strcmp(signature, "read()")) return wrenRead;
   if (!strcmp(signature, "read(_)")) return wrenReadN;
   if (!strcmp(signature, "arg(_)")) return wrenArg;
@@ -254,6 +259,7 @@ void usage() {
     "  io.read(): read stdin in full\n"
     "  io.read(n): read n bytes from stdin\n"
     "  io.write(s): write to stdout\n"
+    "  io.flush(): flush stdout\n"
     "  io.arg(i): read args[i]\n"
     "  io.argc(): num args\n"
     "  io.env(name): read env var\n"
@@ -277,6 +283,7 @@ int main(int argc, char** argv) {
   char* io_src = \
       "class io {\n"
       "  foreign static write(s)\n"
+      "  foreign static flush()\n"
       "  foreign static read()\n"
       "  foreign static read(n)\n"
       "  foreign static arg(i)\n"
