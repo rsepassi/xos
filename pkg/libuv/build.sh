@@ -14,7 +14,6 @@ src/unix/dl.c
 src/unix/fs.c
 src/unix/getaddrinfo.c
 src/unix/getnameinfo.c
-src/unix/internal.h
 src/unix/loop-watcher.c
 src/unix/loop.c
 src/unix/pipe.c
@@ -129,12 +128,12 @@ zig build-lib -target $ARCH -O $OPT_ZIG \
   -cflags -std=gnu89 -- \
   uv.c src/*.c $files
 
-mkdir "$BUILD_OUT/lib" "$BUILD_OUT/include"
+mkdir -p "$BUILD_OUT/lib" "$BUILD_OUT/include/uv"
 mv $(zigi lib uv) "$BUILD_OUT/lib"
+cp include/uv.h "$BUILD_OUT/include"
 cp \
-  include/uv.h \
   include/uv/version.h \
   include/uv/threadpool.h \
   include/uv/errno.h \
   $headers \
-  "$BUILD_OUT/include"
+  "$BUILD_OUT/include/uv"

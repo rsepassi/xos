@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "uv.h"
 #include "wren.h"
 
 #define LOG_HELPER(prefix, fmt, ...) do { \
@@ -29,6 +30,7 @@
 typedef struct {
   int argc;
   char** argv;
+  uv_loop_t* loop;
 } Ctx;
 
 static const int maxpathlen = 4096;
@@ -109,6 +111,11 @@ void wrenArg(WrenVM* vm) {
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
   WREN_CHECK(n < ctx->argc, "only %d args", ctx->argc);
   wrenSetSlotBytes(vm, 0, ctx->argv[n], strlen(ctx->argv[n]));
+}
+
+void wrenArgc(WrenVM* vm) {
+  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  wrenSetSlotDouble(vm, 0, ctx->argc);
 }
 
 void wrenEnv(WrenVM* vm) {
@@ -216,6 +223,7 @@ WrenForeignMethodFn bindForeignMethod(
   if (!strcmp(signature, "read()")) return wrenRead;
   if (!strcmp(signature, "read(_)")) return wrenReadN;
   if (!strcmp(signature, "arg(_)")) return wrenArg;
+  if (!strcmp(signature, "argc()")) return wrenArgc;
   if (!strcmp(signature, "env(_)")) return wrenEnv;
   if (!strcmp(signature, "exit(_)")) return wrenExit;
   if (!strcmp(signature, "exec(_)")) return wrenExec;
@@ -247,6 +255,7 @@ void usage() {
     "  io.read(n): read n bytes from stdin\n"
     "  io.write(s): write to stdout\n"
     "  io.arg(i): read args[i]\n"
+    "  io.argc(): num args\n"
     "  io.env(name): read env var\n"
     "  io.exit(c): exit with code c\n"
     "  io.exec(argv): replace current process with argv\n"
@@ -260,7 +269,10 @@ int main(int argc, char** argv) {
       (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))))
     usage();
 
-  Ctx ctx = {.argc = argc, .argv = argv};
+  uv_loop_t loop;
+  uv_loop_init(&loop);
+
+  Ctx ctx = {.argc = argc, .argv = argv, .loop = &loop};
   WrenVM* wren = setupWren(&ctx);
   char* io_src = \
       "class io {\n"
@@ -268,6 +280,7 @@ int main(int argc, char** argv) {
       "  foreign static read()\n"
       "  foreign static read(n)\n"
       "  foreign static arg(i)\n"
+      "  foreign static argc()\n"
       "  foreign static env(name)\n"
       "  foreign static exit(c)\n"
       "  foreign static exec(argv)\n"
@@ -276,5 +289,11 @@ int main(int argc, char** argv) {
   CHECK(wrenInterpret(wren, "io", io_src) == WREN_RESULT_SUCCESS, "bad io src");
   char* user_src = argv[argc - 1];
   CHECK(wrenInterpret(wren, "main", "import \"io\" for io") == WREN_RESULT_SUCCESS);
-  return wrenInterpret(wren, "main", user_src);
+  int res = wrenInterpret(wren, "main", user_src);
+  if (res != WREN_RESULT_SUCCESS) return res;
+  uv_run(&loop, UV_RUN_DEFAULT);
+
+  // Clean shutdown. Skipped since the OS will clean up for us.
+  // wrenFreeVM(wren);
+  // uv_loop_close(&loop);
 }
