@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# native compiler for rust
+
+filtered_args=""
+for arg in "$@"; do
+  case $arg in
+    "-Wl,-exported_symbols_list"*)
+      ;;
+    "-Wl,-dylib")
+      ;;
+    "-no-pie")
+      ;;
+    *)
+      filtered_args="$filtered_args \"$arg\""
+      ;;
+  esac
+done
+
+eval "exec zig cc $filtered_args"

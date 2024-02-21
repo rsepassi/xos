@@ -1,0 +1,41 @@
+#!/usr/bin/env sh
+set -e
+
+if [ "$TARGET_OS" = "macos" ]
+then
+  sdk="$BUILD_DEPS/macossdk/sdk"
+  cflags="--sysroot=$sdk -I$sdk/usr/include -L$sdk/usr/lib -F$sdk/System/Library/Frameworks"
+fi
+
+filtered_args=""
+for arg in "$@"; do
+  case $arg in
+    "-Wl,-exported_symbols_list"*)
+      ;;
+    "-Wl,-dylib")
+      ;;
+    "-Wl,--disable-auto-image-base")
+      ;;
+    "-no-pie")
+      ;;
+    # crt ignores, since zig duplicates them
+    *"/crti.o")
+      ;;
+    *"/crt1.o")
+      ;;
+    *"/rcrt1.o")
+      ;;
+    # windows ignores, for now
+    "-lwinapi_"*)
+      ;;
+    "-lgcc"|"-lmsvcrt"|"-lgcc_eh"|"-lwindows.0.48.5"|"-l:libpthread.a")
+      ;;
+    # zig windows bug: https://github.com/ziglang/zig/issues/15107
+    # lld-link: error: duplicate symbol: ___chkstk_ms
+    *)
+      filtered_args="$filtered_args \"$arg\""
+      ;;
+  esac
+done
+
+eval "exec zig cc -target $(rusti zigtarget) -O$OPT $filtered_args $cflags"

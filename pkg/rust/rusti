@@ -1,0 +1,78 @@
+#!/usr/bin/env sh
+
+set -e
+
+get_triple() {
+  printlink=$1
+if [ "$TARGET_OS" = "macos" ] && [ "$TARGET_ARCH" = "aarch64" ]
+then
+  triple="aarch64-apple-darwin"
+  linker="CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER"
+elif [ "$TARGET_OS" = "macos" ] && [ "$TARGET_ARCH" = "x86_64" ]
+then
+  triple="x86_64-apple-darwin"
+  linker="CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER"
+elif [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ARCH" = "aarch64" ]
+then
+  triple="aarch64-unknown-linux-musl"
+  linker="CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER"
+elif [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ARCH" = "x86_64" ]
+then
+  triple="x86_64-unknown-linux-musl"
+  linker="CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER"
+elif [ "$TARGET_OS" = "windows" ] && [ "$TARGET_ARCH" = "x86_64" ]
+then
+  triple="x86_64-pc-windows-gnu"
+  linker="CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"
+else
+  >&2 echo "unsupported arch $TARGET_ARCH $TARGET_OS for rust"
+  exit 1
+fi
+
+if [ "$printlink" = 1 ]
+then
+echo $linker
+else
+echo $triple
+fi
+}
+
+get_zig_triple() {
+  case "$TARGET" in
+    x86_64-unknown-linux-musl|x86_64-linux-musl)
+      triple="x86_64-linux-musl"
+      ;;
+    aarch64-unknown-linux-musl|aarch64-linux-musl)
+      triple="aarch64-linux-musl"
+      ;;
+    x86_64-pc-windows-gnu|x86_64-windows-gnu)
+      triple="x86_64-windows-gnu"
+      ;;
+    x86_64-apple-darwin|x86_64-macos*)
+      triple="x86_64-macos"
+      ;;
+    aarch64-apple-darwin|aarch64-macos*)
+      triple="aarch64-macos"
+      ;;
+    *)
+      >&2 echo "unsupported arch $TARGET for rust"
+      ;;
+  esac
+  echo $triple
+}
+
+case $1 in
+  target)
+    get_triple
+    ;;
+  zigtarget)
+    get_zig_triple
+    ;;
+  linkervar)
+    get_triple 1
+    ;;
+  *)
+    >&2 echo "unrecognized rusti command $1"
+    exit 1
+    ;;
+esac

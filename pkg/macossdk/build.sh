@@ -1,8 +1,8 @@
 if [ "$1" != "local" ]
 then
-  url="https://github.com/rsepassi/xos/releases/download/macos-sdk-14.2-v3/macsdk.tar.xz"
-  hash="848bf8d57a2f912360344d23a19c175a31b1d8b69d2a12ec6130e486be0aa3c7"
-  file="macsdk.tar.xz"
+  url="https://github.com/rsepassi/xos/releases/download/macos-sdk-14.2-v4/macossdk.tar.gz"
+  hash="c5737ed0c523b7d495ddc79660440ceedf6a2cc4cfdcb9e9f0438c1c74ade3fe"
+  file="macossdk.tar.gz"
 
   fetch "$url" "$file" "$hash"
   untar "$BUILD_DEPS/$file" "$BUILD_OUT" 0
@@ -123,3 +123,6 @@ mkdir -p "$out/System/Library" "$out/usr"
 mv ./Frameworks "$out/System/Library"
 mv ./lib "$out/usr"
 mv ./include "$out/usr"
+
+cd "$BUILD_OUT"
+tar czf macossdk.tar.gz sdk
