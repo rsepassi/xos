@@ -351,8 +351,15 @@ xos_internal_mktemp \$@ "$BUILD_OUT/tmp/tmpXXXXXX"
 EOF
   chmod +x "$pkg_tools_dir/mktemp"
 
-  # setup log and fail fn
+  # setup log and interrupt/fail fns
   logfile="$BUILD_OUT/build.log"
+
+  trap ctrl_c INT
+  ctrl_c() {
+    [ "$DEBUG" != 1 ] && >&2 cat "$logfile"
+    >&2 printf "\ninterrupted building pkg $pkg $pkgid\n"
+    exit 1
+  }
   fail() {
     [ "$DEBUG" != 1 ] && >&2 cat "$logfile"
     >&2 printf "\nerror building pkg $pkg $pkgid\n"

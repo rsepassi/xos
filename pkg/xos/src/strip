@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+>&2 echo "strip not implemented. args="
+>&2 echo "$*"
+exit 1
