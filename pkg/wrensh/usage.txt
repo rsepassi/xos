@@ -1,0 +1,14 @@
+wrensh command line utility
+  wrensh [args...] wren_src
+
+https://wren.io
+
+IO.read(): read stdin in full
+IO.write(s): write to stdout
+IO.flush(): flush stdout
+IO.arg(i): read args[i]
+IO.argc(): num args
+IO.env(name): read env var
+IO.exit(c): exit with code c
+IO.exec(argv): replace current process with argv
+IO.exec(argv, env): replace current process with argv and env
