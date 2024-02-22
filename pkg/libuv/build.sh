@@ -1,5 +1,5 @@
-url="https://dist.libuv.org/dist/v1.48.0/libuv-v1.48.0.tar.gz"
-hash="7f1db8ac368d89d1baf163bac1ea5fe5120697a73910c8ae6b2fffb3551d59fb"
+url="https://github.com/libuv/libuv/archive/refs/tags/v1.48.0.tar.gz"
+hash="8c253adb0f800926a6cbd1c6576abae0bc8eb86a4f891049b72f9e5b7dc58f33"
 file="libuv.tar.gz"
 
 fetch "$url" "$file" "$hash"
