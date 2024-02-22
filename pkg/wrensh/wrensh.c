@@ -19,7 +19,7 @@
 #define WREN_CHECK_HELPER(cond, fmt, ...) do { \
     if (!(cond)) { \
       sprintf(wrenErrorStr, fmt "%s", __VA_ARGS__); \
-      wrenError(vm); \
+      wrenshError(vm); \
       return; \
     } \
   } while(0)
@@ -39,7 +39,7 @@ typedef struct {
   WrenHandle* wren_tx;
 } Ctx;
 
-void wrenError(WrenVM* vm) {
+void wrenshError(WrenVM* vm) {
   wrenSetSlotBytes(vm, 0, wrenErrorStr, strlen(wrenErrorStr));
   wrenAbortFiber(vm, 0);
 }
@@ -97,7 +97,7 @@ void wrenshReadFinalize(readstate* state) {
 }
 
 void wrenshReadCb(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf) {
-  readstate* state = (readstate*)stream->data;
+  readstate* state = (readstate*)uv_handle_get_data(stream);
 
   if (nread < 0) {
     uv_read_stop(stream);
@@ -127,16 +127,59 @@ void wrenshRead(WrenVM* vm) {
   *state = s2;
 
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
-  ctx->stdin_pipe.data = state;
+  uv_handle_set_data((uv_handle_t*)&ctx->stdin_pipe, state);
   CHECK(uv_read_start((uv_stream_t*)&ctx->stdin_pipe, wrenshReadAlloc, wrenshReadCb) == 0);
 }
 
+typedef struct {
+  WrenVM* vm;
+  uv_write_t req;
+  WrenHandle* fiber;
+  WrenHandle* str;
+  uv_buf_t bufs[1];
+} writestate;
+
+void wrenshWriteCb(uv_write_t* req, int status) {
+  writestate* state = (writestate*)uv_req_get_data(req);
+
+  WrenVM* vm = state->vm;
+  wrenEnsureSlots(vm, 1);
+
+  if (status == 0) {
+    Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+    wrenSetSlotHandle(vm, 0, state->fiber);
+    wrenCall(vm, ctx->wren_tx);
+  } else {
+    sprintf(wrenErrorStr, "write failed code=%d", status);
+    wrenshError(vm);
+  }
+
+  wrenReleaseHandle(vm, state->fiber);
+  wrenReleaseHandle(vm, state->str);
+  free(state);
+}
+
 void wrenshWrite(WrenVM* vm) {
-  WrenType t = wrenGetSlotType(vm, 1);
+  WrenHandle* fiber = wrenGetSlotHandle(vm, 1);
+  WrenType t = wrenGetSlotType(vm, 2);
   WREN_CHECK(t == WREN_TYPE_STRING, "must pass a string to io.write");
   int len = 0;
-  const char* s = wrenGetSlotBytes(vm, 1, &len);
-  fprintf(stdout, "%.*s", len, s);
+  const char* s = wrenGetSlotBytes(vm, 2, &len);
+  WrenHandle* wrenstr = wrenGetSlotHandle(vm, 2);
+
+  const writestate s2 = {
+    .vm = vm,
+    .fiber = fiber,
+    .str = wrenstr,
+    .bufs = {uv_buf_init(s, len)},
+  };
+  writestate* state = malloc(sizeof(writestate));
+  CHECK(state);
+  *state = s2;
+
+  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  uv_req_set_data(&state->req, state);
+  CHECK(uv_write(&state->req, (uv_stream_t*)&ctx->stdout_pipe, state->bufs, 1, wrenshWriteCb) == 0);
 }
 
 void wrenshFlush(WrenVM* vm) {
@@ -224,7 +267,7 @@ void wrenshExec(WrenVM* vm) {
   // path lookup using "which"
   char path[maxpathlen];
   if (findexe(argv[0], &path) != 0) {
-    wrenError(vm);
+    wrenshError(vm);
     return;
   }
 
@@ -258,7 +301,7 @@ WrenForeignMethodFn bindForeignMethod(
   CHECK(!strcmp(module, "io") &&
         !strcmp(className, "io") &&
         isStatic, "unexpected foreign method");
-  if (!strcmp(signature, "write(_)")) return wrenshWrite;
+  if (!strcmp(signature, "write_(_,_)")) return wrenshWrite;
   if (!strcmp(signature, "flush()")) return wrenshFlush;
   if (!strcmp(signature, "read_(_)")) return wrenshRead;
   if (!strcmp(signature, "arg(_)")) return wrenshArg;
@@ -304,12 +347,15 @@ void usage() {
 
 static const char* io_src = \
   "class io {\n"
-  "  foreign static write(s)\n"
-  "  foreign static flush()\n"
+  "  static write(s) {\n"
+  "    write_(Fiber.current, s)\n"
+  "    Fiber.yield()\n"
+  "  }\n"
   "  static read() {\n"
   "    read_(Fiber.current)\n"
   "    return Fiber.yield()\n"
   "  }\n"
+  "  foreign static flush()\n"
   "  foreign static arg(i)\n"
   "  foreign static argc()\n"
   "  foreign static env(name)\n"
@@ -317,6 +363,7 @@ static const char* io_src = \
   "  foreign static exec(argv)\n"
   "  foreign static exec(argv, env)\n"
   "  foreign static read_(f)\n"
+  "  foreign static write_(f, s)\n"
   "}\n";
 
 int main(int argc, char** argv) {
