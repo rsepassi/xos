@@ -23,18 +23,21 @@
       return; \
     } \
   } while(0)
-#define WREN_CHECK(cond, ...) \
-  WREN_CHECK_HELPER(cond, __VA_ARGS__, "");
+#define WREN_CHECK(cond, ...) WREN_CHECK_HELPER(cond, __VA_ARGS__, "");
 
+static const int maxpathlen = 4096;
+static char wrenErrorStr[4096];
 
 typedef struct {
   int argc;
   char** argv;
   uv_loop_t* loop;
+  uv_pipe_t stdin_pipe;
+  uv_pipe_t stdout_pipe;
+  uv_pipe_t stderr_pipe;
+  WrenHandle* wren_tx_val;
+  WrenHandle* wren_tx;
 } Ctx;
-
-static const int maxpathlen = 4096;
-static char wrenErrorStr[4096];
 
 void wrenError(WrenVM* vm) {
   wrenSetSlotBytes(vm, 0, wrenErrorStr, strlen(wrenErrorStr));
@@ -66,37 +69,69 @@ void wrenErrorFn(WrenVM* vm, WrenErrorType errorType,
   }
 }
 
-// Read stdin in full
-void wrenRead(WrenVM* vm) {
-  int sz = 1024 * 8;
-  char* buf = malloc(sz);
-  int c;
-  int i = 0;
-  while ((c = getchar()) != EOF) {
-    buf[i++] = c;
-    if (i >= sz) {
-      sz *= 2;
-      buf = realloc(buf, sz);
-      CHECK(buf != NULL, "could not allocate %d bytes for stdin", sz);
-    }
+
+typedef struct {
+  WrenVM* vm;
+  WrenHandle* fiber;
+  int n;
+  char* buf;
+  int bufcap;
+  int buflen;
+} readstate;
+
+void wrenshReadAlloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t* buf) {
+  static char readbuf[4096];
+  *buf = uv_buf_init(readbuf, sizeof(readbuf));
+}
+
+void wrenshReadFinalize(readstate* state) {
+  WrenVM* vm = state->vm;
+  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  wrenEnsureSlots(vm, 2);
+  wrenSetSlotHandle(vm, 0, state->fiber);
+  wrenSetSlotBytes(vm, 1, state->buf, state->buflen);
+  wrenCall(vm, ctx->wren_tx_val);
+  wrenReleaseHandle(vm, state->fiber);
+  free(state->buf);
+  free(state);
+}
+
+void wrenshReadCb(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf) {
+  readstate* state = (readstate*)stream->data;
+
+  if (nread < 0) {
+    uv_read_stop(stream);
+    wrenshReadFinalize(state);
+    return;
   }
-  buf[i] = '\0';
-  wrenSetSlotBytes(vm, 0, buf, i);
-  free(buf);
+
+  if (state->bufcap < (state->buflen + nread)) {
+    int cap = (state->bufcap || 2048) * 2;
+    state->buf = realloc(state->buf, cap);
+    state->bufcap = cap;
+  }
+
+  memcpy(state->buf + state->buflen, buf->base, nread);
+  state->buflen += nread;
 }
 
-void wrenReadN(WrenVM* vm) {
-  WrenType t = wrenGetSlotType(vm, 1);
-  WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.read(n)");
-  int n = (int)wrenGetSlotDouble(vm, 1);
-  char* buf = malloc(n);
-  CHECK(buf != NULL, "could not allocate %d bytes for stdin", n);
-  int nread = fread(buf, 1, n, stdin);
-  wrenSetSlotBytes(vm, 0, buf, nread);
-  free(buf);
+void wrenshRead(WrenVM* vm) {
+  WrenHandle* fiber = wrenGetSlotHandle(vm, 1);
+
+  const readstate s2 = {
+    .vm = vm,
+    .fiber = fiber,
+  };
+  readstate* state = malloc(sizeof(readstate));
+  CHECK(state);
+  *state = s2;
+
+  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  ctx->stdin_pipe.data = state;
+  CHECK(uv_read_start((uv_stream_t*)&ctx->stdin_pipe, wrenshReadAlloc, wrenshReadCb) == 0);
 }
 
-void wrenWrite(WrenVM* vm) {
+void wrenshWrite(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
   WREN_CHECK(t == WREN_TYPE_STRING, "must pass a string to io.write");
   int len = 0;
@@ -104,11 +139,11 @@ void wrenWrite(WrenVM* vm) {
   fprintf(stdout, "%.*s", len, s);
 }
 
-void wrenFlush(WrenVM* vm) {
+void wrenshFlush(WrenVM* vm) {
   fflush(stdout);
 }
 
-void wrenArg(WrenVM* vm) {
+void wrenshArg(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
   WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.arg");
   int n = (int)wrenGetSlotDouble(vm, 1);
@@ -117,12 +152,12 @@ void wrenArg(WrenVM* vm) {
   wrenSetSlotBytes(vm, 0, ctx->argv[n], strlen(ctx->argv[n]));
 }
 
-void wrenArgc(WrenVM* vm) {
+void wrenshArgc(WrenVM* vm) {
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
   wrenSetSlotDouble(vm, 0, ctx->argc);
 }
 
-void wrenEnv(WrenVM* vm) {
+void wrenshEnv(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
   WREN_CHECK(t == WREN_TYPE_STRING, "must pass a string to io.env");
   int len = 0;
@@ -131,7 +166,7 @@ void wrenEnv(WrenVM* vm) {
   wrenSetSlotBytes(vm, 0, val, strlen(val));
 }
 
-void wrenExit(WrenVM* vm) {
+void wrenshExit(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
   WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to io.exit");
   int n = (int)wrenGetSlotDouble(vm, 1);
@@ -170,7 +205,7 @@ int findexe(char* exe, char* exepath) {
   return -1;
 }
 
-void wrenExec(WrenVM* vm) {
+void wrenshExec(WrenVM* vm) {
   WrenType t = wrenGetSlotType(vm, 1);
   WREN_CHECK(t == WREN_TYPE_LIST, "must pass a list to exec");
   int nslots = wrenGetSlotCount(vm);
@@ -223,17 +258,16 @@ WrenForeignMethodFn bindForeignMethod(
   CHECK(!strcmp(module, "io") &&
         !strcmp(className, "io") &&
         isStatic, "unexpected foreign method");
-  if (!strcmp(signature, "write(_)")) return wrenWrite;
-  if (!strcmp(signature, "flush()")) return wrenFlush;
-  if (!strcmp(signature, "read()")) return wrenRead;
-  if (!strcmp(signature, "read(_)")) return wrenReadN;
-  if (!strcmp(signature, "arg(_)")) return wrenArg;
-  if (!strcmp(signature, "argc()")) return wrenArgc;
-  if (!strcmp(signature, "env(_)")) return wrenEnv;
-  if (!strcmp(signature, "exit(_)")) return wrenExit;
-  if (!strcmp(signature, "exec(_)")) return wrenExec;
-  if (!strcmp(signature, "exec(_,_)")) return wrenExec;
-  fprintf(stderr, "unexpected foreign method %s", signature);
+  if (!strcmp(signature, "write(_)")) return wrenshWrite;
+  if (!strcmp(signature, "flush()")) return wrenshFlush;
+  if (!strcmp(signature, "read_(_)")) return wrenshRead;
+  if (!strcmp(signature, "arg(_)")) return wrenshArg;
+  if (!strcmp(signature, "argc()")) return wrenshArgc;
+  if (!strcmp(signature, "env(_)")) return wrenshEnv;
+  if (!strcmp(signature, "exit(_)")) return wrenshExit;
+  if (!strcmp(signature, "exec(_)")) return wrenshExec;
+  if (!strcmp(signature, "exec(_,_)")) return wrenshExec;
+  fprintf(stderr, "unexpected foreign method %s\n", signature);
   exit(1);
 }
 
@@ -257,7 +291,6 @@ void usage() {
     "  https://wren.io\n"
     "  \n"
     "  io.read(): read stdin in full\n"
-    "  io.read(n): read n bytes from stdin\n"
     "  io.write(s): write to stdout\n"
     "  io.flush(): flush stdout\n"
     "  io.arg(i): read args[i]\n"
@@ -267,37 +300,60 @@ void usage() {
     "  io.exec(argv): replace current process with argv\n"
     "  io.exec(argv, env): replace current process with argv and env\n";
   fputs(usage_str, stderr);
-  exit(0);
 }
+
+static const char* io_src = \
+  "class io {\n"
+  "  foreign static write(s)\n"
+  "  foreign static flush()\n"
+  "  static read() {\n"
+  "    read_(Fiber.current)\n"
+  "    return Fiber.yield()\n"
+  "  }\n"
+  "  foreign static arg(i)\n"
+  "  foreign static argc()\n"
+  "  foreign static env(name)\n"
+  "  foreign static exit(c)\n"
+  "  foreign static exec(argv)\n"
+  "  foreign static exec(argv, env)\n"
+  "  foreign static read_(f)\n"
+  "}\n";
 
 int main(int argc, char** argv) {
   if (argc == 1 ||
-      (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))))
+      (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")))) {
     usage();
+    exit(1);
+  }
 
+  // uv setup
   uv_loop_t loop;
   uv_loop_init(&loop);
 
+  // process context
   Ctx ctx = {.argc = argc, .argv = argv, .loop = &loop};
+
+  // wren setup
   WrenVM* wren = setupWren(&ctx);
-  char* io_src = \
-      "class io {\n"
-      "  foreign static write(s)\n"
-      "  foreign static flush()\n"
-      "  foreign static read()\n"
-      "  foreign static read(n)\n"
-      "  foreign static arg(i)\n"
-      "  foreign static argc()\n"
-      "  foreign static env(name)\n"
-      "  foreign static exit(c)\n"
-      "  foreign static exec(argv)\n"
-      "  foreign static exec(argv, env)\n"
-      "}\n";
   CHECK(wrenInterpret(wren, "io", io_src) == WREN_RESULT_SUCCESS, "bad io src");
-  char* user_src = argv[argc - 1];
   CHECK(wrenInterpret(wren, "main", "import \"io\" for io") == WREN_RESULT_SUCCESS);
+  ctx.wren_tx_val = wrenMakeCallHandle(wren, "transfer(_)");
+  ctx.wren_tx = wrenMakeCallHandle(wren, "transfer()");
+
+  // setup std{in,out,err}
+  CHECK(uv_pipe_init(&loop, &ctx.stdin_pipe, 0) == 0);
+  CHECK(uv_pipe_open(&ctx.stdin_pipe, STDIN_FILENO) == 0);
+  CHECK(uv_pipe_init(&loop, &ctx.stdout_pipe, 0) == 0);
+  CHECK(uv_pipe_open(&ctx.stdout_pipe, STDOUT_FILENO) == 0);
+  CHECK(uv_pipe_init(&loop, &ctx.stderr_pipe, 0) == 0);
+  CHECK(uv_pipe_open(&ctx.stderr_pipe, STDERR_FILENO) == 0);
+
+  // user script
+  char* user_src = argv[argc - 1];
   int res = wrenInterpret(wren, "main", user_src);
   if (res != WREN_RESULT_SUCCESS) return res;
+
+  // io loop run
   uv_run(&loop, UV_RUN_DEFAULT);
 
   // Clean shutdown. Skipped since the OS will clean up for us.
