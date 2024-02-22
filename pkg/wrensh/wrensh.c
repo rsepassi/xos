@@ -34,7 +34,6 @@ typedef struct {
   uv_loop_t* loop;
   uv_pipe_t stdin_pipe;
   uv_pipe_t stdout_pipe;
-  uv_pipe_t stderr_pipe;
   WrenHandle* wren_tx_val;
   WrenHandle* wren_tx;
 } Ctx;
@@ -392,8 +391,6 @@ int main(int argc, char** argv) {
   CHECK(uv_pipe_open(&ctx.stdin_pipe, STDIN_FILENO) == 0);
   CHECK(uv_pipe_init(&loop, &ctx.stdout_pipe, 0) == 0);
   CHECK(uv_pipe_open(&ctx.stdout_pipe, STDOUT_FILENO) == 0);
-  CHECK(uv_pipe_init(&loop, &ctx.stderr_pipe, 0) == 0);
-  CHECK(uv_pipe_open(&ctx.stderr_pipe, STDERR_FILENO) == 0);
 
   // user script
   char* user_src = argv[argc - 1];
