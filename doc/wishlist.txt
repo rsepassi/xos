@@ -21,7 +21,6 @@ whisper
 vpn (wireguard)
 p2p (syncthing)
 payments (cosmos/tendermint?)
-jq
 rg/ag
 pw manager, secret store
 raft/paxos
