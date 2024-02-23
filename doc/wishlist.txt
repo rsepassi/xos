@@ -1,4 +1,3 @@
-re2c
 dns, ddns
 c-ares
 bubblewrap
