@@ -19,7 +19,6 @@ http3
 git, libgit, stagit
 whisper
 vpn (wireguard)
-p2p (syncthing)
 payments (cosmos/tendermint?)
 rg/ag
 pw manager, secret store
@@ -33,7 +32,6 @@ json-rpc
 chriso/intern
 antirez/sds
 struct/isoalloc
-minicoro
 certbot equivalent
 torrent client
 ocr? (easyocr, paddleocr)
