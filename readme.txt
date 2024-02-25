@@ -9,7 +9,7 @@ wip
 
 ---
 
-usage: ARCH= OPT= build pkgname
+usage: TARGET= OPT= build pkgname
 
 echoes pkgid on successful build
 build artifacts for last successful build available in build/out/
@@ -17,10 +17,10 @@ build artifacts for last successful build available in build/out/
 https://github.com/rsepassi/xos
 
 example:
-  ARCH=aarch64-linux-musl OPT=s build sqlite
+  TARGET=aarch64-linux-musl OPT=s build sqlite
 
 Env vars:
-  ARCH= zig target triple, defaults to host
+  TARGET= zig target triple, defaults to host
   OPT={Debug, Safe, Fast, Small, 0, 1, 2, 3, fast, s, z} optimization level
   BUILD= directory for build artifacts, defaults to ./build
   PKG= pkg/ directory path, defaults to ./pkg
@@ -56,9 +56,32 @@ pkg/: build scripts for packages
 
 ---
 
+build.sh scripts
+
+Env:
+  DEBUG={0,1} whether debug mode is on
+  TARGET, TARGET_ARCH, TARGET_OS: target triple
+  HOST, HOST_ARCH, HOST_OS: host triple
+  OPT, OPT_ZIG: cc and zig optimization modes
+  BUILD_PKG: the pkg directory for this package
+  BUILD_DEPS, BUILD_TOOLDEPS: dependency directories
+  BUILD_OUT: where build artifacts should go
+
+Tools:
+  zig
+  busybox
+  zigi: naming information from zig
+  cc, c++, ar, rc, windres: wrappers around zig
+  fetch, fetch_urltxt: caching downloaders
+  untar: caching tar xf
+  need, needtool: dynamic dependencies
+  system, system_export: access system tools
+
+---
+
 to build xos given xos:
 
-build xos
+  build xos
 
 ---
 
@@ -66,26 +89,23 @@ bootstrapping xos
 
 a podman alpine-based bootstrap script is provided
 
-./pkg/xos/bootstrap/podman_build.sh
+  ./pkg/xos/bootstrap/podman_build.sh
 
-or run directly (on mac or linux)
+or run directly
 
-./pkg/xos/bootstrap/build.sh
+  ./pkg/xos/bootstrap/build.sh
 
 ---
 
 todo
 
 * allow pointing to alt repos
-* parallelism
 * pkg-config like functionality
 * binary releases of xos for macos, linux, windows
-* documentation
-* un{tar/zip} caching
 * cache/tmp growth, reaping
 * detect dependency cycles?
-* toolchains? (go, rust, ...)
 * sandboxing (bwrap, sandbox-exec)
+* generic caching utilities
 
 ---
 
