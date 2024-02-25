@@ -10,7 +10,7 @@ then
   exit 0
 fi
 
-if [ "$ARCH_HOST_OS" != "macos" ]
+if [ "$HOST_OS" != "macos" ]
 then
   >&2 echo "macossdk can only be built on a mac"
   exit 1

@@ -3,19 +3,19 @@
 set -e
 
 goos() {
-case $ARCH_OS in
+case $TARGET_OS in
   macos)
     os="darwin"
     ;;
   *)
-    os=$ARCH_OS
+    os=$TARGET_OS
     ;;
 esac
 echo $os
 }
 
 goarch() {
-case $ARCH_ISA in
+case $TARGET_ARCH in
   aarch64)
     isa="arm64"
     ;;
@@ -23,7 +23,7 @@ case $ARCH_ISA in
     isa="amd64"
     ;;
   *)
-    isa="$ARCH_ISA"
+    isa="$TARGET_ARCH"
     ;;
 esac
 echo $isa
@@ -35,7 +35,7 @@ case $GOOS in
     os="macos"
     ;;
   "")
-    isa="$ARCH_HOST_OS"
+    isa="$HOST_OS"
     ;;
   *)
     os=$GOOS
@@ -53,7 +53,7 @@ case $GOARCH in
     isa="x86_64"
     ;;
   "")
-    isa="$ARCH_HOST_ISA"
+    isa="$HOST_ARCH"
     ;;
   *)
     isa="$GOARCH"

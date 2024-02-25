@@ -9,7 +9,7 @@ cd $src
 
 cp "$BUILD_PKG"/zconf.h .
 touch z.c
-zig build-lib -target $ARCH -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG \
   -DHAVE_HIDDEN -D_LARGEFILE64_SOURCE=1 \
   z.c *.c -lc
 

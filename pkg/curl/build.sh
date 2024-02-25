@@ -7,7 +7,7 @@ src=$(mktemp -d)
 untar "$BUILD_DEPS/$file" "$src"
 cd $src
 
-if [ "$ARCH_OS" = "macos" ]
+if [ "$TARGET_OS" = "macos" ]
 then
   need macossdk
   zigopt="-Dsysroot=$BUILD_DEPS/macossdk/sdk"
@@ -15,8 +15,8 @@ fi
 
 # build
 cp "$BUILD_PKG/build.zig" .
-cp "$BUILD_PKG/arch/config-$ARCH_OS.h" lib/curl_config.h
-zig build -Doptimize=$OPT_ZIG -Dtarget=$ARCH $zigopt \
+cp "$BUILD_PKG/arch/config-$TARGET_OS.h" lib/curl_config.h
+zig build -Doptimize=$OPT_ZIG -Dtarget=$TARGET $zigopt \
   -Dmbedtls="$BUILD_DEPS/mbedtls" \
   -Dbrotli="$BUILD_DEPS/brotli" \
   -Dnghttp2="$BUILD_DEPS/nghttp2" \

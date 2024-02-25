@@ -3,7 +3,7 @@ set -e
 
 usage() {
   cat <<EOF
-usage: ARCH= OPT= build pkgname
+usage: TARGET= OPT= build pkgname
 
 echoes pkgid on successful build
 build artifacts for last successful build available in build/out/
@@ -11,10 +11,10 @@ build artifacts for last successful build available in build/out/
 https://github.com/rsepassi/xos
 
 example:
-  ARCH=aarch64-linux-musl OPT=s build sqlite
+  TARGET=aarch64-linux-musl OPT=s build sqlite
 
 Env vars:
-  ARCH= zig target triple, defaults to host
+  TARGET= zig target triple, defaults to host
   OPT={Debug, Safe, Fast, Small, 0, 1, 2, 3, fast, s, z} optimization level
   BUILD= directory for build artifacts, defaults to ./build
   PKG= pkg/ directory path, defaults to ./pkg
@@ -106,18 +106,18 @@ get_deps() {
   arch="$2"
   deps=""
   while IFS= read -r dep; do
-    depid="$(ARCH="$arch" xos_internal_build "$dep")"
+    depid="$(TARGET="$arch" xos_internal_build "$dep")"
     deps="$deps$depid  $dep\n"
   done < "$depstxt"
   echo "$deps"
 }
 
 get_static_deps() {
-  get_deps "$1" $ARCH
+  get_deps "$1" $TARGET
 }
 
 get_tool_deps() {
-  get_deps "$1" $ARCH_HOST
+  get_deps "$1" $HOST
 }
 
 link_deps() {
@@ -140,7 +140,7 @@ link_deps() {
 
 stale_dyndeps() {
   dyndeps="$1"
-  arch=${2:-$ARCH}
+  arch=${2:-$TARGET}
 
   while IFS= read -r line
   do
@@ -148,20 +148,20 @@ stale_dyndeps() {
     depid=$(echo $line | cut -d' ' -f1)
     depname=$(echo $line | cut -d' ' -f2)
     depargs=$(echo $line | cut -d' ' -f3-)
-    depid2=$(eval "ARCH=$arch xos_internal_build $depargs")
+    depid2=$(eval "TARGET=$arch xos_internal_build $depargs")
     [ "$depid" != "$depid2" ] && return 0
   done < "$dyndeps"
   return 1
 }
 
 stale_dyntooldeps() {
-  stale_dyndeps $1 $ARCH_HOST
+  stale_dyndeps $1 $HOST
 }
 
-get_arch_host() {
-  if [ -n "$ARCH_HOST" ]
+get_host_triple() {
+  if [ -n "$HOST" ]
   then
-    echo "$ARCH_HOST"
+    echo "$HOST"
     return
   fi
 
@@ -177,7 +177,7 @@ get_arch_host() {
     return
   fi
 
-  >&2 echo "could not determine ARCH_HOST, please set manually"
+  >&2 echo "could not determine HOST, please set manually"
   exit 1
 }
 
@@ -218,13 +218,13 @@ tools_dir="$XOS_BUILD_CACHE/tools"
 # system PATH
 export PATH="$XOS_ROOT/tools"
 
-# Host and target ARCH
-export ARCH_HOST=$(get_arch_host)
-export ARCH=${ARCH:-$ARCH_HOST}
-ARCH_HOST_ISA=$(echo "$ARCH_HOST" | cut -d '-' -f1)
-ARCH_HOST_OS=$(echo "$ARCH_HOST" | cut -d '-' -f2 | cut -d '.' -f1)
-ARCH_ISA=$(echo "$ARCH" | cut -d '-' -f1)
-ARCH_OS=$(echo "$ARCH" | cut -d '-' -f2 | cut -d '.' -f1)
+# Host and target triples
+export HOST=$(get_host_triple)
+export TARGET=${TARGET:-$HOST}
+HOST_ARCH=$(echo "$HOST" | cut -d '-' -f1)
+HOST_OS=$(echo "$HOST" | cut -d '-' -f2 | cut -d '.' -f1)
+TARGET_ARCH=$(echo "$TARGET" | cut -d '-' -f1)
+TARGET_OS=$(echo "$TARGET" | cut -d '-' -f2 | cut -d '.' -f1)
 
 # Optimizaton
 OPT=${OPT:-s}
@@ -271,7 +271,7 @@ export OPT_ZIG
 pkgid_text=$(
   XOS="$XOS_ID" \
   BUILD_PKG="$BUILD_PKG" \
-  ARCH="$ARCH" \
+  TARGET="$TARGET" \
   OPT="$OPT" \
   ARGS="$ARGS" \
   DEPS="$deps_static" \
@@ -303,12 +303,12 @@ then
 build $ARGS
 BUILD_PKG=$BUILD_PKG
 BUILD_OUT=$BUILD_OUT
-ARCH=$ARCH
-ARCH_ISA=$ARCH_ISA
-ARCH_OS=$ARCH_OS
-ARCH_HOST=$ARCH_HOST
-ARCH_HOST_ISA=$ARCH_HOST_ISA
-ARCH_HOST_OS=$ARCH_HOST_OS
+TARGET=$TARGET
+TARGET_ARCH=$TARGET_ARCH
+TARGET_OS=$TARGET_OS
+HOST=$HOST
+HOST_ARCH=$HOST_ARCH
+HOST_OS=$HOST_OS
 OPT=$OPT
 OPT_ZIG=$OPT_ZIG
 XOS_ROOT=$XOS_ROOT
@@ -391,12 +391,12 @@ EOF
       XOS_BUILD_ROOT="$XOS_BUILD_ROOT" \
       XOS_BUILD_CACHE="$XOS_BUILD_CACHE" \
       XOS_BUILD_OUT="$BUILD_OUT" \
-      ARCH="$ARCH" \
-      ARCH_ISA="$ARCH_ISA" \
-      ARCH_OS="$ARCH_OS" \
-      ARCH_HOST="$ARCH_HOST" \
-      ARCH_HOST_ISA="$ARCH_HOST_ISA" \
-      ARCH_HOST_OS="$ARCH_HOST_OS" \
+      TARGET="$TARGET" \
+      TARGET_ARCH="$TARGET_ARCH" \
+      TARGET_OS="$TARGET_OS" \
+      HOST="$HOST" \
+      HOST_ARCH="$HOST_ARCH" \
+      HOST_OS="$HOST_OS" \
       OPT="$OPT" \
       OPT_ZIG="$OPT_ZIG" \
       BUILD_OUT="$BUILD_OUT/out" \

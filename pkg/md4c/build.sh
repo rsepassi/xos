@@ -7,13 +7,13 @@ untar $BUILD_DEPS/md4c.tar.gz $src
 
 # md4c library
 cd $src/src
-zig build-lib -target $ARCH -O $OPT_ZIG md4c.c md4c-html.c entity.c -lc
+zig build-lib -target $TARGET -O $OPT_ZIG md4c.c md4c-html.c entity.c -lc
 lib=$src/src/$(zigi lib md4c)
 
 # md2html binary
 cd $src/md2html
 rm -f md2html
-cc -static -s -O$OPT --target=$ARCH -o md2html \
+cc -static -s -O$OPT --target=$TARGET -o md2html \
   -fstack-protector \
   -I $src/src \
   -D MD_VERSION_MAJOR=0 \

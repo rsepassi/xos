@@ -7,7 +7,7 @@ src=$(mktemp -d)
 untar "$BUILD_DEPS/$file" "$src"
 cd $src
 
-if [ "$ARCH_OS" = "windows" ]
+if [ "$TARGET_OS" = "windows" ]
 then
   need winpthread
   cflags="-I$BUILD_DEPS/winpthread/include"
@@ -44,14 +44,14 @@ src/jv_dtoa_tsd.c
 "
 
 touch jq.c
-zig build-lib -target $ARCH -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG \
   jq.c \
   $libfiles \
   -DIEEE_8087 \
   -I. $cflags \
   -lc
 
-zig build-exe -target $ARCH -O $OPT_ZIG \
+zig build-exe -target $TARGET -O $OPT_ZIG \
   jq.c \
   src/main.c \
   $(zigi lib jq) \

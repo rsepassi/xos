@@ -15,7 +15,7 @@ mkdir -p "$tools" "$cache" "$tmp"
 # system id
 case $(uname) in
   Linux)
-    ARCH_OS="linux"
+    TARGET_OS="linux"
     arch_lib="musl"
     if [ "$BOOTSTRAP_CONTAINER_BUILD" = 1 ]
     then
@@ -23,7 +23,7 @@ case $(uname) in
     fi
     ;;
   Darwin)
-    ARCH_OS="macos"
+    TARGET_OS="macos"
     arch_lib="none"
     ;;
   *)
@@ -34,17 +34,17 @@ esac
 
 case $(uname -m) in
   arm64|aarch64)
-    ARCH_ISA="aarch64"
+    TARGET_ARCH="aarch64"
     ;;
   x86_64)
-    ARCH_ISA="x86_64"
+    TARGET_ARCH="x86_64"
     ;;
   *)
     echo "unknown isa $(uname -m)"
     exit 1
     ;;
 esac
-ARCH="$ARCH_ISA-$ARCH_OS-$arch_lib"
+TARGET="$TARGET_ARCH-$TARGET_OS-$arch_lib"
 
 # link tools
 scripts="
@@ -74,7 +74,7 @@ cat <<EOF > "$tools/xos_internal_mktemp"
 exec busybox mktemp \$@
 EOF
 chmod +x "$tools/xos_internal_mktemp"
-if [ "$ARCH_OS" = "macos" ]
+if [ "$TARGET_OS" = "macos" ]
 then
   cat <<EOF > "$tools/nproc"
 #!/usr/bin/env sh
@@ -88,8 +88,8 @@ mkdir -p "$out/zig"
 
 PATH="$tools:$PATH" \
 BUILD_PKG="$xosroot/pkg/zig" \
-ARCH_OS=$ARCH_OS \
-ARCH_ISA=$ARCH_ISA \
+TARGET_OS=$TARGET_OS \
+TARGET_ARCH=$TARGET_ARCH \
 BUILD_DEPS="$tmp" \
 XOS_BUILD_CACHE="$cache" \
 BUILD_OUT="$out/zig" \
@@ -100,10 +100,10 @@ ln -s ../zig/zig "$tools/zig"
 mkdir "$tmp/make"
 PATH="$tools:$PATH" \
 BUILD_PKG="$xosroot/pkg/make" \
-ARCH="$ARCH" \
+TARGET="$TARGET" \
 OPT_ZIG="ReleaseSmall" \
-ARCH_OS=$ARCH_OS \
-ARCH_ISA=$ARCH_ISA \
+TARGET_OS=$TARGET_OS \
+TARGET_ARCH=$TARGET_ARCH \
 BUILD_DEPS="$tmp" \
 XOS_BUILD_CACHE="$cache" \
 BUILD_OUT="$tmp/make" \
@@ -114,9 +114,9 @@ mkdir "$tmp/busybox"
 
 PATH="$tools:$PATH" \
 BUILD_PKG="$xosroot/pkg/busybox" \
-ARCH="$ARCH" \
+TARGET="$TARGET" \
 OPT="s" \
-ARCH_OS=$ARCH_OS \
+TARGET_OS=$TARGET_OS \
 BUILD_DEPS="$tmp" \
 BUILD_TOOLDEPS="$tmp" \
 XOS_BUILD_CACHE="$cache" \
@@ -175,14 +175,14 @@ do
   ln -s busybox "$tools/$tool"
 done
 
-if [ "$ARCH_OS" != "macos" ]
+if [ "$TARGET_OS" != "macos" ]
 then
   ln -s busybox "$tools/nproc"
 fi
 
 echo "xos bootstrap build" > "$out/readme.txt"
 echo "xos bootstrap build" > "$out/.xos"
-echo "$ARCH" > "$out/.xos_host"
+echo "$TARGET" > "$out/.xos_host"
 sha256sum "$out/.xos" | cut -d' ' -f1 > "$out/.xos_id"
 
 echo "bootstrap ok"

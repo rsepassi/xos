@@ -1,6 +1,6 @@
 make=$BUILD_TOOLDEPS/make/bin/make
 
-if [ "$ARCH_OS" = "windows" ]
+if [ "$TARGET_OS" = "windows" ]
 then
   tarfile=busybox-w32.tar.gz
   urlfile=url-w32.txt
@@ -26,10 +26,10 @@ cp $BUILD_PKG/gcc $toolchaindir
 cp $BUILD_PKG/bbcross-ar $toolchaindir
 cp $BUILD_PKG/bbcross-gcc $toolchaindir
 export PATH="$toolchaindir:$PATH"
-export BB_BUILD_ARCH=$ARCH
+export BB_BUILD_TARGET=$TARGET
 
 cp $BUILD_PKG/$configfile .config
-if [ "$ARCH_OS" = "macos" ]
+if [ "$TARGET_OS" = "macos" ]
 then
   # this is just for bootstrapping
   sed=sed
@@ -40,12 +40,12 @@ then
   $sed -i 's/CONFIG_NPROC=y/# CONFIG_NPROC is not set/g' .config
 fi
 
-if [ "$ARCH_OS" != "windows" ]
+if [ "$TARGET_OS" != "windows" ]
 then
   cp $BUILD_PKG/platform.h include/platform.h
 fi
 
-if [ "$ARCH_OS" = "windows" ]
+if [ "$TARGET_OS" = "windows" ]
 then
 objs="
 applets/built-in.o
@@ -139,5 +139,5 @@ done
 
 echo "linking..."
 mkdir -p $BUILD_OUT/bin
-cc --target=$ARCH -s -O$OPT -o $BUILD_OUT/bin/busybox \
+cc --target=$TARGET -s -O$OPT -o $BUILD_OUT/bin/busybox \
   $(echo $objs) $ldflags -lc

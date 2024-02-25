@@ -4,7 +4,7 @@ set -e
 pkg=$1
 name=$2
 
-NEEDARCH=${NEEDARCH:-$ARCH}
+NEEDTARGET=${NEEDTARGET:-$TARGET}
 NEEDOPT=${NEEDOPT:-$OPT}
 NEEDDEPS=${NEEDDEPS:-$BUILD_DEPS}
 NEEDTXT=${NEEDTXT:-dyndeps.txt}
@@ -35,7 +35,7 @@ do
 done
 
 # build
-pkgid=$(ARCH=$NEEDARCH OPT=$NEEDOPT xos_internal_build $pkg "$@")
+pkgid=$(TARGET=$NEEDTARGET OPT=$NEEDOPT xos_internal_build $pkg "$@")
 
 # link
 mkdir -p "$NEEDDEPS"

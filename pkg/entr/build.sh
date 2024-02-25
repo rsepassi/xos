@@ -7,16 +7,16 @@ src=$(mktemp -d)
 untar "$BUILD_DEPS/$file" "$src"
 cd $src
 
-if [ "$ARCH_OS" = "macos" ]
+if [ "$TARGET_OS" = "macos" ]
 then
   cargs="-D_MACOS_PORT"
-elif [ "$ARCH_OS" = "linux" ]
+elif [ "$TARGET_OS" = "linux" ]
 then
   cargs="-D_LINUX_PORT missing/strlcpy.c missing/kqueue_inotify.c -Imissing"
 fi
 
 bin=$(zigi exe entr)
-cc -target $ARCH -O$OPT -o $bin \
+cc -target $TARGET -O$OPT -o $bin \
   entr.c \
   -DRELEASE="\"5.5\"" \
   $cargs \

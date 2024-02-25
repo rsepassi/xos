@@ -8,7 +8,7 @@ then
   cflags="-DDEBUG"
 fi
 
-if [ "$ARCH_OS" = "windows" ]
+if [ "$TARGET_OS" = "windows" ]
 then
 ldflags="-lws2_32 -luserenv -lole32 -liphlpapi -ldbghelp"
 fi
@@ -28,7 +28,7 @@ usagestr="$(cstr "$BUILD_PKG/usage.txt")"
 sed -i "s^@@IOWREN@@^$iowren^" wrensh.c
 sed -i "s^@@WRENSHUSAGE@@^$usagestr^" wrensh.c
 
-zig build-exe -target $ARCH -O $OPT_ZIG \
+zig build-exe -target $TARGET -O $OPT_ZIG \
   wrensh.c \
   -I "$BUILD_DEPS/wren/include" \
   "$BUILD_DEPS"/wren/lib/$(zigi lib wren) \

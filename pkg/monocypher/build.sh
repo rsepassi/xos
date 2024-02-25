@@ -5,7 +5,7 @@ untar $BUILD_DEPS/$file $src
 
 cd $src/src
 
-zig build-lib -target $ARCH -O $OPT_ZIG monocypher.c optional/monocypher-ed25519.c -I.
+zig build-lib -target $TARGET -O $OPT_ZIG monocypher.c optional/monocypher-ed25519.c -I.
 
 mkdir -p $BUILD_OUT/lib $BUILD_OUT/include
 cp $(zigi lib monocypher) $BUILD_OUT/lib

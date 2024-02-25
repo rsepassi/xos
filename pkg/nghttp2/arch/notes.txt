@@ -1,20 +1,20 @@
 # To get config.h
 
-ARCH_ISA=aarch64
-ARCH_OS=windows
+TARGET_ARCH=aarch64
+TARGET_OS=windows
 lib=gnu
 
-ARCH=$ARCH_ISA-$ARCH_OS-$lib
-ARCH_HOST=aarch64-darwin
+TARGET=$TARGET_ARCH-$TARGET_OS-$lib
+HOST=aarch64-darwin
 
-CC="zig cc --target=$ARCH" \
+CC="zig cc --target=$TARGET" \
 ./configure \
   --prefix=$PWD/build \
-  --host=$ARCH_ISA-$ARCH_OS \
-  --build=$ARCH_HOST \
+  --host=$TARGET_ARCH-$TARGET_OS \
+  --build=$HOST \
   --disable-shared \
   --disable-dependency-tracking \
   --enable-lib-only
 
 mkdir -p arch
-cp config.h arch/config-$ARCH_OS.h
+cp config.h arch/config-$TARGET_OS.h

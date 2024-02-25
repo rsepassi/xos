@@ -43,15 +43,15 @@ pcre2_chartables.c
 cd src
 mv pcre2_chartables.c.dist pcre2_chartables.c
 cp pcre2.h.generic pcre2.h
-cp "$BUILD_PKG/arch/config-$ARCH_OS.h" config.h
+cp "$BUILD_PKG/arch/config-$TARGET_OS.h" config.h
 touch pcre2.c
-zig build-lib -target $ARCH -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG \
   -DHAVE_CONFIG_H -DPCRE2_CODE_UNIT_WIDTH=8 -D_THREAD_SAFE -DPCRE2_STATIC -isystem . \
   pcre2.c $files \
   -lc
 lib=$PWD/$(zigi lib pcre2)
 
-zig build-exe -target $ARCH -O $OPT_ZIG \
+zig build-exe -target $TARGET -O $OPT_ZIG \
   -DHAVE_CONFIG_H -DPCRE2_CODE_UNIT_WIDTH=8 -D_THREAD_SAFE -DPCRE2_STATIC -isystem . \
   -I "$BUILD_DEPS/zlib/include" \
   pcre2grep.c $lib "$BUILD_DEPS/zlib/lib/$(zigi lib z)" \

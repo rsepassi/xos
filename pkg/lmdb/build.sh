@@ -5,7 +5,7 @@ untar $BUILD_DEPS/lmdb.tar.gz $src 3
 # lib
 cd $src
 touch lmdb.c
-zig build-lib -target $ARCH -O $OPT_ZIG lmdb.c mdb.c midl.c -lc
+zig build-lib -target $TARGET -O $OPT_ZIG lmdb.c mdb.c midl.c -lc
 
 # install
 out=$BUILD_OUT

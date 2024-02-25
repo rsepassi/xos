@@ -12,7 +12,7 @@ mkdir -p $tools
 zig="$BUILD_DEPS/zig"
 bb="$BUILD_DEPS/busybox/bin/busybox"
 make="$BUILD_DEPS/make/bin/make"
-if [ "$ARCH_OS" = "windows" ]
+if [ "$TARGET_OS" = "windows" ]
 then
   exe=".exe"
 fi
@@ -109,7 +109,7 @@ do
 done
 
 # nproc
-if [ "$ARCH_OS" = "macos" ]
+if [ "$TARGET_OS" = "macos" ]
 then
   cat <<EOF > "$tools/nproc"
 #!/usr/bin/env sh
@@ -135,7 +135,7 @@ xosid() {
 cd "$BUILD_PKG"
 xosid > "$out/.xos"
 sha256sum "$out/.xos" | cut -d' ' -f1 > "$out/.xos_id"
-echo "$ARCH" > "$out/.xos_host"
+echo "$TARGET" > "$out/.xos_host"
 
 if [ "$mode" = "release" ]
 then

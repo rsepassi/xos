@@ -5,4 +5,4 @@ untar $BUILD_DEPS/$file $src
 cd $src
 
 mkdir $BUILD_OUT/bin
-cc --target=$ARCH -s -static -O$OPT -o $BUILD_OUT/bin/samu *.c -lc
+cc --target=$TARGET -s -static -O$OPT -o $BUILD_OUT/bin/samu *.c -lc

@@ -7,7 +7,7 @@ src=$(mktemp -d)
 untar "$BUILD_DEPS/$file" "$src"
 cd $src
 
-zig build -Dtarget=$ARCH -Doptimize=$OPT_ZIG -Dcpu=baseline
+zig build -Dtarget=$TARGET -Doptimize=$OPT_ZIG -Dcpu=baseline
 
 mv zig-out/lib "$BUILD_OUT"
 mv zig-out/include "$BUILD_OUT"

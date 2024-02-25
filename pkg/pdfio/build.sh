@@ -11,7 +11,7 @@ cd $src
 
 
 touch pdfio.c
-zig build-lib -target $ARCH -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG \
   -I "$BUILD_DEPS/zlib/include" \
   pdfio.c pdfio-*.c ttf.c -lc
 

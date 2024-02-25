@@ -20,7 +20,7 @@ cat <<EOF
 --- BEGIN XOS PKG ---
 PKG=$pkg
 ARGS=$ARGS
-ARCH=$ARCH
+TARGET=$TARGET
 OPT=$OPT
 SRCS=
 $srcfiles_hash

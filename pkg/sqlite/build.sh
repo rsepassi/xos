@@ -5,7 +5,7 @@ unzip $(realpath $BUILD_DEPS/sqlite.zip)
 
 # lib
 cd $src/sqlite-amalgamation-3450000
-cc --target=$ARCH -o sqlite3.o -c sqlite3.c -lc
+cc --target=$TARGET -o sqlite3.o -c sqlite3.c -lc
 ar rcs libsqlite3.a sqlite3.o
 
 # install

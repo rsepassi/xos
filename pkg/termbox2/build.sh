@@ -2,7 +2,7 @@ fetch_urltxt $BUILD_PKG/url.txt termbox2.h
 
 path=$(realpath $BUILD_DEPS/termbox2.h)
 
-cc --target=$ARCH -c -x c $path -DTB_IMPL \
+cc --target=$TARGET -c -x c $path -DTB_IMPL \
   -o termbox2.o -lc
 ar rcs libtermbox2.a termbox2.o
 

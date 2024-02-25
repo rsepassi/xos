@@ -1,8 +1,8 @@
-urlf=$BUILD_PKG/url-$ARCH_OS-$ARCH_ISA.txt
+urlf=$BUILD_PKG/url-$TARGET_OS-$TARGET_ARCH.txt
 
-if [ "$ARCH_OS" = "windows" ]
+if [ "$TARGET_OS" = "windows" ]
 then
-  file="zig-$ARCH_OS-$ARCH_ISA.zip"
+  file="zig-$TARGET_OS-$TARGET_ARCH.zip"
   fetch_urltxt $urlf $file
   tmp=$(mktemp -d)
   cd $tmp
@@ -10,7 +10,7 @@ then
   cd $(ls)
   mv ./* "$BUILD_OUT"
 else
-  file="zig-$ARCH_OS-$ARCH_ISA.tar.xz"
+  file="zig-$TARGET_OS-$TARGET_ARCH.tar.xz"
   fetch_urltxt $urlf $file
   untar "$BUILD_DEPS/$file" "$BUILD_OUT"
 fi

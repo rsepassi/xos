@@ -18,7 +18,7 @@ x86_64-windows-gnu
 
 for arch in $archs
 do
-  echo "building ARCH=$arch"
-  pkgid=$(ARCH=$arch OPT=$OPT need $pkg $arch -- "$@")
+  echo "building TARGET=$arch"
+  pkgid=$(TARGET=$arch OPT=$OPT need $pkg $arch -- "$@")
   ln -s $(realpath $BUILD_DEPS/$arch) $BUILD_OUT/$arch
 done

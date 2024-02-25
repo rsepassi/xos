@@ -16,7 +16,7 @@ exesrcs() {
 
 cp "$BUILD_PKG/config.h" .
 touch re2c.cc
-zig build-exe -target $ARCH -O $OPT_ZIG \
+zig build-exe -target $TARGET -O $OPT_ZIG \
   -DHAVE_CONFIG_H -DRE2C_STDLIB_DIR='""' \
   -I. -Ibootstrap \
   -cflags -std=c++11 -- \
@@ -29,7 +29,7 @@ libsrcs() {
   find bootstrap/lib -type f -name '*.cc'
 }
 
-zig build-lib -target $ARCH -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG \
   -DHAVE_CONFIG_H \
   -I. -Ibootstrap \
   -cflags -std=c++11 -- \

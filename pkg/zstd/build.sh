@@ -11,10 +11,10 @@ cd $src
 
 cd $src/lib
 touch zstd.c
-([ "$ARCH_OS" = "linux" ] || [ "$ARCH_OS" = "macos" ]) \
-  && [ "$ARCH_ISA" = "x86_64" ] \
+([ "$TARGET_OS" = "linux" ] || [ "$TARGET_OS" = "macos" ]) \
+  && [ "$TARGET_ARCH" = "x86_64" ] \
   && lib_addl_srcs=decompress/huf_decompress_amd64.S
-zig build-lib -target $ARCH -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG \
   -DXXH_NAMESPACE=ZSTD_ -DDEBUGLEVEL=0 -DZSTD_LEGACY_SUPPORT=5 \
   zstd.c common/*.c compress/*.c decompress/*.c dictBuilder/*.c legacy/*.c \
   $lib_addl_srcs \
@@ -22,9 +22,9 @@ zig build-lib -target $ARCH -O $OPT_ZIG \
 lib=$src/lib/$(zigi lib zstd)
 
 cd $src/programs
-[ "$ARCH_OS" = "windows" ] && [ "$ARCH_ISA" = "x86_64" ] \
+[ "$TARGET_OS" = "windows" ] && [ "$TARGET_ARCH" = "x86_64" ] \
   && exe_addl_srcs=windres/zstd64.res
-zig build-exe -target $ARCH -O $OPT_ZIG --name zstd \
+zig build-exe -target $TARGET -O $OPT_ZIG --name zstd \
   -DZSTD_MULTITHREAD -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS \
   *.c $exe_addl_srcs \
   -Ilib \

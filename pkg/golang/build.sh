@@ -1,5 +1,5 @@
 suffix="tar.gz"
-case $ARCH_OS in
+case $TARGET_OS in
   macos)
     os="darwin"
     ;;
@@ -8,11 +8,11 @@ case $ARCH_OS in
     suffix="zip"
     ;;
   *)
-    os=$ARCH_OS
+    os=$TARGET_OS
     ;;
 esac
 
-case $ARCH_ISA in
+case $TARGET_ARCH in
   aarch64)
     isa="arm64"
     ;;
@@ -20,7 +20,7 @@ case $ARCH_ISA in
     isa="amd64"
     ;;
   *)
-    >&2 echo "unrecognized isa $ARCH_ISA"
+    >&2 echo "unrecognized isa $TARGET_ARCH"
     exit 1
     ;;
 esac
@@ -45,7 +45,7 @@ fetch "$url" $file "$hash"
 # /golang/*
 
 mkdir "$BUILD_OUT/golang"
-if [ "$ARCH_OS" = "windows" ]
+if [ "$TARGET_OS" = "windows" ]
 then
   tmp=$(mktemp -d)
   cd $tmp

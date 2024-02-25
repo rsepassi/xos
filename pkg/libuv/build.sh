@@ -28,7 +28,7 @@ src/unix/tty.c
 src/unix/udp.c
 "
 
-case "$ARCH_OS" in
+case "$TARGET_OS" in
   linux)
     files="
       $unix_files
@@ -99,7 +99,7 @@ case "$ARCH_OS" in
 esac
 
 touch uv.c
-zig build-lib -target $ARCH -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG \
   -DPACKAGE_NAME="libuv" \
   -DPACKAGE_TARNAME="libuv" \
   -DPACKAGE_VERSION="1.48.0" \
