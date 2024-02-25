@@ -11,6 +11,10 @@ zig build-lib -target $TARGET -O $OPT_ZIG wren.c *.c \
 
 # install
 out="$BUILD_OUT"
-mkdir -p $out/lib $out/include
+mkdir -p $out/lib $out/include $out/pkgconfig
 cp "$src"/src/include/wren.h $out/include
 cp "$src"/src/vm/$(zigi lib wren) $out/lib
+cat <<EOF > $out/pkgconfig/wren.pc
+Cflags: -I\${rootdir}/include
+Libs: \${rootdir}/lib/$(zigi lib wren)
+EOF

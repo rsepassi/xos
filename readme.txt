@@ -72,6 +72,7 @@ Tools:
   busybox
   zigi: naming information from zig
   cc, c++, ar, rc, windres: wrappers around zig
+  pkg-config: xos-aware pkg-config
   fetch, fetch_urltxt: caching downloaders
   untar: caching tar xf
   need, needtool: dynamic dependencies
@@ -100,7 +101,6 @@ or run directly
 todo
 
 * allow pointing to alt repos
-* pkg-config like functionality
 * binary releases of xos for macos, linux, windows
 * cache/tmp growth, reaping
 * detect dependency cycles?

@@ -1,0 +1,62 @@
+#!/usr/bin/env sh
+
+depsdir=${PC_DEPS_DIR:-$BUILD_DEPS}
+include_libs=0
+include_cflags=0
+pkg=""
+
+while [ "$#" -gt 0 ]
+do
+  case "$1" in
+  --libs)
+    include_libs=1
+    ;;
+  --cflags)
+    include_cflags=1
+    ;;
+  --*)
+    >&2 echo "unrecognized flag $1"
+    exit 1
+    ;;
+  *)
+    pkg=$1
+    ;;
+  esac
+  shift
+done
+
+lib=$(echo "$pkg/" | cut -d'/' -f2)
+if [ -z "$lib" ]
+then
+  lib=$pkg
+else
+  pkg=$(echo "$pkg/" | cut -d'/' -f1)
+fi
+
+pc="$depsdir/$pkg/pkgconfig/$lib.pc"
+if [ ! -f "$pc" ]
+then
+  >&2 echo "pkg-config: pc file does not exist at $pc"
+  exit 1
+fi
+
+rootdir="$depsdir/$pkg"
+while IFS= read -r line; do
+  case $line in
+    "Cflags:"*)
+      if [ "$include_cflags" = 1 ]
+      then
+        eval "echo ${line#Cflags:}"
+      fi
+      ;;
+    "Libs:"*)
+      if [ "$include_libs" = 1 ]
+      then
+        eval "echo ${line#Libs:}"
+      fi
+      ;;
+    *)
+      # ignore
+      ;;
+  esac
+done < "$pc"

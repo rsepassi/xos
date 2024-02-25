@@ -8,11 +8,6 @@ then
   cflags="-DDEBUG"
 fi
 
-if [ "$TARGET_OS" = "windows" ]
-then
-ldflags="-lws2_32 -luserenv -lole32 -liphlpapi -ldbghelp"
-fi
-
 # Preprocess wrensh.c to bake in io.wren and the usage string
 cp "$BUILD_PKG/wrensh.c" wrensh.c
 cstr() {
@@ -30,10 +25,8 @@ sed -i "s^@@WRENSHUSAGE@@^$usagestr^" wrensh.c
 
 zig build-exe -target $TARGET -O $OPT_ZIG \
   wrensh.c \
-  -I "$BUILD_DEPS/wren/include" \
-  "$BUILD_DEPS"/wren/lib/$(zigi lib wren) \
-  -I "$BUILD_DEPS/libuv/include" \
-  "$BUILD_DEPS"/libuv/lib/$(zigi lib uv) \
-  $cflags $ldflags -lc
+  $(pkg-config --cflags --libs wren) \
+  $(pkg-config --cflags --libs libuv/uv) \
+  $cflags -lc
 
 mv $(zigi exe wrensh) "$BUILD_OUT/bin"

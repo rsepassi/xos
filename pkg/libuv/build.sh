@@ -95,6 +95,7 @@ case "$TARGET_OS" in
     include/uv/win.h
     include/uv/tree.h
     "
+    ldflags="-lws2_32 -luserenv -lole32 -liphlpapi -ldbghelp"
     ;;
 esac
 
@@ -126,7 +127,8 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   -cflags -std=gnu89 -- \
   uv.c src/*.c $files
 
-mkdir -p "$BUILD_OUT/lib" "$BUILD_OUT/include/uv"
+
+mkdir -p "$BUILD_OUT/lib" "$BUILD_OUT/include/uv" "$BUILD_OUT/pkgconfig"
 mv $(zigi lib uv) "$BUILD_OUT/lib"
 cp include/uv.h "$BUILD_OUT/include"
 cp \
@@ -135,3 +137,7 @@ cp \
   include/uv/errno.h \
   $headers \
   "$BUILD_OUT/include/uv"
+cat <<EOF > $BUILD_OUT/pkgconfig/uv.pc
+Cflags: -I\${rootdir}/include
+Libs: \${rootdir}/lib/$(zigi lib uv) $ldflags
+EOF

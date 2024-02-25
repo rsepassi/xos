@@ -3,6 +3,7 @@ deps.txt
 src/ar
 src/cc
 src/c++
+src/pkg-config
 src/rc
 src/windres
 src/fetch

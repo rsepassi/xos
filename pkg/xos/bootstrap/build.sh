@@ -62,6 +62,7 @@ xos_internal_build
 xos_internal_pkgid
 xos_internal_link_tools
 zigi
+pkg-config
 "
 for script in $scripts
 do
