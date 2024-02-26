@@ -6,8 +6,11 @@ class Process_ {
   call() {
     var pptr = IO.process_(_args, null, null)
     IO.process_wait_(Fiber.current, pptr)
-    var code = Fiber.yield()
-    if (code != 0) return Fiber.abort("Process failed, args[0]=%(_args[0])")
+    var ret = Fiber.yield()
+    var code = ret[0]
+    var stdout = ret[1]
+    if (code != 0) return Fiber.abort("Process failed, args[0]=%(_args[0]) code=%(code)")
+    return stdout
   }
 }
 
@@ -40,20 +43,17 @@ class IO {
 }
 
 class Executor_ {
-  construct new() {}
-
-  async(fn) {
-    var f = Fiber.new {
-      return fn.call()
-    }
-    f.call()
-    return f
+  construct new() {
+    _scheduled = []
   }
 
-  async(fn, arg) {
+  async(fn) {
+    var root = Fiber.current
     var f = Fiber.new {
-      return fn.call(arg)
+      fn.call()
+      _runNext()
     }
+    _scheduled.add(f)
     f.call()
     return f
   }
@@ -61,8 +61,16 @@ class Executor_ {
   await(fibers) {
     if (fibers is Fiber) fibers = [fibers]
     for (f in fibers) {
-      while (!f.isDone) Fiber.yield()
+      System.print("await suspending")
+      while (!f.isDone) Fiber.suspend()
+      System.print("await resuming")
     }
+  
+    var outs = []
+    for (f in fibers) {
+      outs.add(f.call())
+    }
+    return outs
   }
 }
 var X = Executor_.new()

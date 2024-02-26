@@ -328,30 +328,53 @@ typedef struct {
   uv_process_t handle;
   uv_pipe_t stdin_pipe;
   uv_pipe_t stdout_pipe;
+  bool stdout_done;
+  char stdout_read_buf[4096];
+  char* stdout_wren;
+  int stdout_wren_len;
 } processstate;
+
+void wrenshProcessStdoutAlloc(uv_handle_t* process, size_t suggested_size, uv_buf_t* buf) {
+  processstate* state = (processstate*)uv_handle_get_data(process);
+  *buf = uv_buf_init(state->stdout_read_buf, sizeof(state->stdout_read_buf));
+}
+
+void wrenshProcessStdoutRead(uv_stream_t* stream, long nread, const uv_buf_t* buf) {
+  processstate* state = (processstate*)uv_handle_get_data((uv_handle_t*)stream);
+  if (nread < 0) {
+    DLOG("stdout done ps_ptr=%p", state);
+    state->stdout_done = true;
+    return;
+  }
+
+  state->stdout_wren = realloc(state->stdout_wren, state->stdout_wren_len + nread);
+  memcpy(state->stdout_wren + state->stdout_wren_len, buf->base, nread);
+  state->stdout_wren_len += nread;
+}
 
 void wrenshProcessReturn(processstate* state) {
   DLOG("wrenshProcess return");
   DCHECK(state->exited);
   DCHECK(state->fiber);
+  DCHECK(state->stdout_done);
   WrenVM* vm = state->vm;
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
-  wrenEnsureSlots(vm, 2);
+  wrenEnsureSlots(vm, 3);
   wrenSetSlotHandle(vm, 0, state->fiber);
-  wrenSetSlotDouble(vm, 1, state->exit_status);
+  wrenSetSlotNewList(vm, 1);
+  wrenSetSlotDouble(vm, 2, state->exit_status);
+  wrenInsertInList(vm, 1, -1, 2);
+  wrenSetSlotBytes(vm, 2, state->stdout_wren, state->stdout_wren_len);
+  wrenInsertInList(vm, 1, -1, 2);
   DLOG("fiber=%p", state->fiber);
   CHECK(wrenCall(vm, ctx->wren_tx_val) == WREN_RESULT_SUCCESS);
-  wrenReleaseHandle(vm, state->fiber);
 
-  // TODO: stdout?
-  // close streams?
-  // should be freed when SpawnedProcess is garbage-collected
-  // foreign class
+  wrenReleaseHandle(vm, state->fiber);
+  uv_close((uv_handle_t*)&state->stdin_pipe, NULL);
+  uv_close((uv_handle_t*)&state->stdout_pipe, NULL);
+  free(state->stdout_wren);
   free(state);
 }
-
-// wait - exit - return works
-// exit - wait - return doesn't
 
 void wrenshProcessExitCb(uv_process_t* process, int64_t exit_status, int term_signal) {
   processstate* state = (processstate*)uv_handle_get_data((uv_handle_t*)process);
@@ -407,9 +430,11 @@ void wrenshProcess(WrenVM* vm) {
   stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
   stdio[0].data.stream = (uv_stream_t*)&state->stdin_pipe;
   uv_pipe_init(ctx->loop, &state->stdin_pipe, 0);
+  uv_handle_set_data((uv_handle_t*)&state->stdin_pipe, state);
   stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
   stdio[1].data.stream = (uv_stream_t*)&state->stdout_pipe;
   uv_pipe_init(ctx->loop, &state->stdout_pipe, 0);
+  uv_handle_set_data((uv_handle_t*)&state->stdout_pipe, state);
   stdio[2].flags = UV_INHERIT_FD;
   stdio[2].data.fd = 2;
   DCHECK(state->vm == vm);
@@ -428,6 +453,9 @@ void wrenshProcess(WrenVM* vm) {
   uv_handle_set_data((uv_handle_t*)&state->handle, state);
   int res = uv_spawn(ctx->loop, &state->handle, &opts);
   WREN_CHECK(res == 0, "process spawn failed args[0]=%s: %s", opts.file, uv_strerror(res));
+
+  // Start stdout read
+  UV_CHECK(uv_read_start((uv_stream_t*)&state->stdout_pipe, wrenshProcessStdoutAlloc, wrenshProcessStdoutRead))
 
   // Return processstate pointer
   wrenSetSlotBytes(vm, 0, (char*)&state, PTR_SIZE);
@@ -469,6 +497,22 @@ WrenVM* setupWren(void* userdata) {
   return vm;
 }
 
+typedef struct {
+  WrenVM* vm;
+  WrenHandle* fiber;
+  uv_prepare_t handle;
+} preparestate;
+
+void wrenshPrepareCb(uv_prepare_t *handle) {
+  DLOG("wrenshPrepare");
+  preparestate* state = (preparestate*)uv_handle_get_data(handle);
+  WrenVM* vm = state->vm;
+  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  wrenEnsureSlots(vm, 1);
+  wrenSetSlotHandle(vm, 0, state->fiber);
+  CHECK(wrenCall(vm, ctx->wren_tx) == WREN_RESULT_SUCCESS);
+}
+
 void usage() {
   static char* usage_str = \@@WRENSHUSAGE@@;
   fputs(usage_str, stderr);
@@ -496,7 +540,7 @@ int main(int argc, char** argv) {
   // wren setup
   WrenVM* wren = setupWren(&ctx);
   CHECK(wrenInterpret(wren, "io", io_src) == WREN_RESULT_SUCCESS, "bad io src");
-  CHECK(wrenInterpret(wren, "main", "import \"io\" for IO") == WREN_RESULT_SUCCESS);
+  CHECK(wrenInterpret(wren, "main", "import \"io\" for IO, X") == WREN_RESULT_SUCCESS);
   ctx.wren_tx_val = wrenMakeCallHandle(wren, "transfer(_)");
   ctx.wren_tx = wrenMakeCallHandle(wren, "transfer()");
   DLOG("wren setup vm=%p", wren);
@@ -513,6 +557,12 @@ int main(int argc, char** argv) {
   int res = wrenInterpret(wren, "main", user_src);
   DLOG("user script run");
   if (res != WREN_RESULT_SUCCESS) return res;
+
+  // wren await loop
+  // preparestate wren_loop_state = .{.vm = wren, .fiber = };
+  // uv_handle_set_data((uv_handle_t*)&wren_loop_state.handle, wren_loop_state);
+  // uv_prepare_init(&loop, &wren_loop_state.handle);
+  // uv_prepare_start(&wren_loop_state.handle, wrenshPrepareCb);
 
   // io loop run
   DLOG("uv loop start");
