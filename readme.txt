@@ -100,7 +100,6 @@ or run directly
 
 todo
 
-* rust
 * allow pointing to alt repos
 * generic caching utilities
 * linux sandboxing (bwrap)
