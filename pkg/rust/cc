@@ -10,6 +10,15 @@ for arg in "$@"; do
       ;;
     "-no-pie")
       ;;
+    # crt ignores, since zig duplicates them
+    *"/crti.o")
+      ;;
+    *"/crt1.o")
+      ;;
+    *"/rcrt1.o")
+      ;;
+    "-lgcc"|"-lgcc_s")
+      ;;
     *)
       filtered_args="$filtered_args \"$arg\""
       ;;

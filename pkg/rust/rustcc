@@ -25,6 +25,9 @@ for arg in "$@"; do
       ;;
     *"/rcrt1.o")
       ;;
+    # linux ignores
+    "-lgcc_s")
+      ;;
     # windows ignores, for now
     "-lwinapi_"*)
       ;;

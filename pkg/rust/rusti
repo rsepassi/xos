@@ -39,10 +39,10 @@ fi
 
 get_zig_triple() {
   case "$TARGET" in
-    x86_64-unknown-linux-musl|x86_64-linux-musl)
+    x86_64-unknown-linux-musl|x86_64-linux*-musl)
       triple="x86_64-linux-musl"
       ;;
-    aarch64-unknown-linux-musl|aarch64-linux-musl)
+    aarch64-unknown-linux-musl|aarch64-linux*-musl)
       triple="aarch64-linux-musl"
       ;;
     x86_64-pc-windows-gnu|x86_64-windows-gnu)

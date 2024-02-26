@@ -14,6 +14,7 @@ then
 elif [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ARCH" = "x86_64" ]
 then
   triple="x86_64-unknown-linux-musl"
+  hash="7aa9e2a380a9958fc1fc426a3323209b2c86181c6816640979580f62ff7d48d4"
 elif [ "$TARGET_OS" = "windows" ] && [ "$TARGET_ARCH" = "x86_64" ]
 then
   triple="x86_64-pc-windows-gnu"
