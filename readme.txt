@@ -100,11 +100,13 @@ or run directly
 
 todo
 
-* allow pointing to alt repos
-* binary releases of xos for macos, linux, windows
-* generic caching utilities
 * rust
+* allow pointing to alt repos
+* generic caching utilities
 * linux sandboxing (bwrap)
+* binary releases of xos for macos, linux, windows
+* documentation update
+* intro article
 
 ---
 
