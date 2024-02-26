@@ -9,9 +9,9 @@ cd $src
 
 if [ "$TARGET_OS" = "windows" ]
 then
-  need winpthread
-  cflags="-I$BUILD_DEPS/winpthread/include"
-  ldflags="$BUILD_DEPS/winpthread/lib/winpthreads.lib -lshlwapi"
+  need winpthreads
+  cflags="$(pkg-config --cflags winpthreads)"
+  ldflags="$(pkg-config --libs winpthreads) -lshlwapi"
   sed -i 's/umain/main/' src/main.c
 fi
 
