@@ -1,5 +1,0 @@
-mbedtls
-brotli
-nghttp2
-zlib
-zstd

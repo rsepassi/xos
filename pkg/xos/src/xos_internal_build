@@ -101,44 +101,6 @@ get_pkgroot() {
   fi
 }
 
-get_deps() {
-  depstxt="$1"
-  arch="$2"
-  deps=""
-  while IFS= read -r dep; do
-    depid="$(TARGET="$arch" xos_internal_build "$dep")"
-    deps="$deps$depid  $dep\n"
-  done < "$depstxt"
-  echo "$deps"
-}
-
-get_static_deps() {
-  get_deps "$1" $TARGET
-}
-
-get_tool_deps() {
-  get_deps "$1" $HOST
-}
-
-link_deps() {
-  deps="$1"
-  depdir="$2"
-  mkdir -p "$depdir"
-
-  tmpf="$BUILD_OUT/tmp/depsids.txt"
-  printf "$deps\n" > "$tmpf"
-
-  while IFS= read -r line
-  do
-    depid=$(echo $line | cut -d' ' -f1)
-    depid_prefix=$(echo $depid | cut -c1-2)
-    depname=$(echo $line | cut -d' ' -f2)
-    ln -s "$XOS_BUILD_CACHE/pkg/$depid_prefix/$depid/out" "$depdir/$depname"
-  done < "$tmpf"
-
-  IFS="$oldifs"
-}
-
 stale_dyndeps() {
   dyndeps="$1"
   arch=${2:-$TARGET}
@@ -260,11 +222,6 @@ esac
 export OPT
 export OPT_ZIG
 
-[ -e "$BUILD_PKG/deps.txt" ] && \
-  deps_static=$(get_static_deps "$BUILD_PKG/deps.txt")
-[ -e "$BUILD_PKG/tooldeps.txt" ] && \
-  deps_tools=$(get_tool_deps "$BUILD_PKG/tooldeps.txt")
-
 # xos version
 [ -n "$XOS_ID" ] || export XOS_ID="$(cat "$XOS_ROOT/.xos_id")"
 
@@ -275,14 +232,13 @@ pkgid_text=$(
   TARGET="$TARGET" \
   OPT="$OPT" \
   ARGS="$ARGS" \
-  DEPS="$deps_static" \
-  TOOLDEPS="$deps_tools" \
   "$XOS_ROOT/tools/xos_internal_pkgid" "$pkg"
 )
 pkgid="$(echo "$pkgid_text" | sha256sum | cut -d ' ' -f1)"
 pkgid_prefix=$(echo $pkgid | cut -c1-2)
 BUILD_OUT="$XOS_BUILD_CACHE/pkg/$pkgid_prefix/$pkgid"
 
+# dependencies
 if [ -e "$BUILD_OUT/.ok" ]
 then
   if [ -e "$BUILD_OUT/dyndeps.txt" ] && stale_dyndeps "$BUILD_OUT/dyndeps.txt"
@@ -332,16 +288,6 @@ then
   rm -rf "$BUILD_OUT"
   mkdir -p "$BUILD_OUT/out" "$BUILD_OUT/tmp"
   echo "$pkgid_text" > "$BUILD_OUT/pkgid"
-
-  # link static deps
-  BUILD_DEPS="$BUILD_OUT/deps"
-  [ -e "$BUILD_PKG/deps.txt" ] && \
-    link_deps "$deps_static" "$BUILD_DEPS"
-
-  # link tool deps
-  BUILD_TOOLDEPS="$BUILD_OUT/tooldeps"
-  [ -e "$BUILD_PKG/tooldeps.txt" ] && \
-    link_deps "$deps_tools" "$BUILD_TOOLDEPS"
 
   # pkg-specific tools
   pkg_tools_dir="$BUILD_OUT/tools"
@@ -402,8 +348,8 @@ EOF
       OPT="$OPT" \
       OPT_ZIG="$OPT_ZIG" \
       BUILD_OUT="$BUILD_OUT/out" \
-      BUILD_DEPS="$BUILD_DEPS" \
-      BUILD_TOOLDEPS="$BUILD_TOOLDEPS" \
+      BUILD_DEPS="$BUILD_OUT/deps" \
+      BUILD_TOOLDEPS="$BUILD_OUT/tooldeps" \
       BUILD_PKG="$BUILD_PKG" \
     sh -e "$script" "$@" || fail
   )

@@ -1,6 +1,8 @@
-set -e
+need zig
+need busybox
+need make
 
-mode=$2
+mode=$1
 
 out="$(mktemp -d)"
 

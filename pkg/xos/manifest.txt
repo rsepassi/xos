@@ -1,5 +1,4 @@
 build.sh
-deps.txt
 src/ar
 src/cc
 src/c++

@@ -1,3 +1,9 @@
+need mbedtls
+need brotli
+need nghttp2
+need zlib
+need zstd
+
 # fetch source
 file="curl.tar.gz"
 fetch "https://github.com/curl/curl/releases/download/curl-8_6_0/curl-8.6.0.tar.xz" \
@@ -29,8 +35,8 @@ fetch "https://curl.se/ca/cacert-2023-12-12.pem" \
   "ccbdfc2fe1a0d7bbbb9cc15710271acf1bb1afe4c8f1725fe95c4c7733fcbe5a"
 
 # install
-ln -s $PWD/zig-out/bin "$BUILD_OUT/bin"
-ln -s $PWD/zig-out/lib "$BUILD_OUT/lib"
+mv $PWD/zig-out/bin "$BUILD_OUT"
+mv $PWD/zig-out/lib "$BUILD_OUT"
 mkdir -p "$BUILD_OUT/include/curl" "$BUILD_OUT/share"
 cp "$src/include/curl"/*.h "$BUILD_OUT/include/curl"
 cp "$BUILD_DEPS/cacert.pem" "$BUILD_OUT/share"

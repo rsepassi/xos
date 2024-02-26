@@ -51,8 +51,6 @@ pkg/: build scripts for packages
     build.sh: build script
     manifest.txt (optional): list files in <pkgname>/ that should be considered
       source; defaults to all files
-    deps.txt (optional): pkg dependencies, built for target
-    tooldeps.txt (optional): pkg tool dependencies, built for host
 
 ---
 
@@ -63,7 +61,7 @@ Env:
   TARGET, TARGET_ARCH, TARGET_OS: target triple
   HOST, HOST_ARCH, HOST_OS: host triple
   OPT, OPT_ZIG: cc and zig optimization modes
-  BUILD_PKG: the pkg directory for this package
+  BUILD_PKG: the pkg source directory for this package
   BUILD_DEPS, BUILD_TOOLDEPS: dependency directories
   BUILD_OUT: where build artifacts should go
 
