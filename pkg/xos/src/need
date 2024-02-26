@@ -36,10 +36,11 @@ done
 
 # build
 pkgid=$(TARGET=$NEEDTARGET OPT=$NEEDOPT xos_internal_build $pkg "$@")
+pkgid_prefix=$(echo $pkgid | cut -c1-2)
 
 # link
 mkdir -p "$NEEDDEPS"
-ln -s "$XOS_BUILD_CACHE/pkg/$pkgid/out" "$dst"
+ln -s "$XOS_BUILD_CACHE/pkg/$pkgid_prefix/$pkgid/out" "$dst"
 
 # log the dynamic dependency
 argsquote() {

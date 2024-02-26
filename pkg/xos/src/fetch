@@ -10,8 +10,10 @@ name=$2
 hash=$3
 
 cache="$XOS_BUILD_CACHE/content"
+hash_prefix=$(echo $hash | cut -c1-2)
 
-dst="$cache/$hash/file"
+dstdir="$cache/$hash_prefix/$hash"
+dst="$dstdir/file"
 if [ -e "$dst" ]
 then
   mkdir -p "$BUILD_DEPS"
@@ -26,17 +28,19 @@ wget --no-check-certificate -q "$src" -O "$tmpd/file"
 hash_got="$(sha256sum "$tmpd/file" | cut -d ' ' -f1)"
 if [ "$hash" != "$hash_got" ]
 then
-  mkdir -p "$cache/$hash_got"
-  echo "$src" > "$cache/$hash_got/src"
-  mv "$tmpd/file" "$cache/$hash_got"
+  hash_got_prefix=$(echo $hash_got | cut -c1-2)
+  gotdir="$cache/$hash_got_prefix/$hash_got"
+  mkdir -p "$gotdir"
+  echo "$src" > "$gotdir/src"
+  mv "$tmpd/file" "$gotdir"
   >&2 echo "bad hash for $src"
   >&2 echo "expected $hash"
   >&2 echo "got $hash_got"
   exit 1
 fi
 
-mkdir -p "$cache/$hash"
-echo "$src" > "$cache/$hash/src"
+mkdir -p "$dstdir"
+echo "$src" > "$dstdir/src"
 mv "$tmpd/file" "$dst"
 
 mkdir -p "$BUILD_DEPS"

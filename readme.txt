@@ -102,7 +102,6 @@ todo
 
 * allow pointing to alt repos
 * binary releases of xos for macos, linux, windows
-* cache prefix directories
 * generic caching utilities
 * rust
 * linux sandboxing (bwrap)
