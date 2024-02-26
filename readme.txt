@@ -70,11 +70,11 @@ Env:
 Tools:
   zig
   busybox
-  zigi: naming information from zig
+  zigi: exe/lib naming information from zig
   cc, c++, ar, rc, windres: wrappers around zig
   pkg-config: xos-aware pkg-config
   fetch, fetch_urltxt: caching downloaders
-  untar: caching tar xf
+  untar: tar xf wrapper
   need, needtool: dynamic dependencies
   system, system_export: access system tools
 
@@ -102,10 +102,10 @@ todo
 
 * allow pointing to alt repos
 * binary releases of xos for macos, linux, windows
-* cache/tmp growth, reaping
-* detect dependency cycles?
-* sandboxing (bwrap, sandbox-exec)
+* cache prefix directories
 * generic caching utilities
+* rust
+* linux sandboxing (bwrap)
 
 ---
 
