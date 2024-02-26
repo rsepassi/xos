@@ -53,8 +53,8 @@ lib=$PWD/$(zigi lib pcre2)
 
 zig build-exe -target $TARGET -O $OPT_ZIG \
   -DHAVE_CONFIG_H -DPCRE2_CODE_UNIT_WIDTH=8 -D_THREAD_SAFE -DPCRE2_STATIC -isystem . \
-  -I "$BUILD_DEPS/zlib/include" \
-  pcre2grep.c $lib "$BUILD_DEPS/zlib/lib/$(zigi lib z)" \
+  $(pkg-config --cflags --libs zlib/z) \
+  pcre2grep.c $lib \
   -lc
 
 mkdir "$BUILD_OUT/lib" "$BUILD_OUT/include" "$BUILD_OUT/bin"

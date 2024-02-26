@@ -12,7 +12,7 @@ cd $src
 
 touch pdfio.c
 zig build-lib -target $TARGET -O $OPT_ZIG \
-  -I "$BUILD_DEPS/zlib/include" \
+  $(pkg-config --cflags zlib/z) \
   pdfio.c pdfio-*.c ttf.c -lc
 
 mkdir "$BUILD_OUT/lib" "$BUILD_OUT/include"

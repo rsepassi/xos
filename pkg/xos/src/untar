@@ -5,25 +5,5 @@ src=$(realpath "$1")
 dst=$2
 strip=${3:-1}
 
-keycontents() {
-  sha256sum "$src" | cut -d' ' -f1
-  echo "tar xf src -C dst --strip-components=$strip"
-}
-key="$XOS_BUILD_CACHE/pkg/$(keycontents | sha256sum)"
-
-install_from_cache() {
-  rm -rf "$dst"
-  ln -s "$key" "$dst"
-}
-
-if [ -d "$key" ]
-then
-  install_from_cache
-  exit 0
-fi
-
-tmpd="$(mktemp -d)"
-tar xf "$src" -C "$tmpd" "--strip-components=$strip"
-mv "$tmpd" "$key"
-
-install_from_cache
+mkdir -p "$dst"
+tar xf "$src" -C "$dst" "--strip-components=$strip"

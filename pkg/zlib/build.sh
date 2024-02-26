@@ -13,6 +13,10 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   -DHAVE_HIDDEN -D_LARGEFILE64_SOURCE=1 \
   z.c *.c -lc
 
-mkdir -p "$BUILD_OUT/lib" "$BUILD_OUT/include"
+mkdir -p "$BUILD_OUT/lib" "$BUILD_OUT/include" "$BUILD_OUT/pkgconfig"
 mv $(zigi lib z) "$BUILD_OUT/lib"
 cp zconf.h zlib.h "$BUILD_OUT/include"
+cat <<EOF > "$BUILD_OUT/pkgconfig/z.pc"
+Cflags: -I "\${rootdir}/include"
+Libs: "\${rootdir}/lib/$(zigi lib z)"
+EOF

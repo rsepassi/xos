@@ -29,8 +29,7 @@ zig build-exe -target $TARGET -O $OPT_ZIG --name zstd \
   *.c $exe_addl_srcs \
   -Ilib \
   $lib \
-  -I "$BUILD_DEPS/zlib/include" \
-  "$BUILD_DEPS/zlib/lib/$(zigi lib z)" \
+  $(pkg-config --cflags --libs zlib/z) \
   -lc
 
 cd $src
