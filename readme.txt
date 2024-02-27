@@ -9,7 +9,7 @@ wip
 
 ---
 
-usage: TARGET= OPT= build pkgname
+usage: build pkgname TARGET= OPT=
 
 echoes pkgid on successful build
 build artifacts for last successful build available in build/out/
@@ -17,14 +17,15 @@ build artifacts for last successful build available in build/out/
 https://github.com/rsepassi/xos
 
 example:
-  TARGET=aarch64-linux-musl OPT=s build sqlite
+  build sqlite TARGET=aarch64-linux-musl OPT=s
 
-Env vars:
+Args (or env vars):
   TARGET= zig target triple, defaults to host
-  OPT={Debug, Safe, Fast, Small, 0, 1, 2, 3, fast, s, z} optimization level
+  OPT={Debug, Safe, Fast, Small, 0, 1, 2, 3, fast, s, z} optimization level, defaults to Small
   BUILD= directory for build artifacts, defaults to ./build
   PKG= pkg/ directory path, defaults to ./pkg
   DRY={1,0} if 1, log info and exit
+  DEBUG={1,0} if 1, build script -x enabled
 
 ---
 
