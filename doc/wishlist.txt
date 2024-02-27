@@ -52,6 +52,8 @@ raylib
 raudio
 
 missing xplatform:
-samurai for windows
-termbox2 for windows
-entr for windows
+windows:
+* samurai
+* termbox2
+* entr
+* zip
