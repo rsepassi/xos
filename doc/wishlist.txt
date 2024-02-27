@@ -1,9 +1,5 @@
-dns, ddns
-c-ares
-bubblewrap
 libssh2
 dropbear ssh
-libtomcrypt, libtommath
 json5, jsonl, msgpack
 chibi scheme
 mir
@@ -37,6 +33,7 @@ torrent client
 ocr? (easyocr, paddleocr)
 
 gui:
+webview
 pty
 sokol, sokol_gp, sokol_gfx
 stb_image
