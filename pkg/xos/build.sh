@@ -144,7 +144,7 @@ then
   if [ "$TARGET_OS" = "windows" ]
   then
     needtool zip
-    "$BUILD_TOOLDEPS/zip/bin/zip" xos.zip xos
+    "$BUILD_TOOLDEPS/zip/bin/zip" xos.zip $(find xos -type f)
   else
     tar czf xos.tar.gz xos
   fi
