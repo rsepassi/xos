@@ -10,6 +10,7 @@ pub fn build(b: *std.Build) void {
     const nghttp2 = b.option([]const u8, "nghttp2", "nghttp2 root");
     const zlib = b.option([]const u8, "zlib", "zlib root");
     const zstd = b.option([]const u8, "zstd", "zstd root");
+    const cares = b.option([]const u8, "cares", "cares root");
 
     const lib = b.addStaticLibrary(.{
         .name = "curl",
@@ -28,6 +29,7 @@ pub fn build(b: *std.Build) void {
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ nghttp2.?, "include" }) });
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ zlib.?, "include" }) });
     lib.addIncludePath(.{ .path = b.pathJoin(&.{ zstd.?, "include" }) });
+    lib.addIncludePath(.{ .path = b.pathJoin(&.{ cares.?, "include" }) });
     lib.addCSourceFiles(.{ .files = &lib_src_files, .flags = &cflags });
     switch (os) {
         .macos => {
@@ -71,6 +73,7 @@ pub fn build(b: *std.Build) void {
             exe.linkSystemLibrary("advapi32");
             exe.linkSystemLibrary("crypt32");
             exe.linkSystemLibrary("ws2_32");
+            exe.linkSystemLibrary("iphlpapi");
         },
         else => {},
     }
@@ -112,6 +115,10 @@ pub fn build(b: *std.Build) void {
     exe.addObjectFile(.{ .path = b.pathJoin(&.{
         zstd.?,
         b.fmt("lib/{s}zstd.{s}", .{ libprefix, libsuffix }),
+    }) });
+    exe.addObjectFile(.{ .path = b.pathJoin(&.{
+        cares.?,
+        b.fmt("lib/{s}cares.{s}", .{ libprefix, libsuffix }),
     }) });
     exe.linkLibC();
     b.installArtifact(exe);

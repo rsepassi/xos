@@ -832,7 +832,7 @@
 /* #undef USE_AMISSL */
 
 /* Define to enable c-ares support */
-/* #undef USE_ARES */
+#define USE_ARES 1
 
 /* if BearSSL is enabled */
 /* #undef USE_BEARSSL */

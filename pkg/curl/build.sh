@@ -3,6 +3,7 @@ need brotli
 need nghttp2
 need zlib
 need zstd
+need c-ares
 
 # fetch source
 file="curl.tar.gz"
@@ -27,7 +28,8 @@ zig build -Doptimize=$OPT_ZIG -Dtarget=$TARGET $zigopt \
   -Dbrotli="$BUILD_DEPS/brotli" \
   -Dnghttp2="$BUILD_DEPS/nghttp2" \
   -Dzlib="$BUILD_DEPS/zlib" \
-  -Dzstd="$BUILD_DEPS/zstd"
+  -Dzstd="$BUILD_DEPS/zstd" \
+  -Dcares="$BUILD_DEPS/c-ares"
 
 # fetch certificate bundle
 fetch "https://curl.se/ca/cacert-2023-12-12.pem" \
