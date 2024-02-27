@@ -141,7 +141,13 @@ if [ "$mode" = "release" ]
 then
   mv "$out" "$BUILD_OUT/xos"
   cd "$BUILD_OUT"
-  tar czf xos.tar.gz xos
+  if [ "$TARGET_OS" = "windows" ]
+  then
+    needtool zip
+    "$BUILD_TOOLDEPS/zip/bin/zip" xos.zip xos
+  else
+    tar czf xos.tar.gz xos
+  fi
   rm -rf ./xos
 else
   cd "$out"
