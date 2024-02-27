@@ -148,7 +148,7 @@ get_host_triple() {
 # script start
 
 [ "$#" = 0 ] && { usage; exit 1; }
-[ "$V" = 1 ] && set -x
+[ "$DEBUG" = 1 ] && set -x
 
 # ensure we're running under xos sh
 export XOS_ROOT="$(get_xosroot)"
@@ -173,7 +173,7 @@ do
       eval "$1"
       ;;
     *)
-      >&2 echo "unrecognized argument $1"
+      >&2 echo "unrecognized argument $1\nseparate build script args with --"
       exit 1
       ;;
   esac
