@@ -85,6 +85,11 @@ EOF
   chmod +x "$tools/nproc"
 fi
 
+tmptools="$tmp/tmptools"
+mkdir "$tmptools"
+touch $tmptools/needtool
+chmod +x $tmptools/needtool
+
 # zig
 mkdir -p "$out/zig"
 
@@ -114,7 +119,7 @@ sh -ex "$xosroot/pkg/make/build.sh"
 # busybox
 mkdir "$tmp/busybox"
 
-PATH="$tools:$PATH" \
+PATH="$tmptools:$tools:$PATH" \
 BUILD_PKG="$xosroot/pkg/busybox" \
 TARGET="$TARGET" \
 OPT="s" \
