@@ -5,6 +5,15 @@ include_libs=0
 include_cflags=0
 pkg=""
 
+pkg_config_default() {
+  lib=$1
+  mkdir -p "$BUILD_OUT/pkgconfig"
+  cat <<EOF > $BUILD_OUT/pkgconfig/$lib.pc
+Cflags: -I\${rootdir}/include
+Libs: \${rootdir}/lib/$(zigi lib $lib)
+EOF
+}
+
 while [ "$#" -gt 0 ]
 do
   case "$1" in
@@ -13,6 +22,11 @@ do
     ;;
   --cflags)
     include_cflags=1
+    ;;
+  --gendefault)
+    shift
+    pkg_config_default $1
+    exit 0
     ;;
   --*)
     >&2 echo "unrecognized flag $1"
