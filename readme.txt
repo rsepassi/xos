@@ -58,15 +58,15 @@ build.sh scripts
 
 Env:
   DEBUG={0,1} whether debug mode is on
-  TARGET, TARGET_ARCH, TARGET_OS: target triple
-  HOST, HOST_ARCH, HOST_OS: host triple
+  TARGET, TARGET_OS, TARGET_ARCH: target information
+  HOST, HOST_OS, HOST_ARCH: host information
   OPT, OPT_ZIG: cc and zig optimization modes
   BUILD_PKG: the pkg source directory for this package
   BUILD_DEPS, BUILD_TOOLDEPS: dependency directories
   BUILD_OUT: where build artifacts should go
 
 Tools:
-  zig
+  zig: cross-compiler
   busybox: basic utilities, including sh
   zigi: exe/lib naming information from zig
   cc, c++, ar, rc, windres: wrappers around zig
