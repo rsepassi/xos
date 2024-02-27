@@ -327,12 +327,12 @@ EOF
     shift
 
     env -i \
-      DRY="$DRY" \
-      DEBUG="$DEBUG" \
       PATH="$pkg_tools_dir:$tools_dir:$XOS_ROOT/tools" \
       HOME="$BUILD_OUT/tmp" \
       USER="xos" \
       XDG_CACHE_HOME="$XOS_BUILD_CACHE/xdg" \
+      DRY="$DRY" \
+      DEBUG="$DEBUG" \
       XOS_SH=1 \
       XOS_ROOT="$XOS_ROOT" \
       XOS_PKG_ROOT="$XOS_PKG_ROOT" \

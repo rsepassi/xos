@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -e
+
+src=$1
+name=$2
+hash=$3
+strip=${4:-1}
+
+fetch "$src" "$name" "$hash"
+dstdir=$(mktemp -d)
+archive=$(realpath "$BUILD_DEPS/$name")
+tar xf "$archive" -C "$dstdir" --strip-components=$strip
+echo "$dstdir"

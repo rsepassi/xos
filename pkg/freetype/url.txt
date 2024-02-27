@@ -1,2 +1,0 @@
-https://api.github.com/repos/hexops/freetype/tarball/398638f
-efea9e183151834c64944b224233601b64847f9232c04f33f2b7de4f15a1ea18

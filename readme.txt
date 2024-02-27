@@ -67,13 +67,13 @@ Env:
 
 Tools:
   zig
-  busybox
+  busybox: basic utilities, including sh
   zigi: exe/lib naming information from zig
   cc, c++, ar, rc, windres: wrappers around zig
   pkg-config: xos-aware pkg-config
-  fetch, fetch_urltxt: caching downloaders
-  untar: tar xf wrapper
-  need, needtool: dynamic dependencies
+  fetch, fetch_untar: caching downloader (+unarchiver)
+  need: dynamic dependency for target
+  needtool: dynamic dependency for host
   system, system_export: access system tools
 
 ---

@@ -1,2 +1,0 @@
-https://ziglang.org/builds/zig-linux-x86_64-0.12.0-dev.2341+92211135f.tar.xz
-8145e518decedc2e1dfe9f55d547e4103b0dd68a2f24527c4da9f8b31b3deaba

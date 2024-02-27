@@ -1,4 +1,7 @@
-fetch_urltxt $BUILD_PKG/url.txt lmdb.tar.gz
+fetch \
+  "https://github.com/LMDB/lmdb/archive/refs/tags/LMDB_0.9.31.tar.gz" \
+  lmdb.tar.gz \
+  "dd70a8c67807b3b8532b3e987b0a4e998962ecc28643e1af5ec77696b081c9b0"
 src=$(mktemp -d)
 untar $BUILD_DEPS/lmdb.tar.gz $src 3
 

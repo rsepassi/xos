@@ -3,10 +3,7 @@ need zlib
 url="https://github.com/michaelrsweet/pdfio/releases/download/v1.2.0/pdfio-1.2.0.tar.gz"
 hash="28e6b76662ad573ae44d61b1214e56839eea0b13a12701872101a70f6b597db7"
 file="pdfio.tar.gz"
-
-fetch "$url" "$file" "$hash"
-src=$(mktemp -d)
-untar "$BUILD_DEPS/$file" "$src"
+src=$(fetch_untar "$url" "$file" "$hash")
 cd $src
 
 

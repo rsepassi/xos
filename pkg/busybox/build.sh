@@ -4,13 +4,15 @@ make=$BUILD_TOOLDEPS/make/bin/make
 if [ "$TARGET_OS" = "windows" ]
 then
   tarfile=busybox-w32.tar.gz
-  urlfile=url-w32.txt
+  url="https://github.com/rmyorston/busybox-w32/archive/refs/tags/FRP-5236-g7dff7f376.tar.gz"
+  hash="8509aafaa404edc9f09e0d416322df0c1eae71acbfdd4574dce75d017afc0ddb"
   configfile=config-w32
   cflags="-Dclockid_t=int -DCLOCK_REALTIME=0 -Dffs=__builtin_ffs"
   ldflags="-lws2_32"
 else
   tarfile=busybox.tar.bz2
-  urlfile=url.txt
+  url="https://busybox.net/downloads/busybox-1.36.1.tar.bz2"
+  hash="b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314"
   configfile=config
   cflags=""
   ldflags=""
@@ -18,7 +20,7 @@ fi
 
 
 src=$(mktemp -d)
-fetch_urltxt $BUILD_PKG/$urlfile $tarfile
+fetch "$url" "$tarfile" "$hash"
 untar $BUILD_DEPS/$tarfile $src
 cd $src
 

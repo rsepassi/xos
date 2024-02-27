@@ -33,12 +33,13 @@ ln -s ../zig/"zig$exe" "$tools"/zig
 # internal tools
 scripts="
 fetch
+fetch_untar
+fetch_urltxt
 cc
 c++
 ar
 rc
 windres
-fetch_urltxt
 need
 needtool
 untar

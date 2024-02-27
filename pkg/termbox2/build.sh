@@ -1,4 +1,7 @@
-fetch_urltxt $BUILD_PKG/url.txt termbox2.h
+fetch \
+  "https://raw.githubusercontent.com/termbox/termbox2/a8e2644/termbox2.h"
+  termbox2.h \
+  "c11c247467585874d56d7426310e5a56295cd314b82260410615c166474b6f78"
 
 path=$(realpath $BUILD_DEPS/termbox2.h)
 
