@@ -161,8 +161,27 @@ then
   exec "$XOS_ROOT/tools/sh" "$0" "$@"
 fi
 
-# determine package
+# process args
 pkg=$1
+shift
+while [ "$#" -gt 0 ]
+do
+  if [ "$1" = "--" ]
+  then
+    shift
+    break
+  fi
+  case "$1" in
+    *)
+      >&2 echo "unrecognized argument $1"
+      exit 1
+      ;;
+  esac
+  shift
+done
+# "$@" is for the pkg build
+
+# determine package
 ARGS="$(argsquote "$@")"
 BUILD_PKG="$XOS_PKG_ROOT/$pkg"
 if [ ! -e "$BUILD_PKG/build.sh" ]
@@ -323,9 +342,6 @@ EOF
     then
       exec > "$logfile"
     fi
-
-    # rm pkg arg, pass through the rest
-    shift
 
     env -i \
       PATH="$pkg_tools_dir:$tools_dir:$XOS_ROOT/tools" \
