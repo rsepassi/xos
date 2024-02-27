@@ -98,7 +98,6 @@ or run directly
 
 todo
 
-* allow pointing to alt repos
 * generic caching utilities
 * linux sandboxing (bwrap)
 * binary releases of xos for macos, linux, windows
