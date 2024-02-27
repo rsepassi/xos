@@ -254,8 +254,9 @@ else
   rebuild=1
 fi
 
-if [ "$DRY" = 1 ]
+if [ "$DRY" = 1 ] || [ "$XOS_DRY" = 1 ]
 then
+  XOS_DRY=1
   >&2 cat <<EOF
 ---
 build $ARGS
@@ -331,14 +332,14 @@ EOF
       HOME="$BUILD_OUT/tmp" \
       USER="xos" \
       XDG_CACHE_HOME="$XOS_BUILD_CACHE/xdg" \
-      DRY="$DRY" \
-      DEBUG="$DEBUG" \
       XOS_SH=1 \
+      XOS_DRY="$XOS_DRY" \
       XOS_ROOT="$XOS_ROOT" \
       XOS_PKG_ROOT="$XOS_PKG_ROOT" \
       XOS_BUILD_ROOT="$XOS_BUILD_ROOT" \
       XOS_BUILD_CACHE="$XOS_BUILD_CACHE" \
       XOS_BUILD_OUT="$BUILD_OUT" \
+      DEBUG="$DEBUG" \
       TARGET="$TARGET" \
       TARGET_ARCH="$TARGET_ARCH" \
       TARGET_OS="$TARGET_OS" \

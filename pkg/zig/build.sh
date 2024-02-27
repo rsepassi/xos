@@ -1,5 +1,3 @@
-urlf=$BUILD_PKG/url-$TARGET_OS-$TARGET_ARCH.txt
-
 version="0.12.0-dev.2341+92211135f"
 suffix="tar.xz"
 if [ "$TARGET_OS" = "windows" ]
@@ -9,7 +7,7 @@ fi
 
 url="https://ziglang.org/builds/zig-$TARGET_OS-$TARGET_ARCH-$version.$suffix"
 
-case "$TARGET_OS-$TARGET_ARGCH" in
+case "$TARGET_OS-$TARGET_ARCH" in
   "linux-aarch64")
     hash="0d0aa58c499bd35dd72edfbbe87b50981feba56cb30b3681deb9dbd4608090f9"
     ;;
@@ -24,6 +22,7 @@ case "$TARGET_OS-$TARGET_ARGCH" in
     ;;
   "windows-x86_64")
     hash="1f48cd851871e154895ef67b52aeaf2db8835725007bd3816b492216fde26af2"
+    ;;
   "windows-aarch64")
     hash="fc0c527003c3d853899f3c93ed7e16474ac16cc9fa9962e285614cb928f0a1ee"
     ;;

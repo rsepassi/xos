@@ -1,6 +1,5 @@
 need zig
 need busybox
-need make
 
 mode=$1
 
@@ -10,10 +9,9 @@ out="$(mktemp -d)"
 tools="$out/tools"
 mkdir -p $tools
 
-# zig+make+busybox
+# zig+busybox
 zig="$BUILD_DEPS/zig"
 bb="$BUILD_DEPS/busybox/bin/busybox"
-make="$BUILD_DEPS/make/bin/make"
 if [ "$TARGET_OS" = "windows" ]
 then
   exe=".exe"
@@ -22,11 +20,9 @@ if [ "$mode" = "release" ]
 then
   cp -rL "$zig" "$out/zig"
   cp "$bb" "$tools"
-  cp "$make" "$tools"
 else
   ln -s "$zig" "$out/zig"
   ln -s "$bb" "$tools"
-  ln -s "$make" "$tools"
 fi
 ln -s ../zig/"zig$exe" "$tools"/zig
 
@@ -54,7 +50,7 @@ do
   cp "$BUILD_PKG/src/$script" "$tools"
 done
 ln -s cc "$tools/ld"
-ln -s tools/build "$out"
+ln -s tools/xos_internal_build "$out/build"
 cat <<EOF > "$tools/xos_internal_mktemp"
 #!/usr/bin/env sh
 set -e
@@ -125,7 +121,7 @@ else
 fi
 
 # readme
-cp "$BUILD_PKG/src/dist_readme.txt" "$out"
+cp "$BUILD_PKG/src/dist_readme.txt" "$out/readme.txt"
 
 # xos id
 zigid="0.12.0-dev.2341+92211135f"
