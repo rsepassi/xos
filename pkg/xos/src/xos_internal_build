@@ -173,7 +173,7 @@ do
       eval "$1"
       ;;
     *)
-      >&2 echo "unrecognized argument $1\nseparate build script args with --"
+      >&2 printf "unrecognized argument $1, separate build script args with --\n"
       exit 1
       ;;
   esac
