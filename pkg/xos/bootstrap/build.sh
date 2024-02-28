@@ -85,10 +85,16 @@ EOF
   chmod +x "$tools/nproc"
 fi
 
+# make these tools no-ops during the bootstrap
 tmptools="$tmp/tmptools"
 mkdir "$tmptools"
 touch $tmptools/needtool
 chmod +x $tmptools/needtool
+cat <<EOF > "$tmptools/system"
+#!/usr/bin/env sh
+exec "\$@"
+EOF
+chmod +x "$tmptools/system"
 
 # zig
 mkdir -p "$out/zig"
@@ -118,7 +124,6 @@ sh -ex "$xosroot/pkg/make/build.sh"
 
 # busybox
 mkdir "$tmp/busybox"
-
 PATH="$tmptools:$tools:$PATH" \
 BUILD_PKG="$xosroot/pkg/busybox" \
 TARGET="$TARGET" \
