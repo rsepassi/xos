@@ -1,24 +1,22 @@
-libssh2
 dropbear ssh
 json5, jsonl, msgpack
 chibi scheme
-mir
+jit (mir)
 static site generator
 justfile
 text editor (vis, micro, vim)
 mtm, tmux
 libbtc
 crdt
-gui lib
 zk libs
+quic
 http3
 git, libgit, stagit
 whisper
 vpn (wireguard)
 payments (cosmos/tendermint?)
-rg/ag
 pw manager, secret store
-raft/paxos
+raft/paxos/vsr
 pgp, private messaging
 gitea, forgejo, fossil
 myip
@@ -54,3 +52,4 @@ windows:
 * termbox2
 * entr
 * zip
+* rust (zig issue)
