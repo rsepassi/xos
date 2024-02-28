@@ -407,7 +407,7 @@
 /* #undef HAVE_LIBSSH */
 
 /* Define to 1 if you have the `ssh2' library (-lssh2). */
-/* #undef HAVE_LIBSSH2 */
+#define HAVE_LIBSSH2 1
 
 /* Define to 1 if you have the `ssl' library (-lssl). */
 /* #undef HAVE_LIBSSL */
