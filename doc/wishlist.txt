@@ -1,3 +1,4 @@
+uwebsockets
 dropbear ssh
 json5, jsonl, msgpack
 chibi scheme
