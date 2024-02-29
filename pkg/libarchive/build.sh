@@ -1,4 +1,6 @@
 need mbedtls
+need zlib
+need zstd
 
 url="https://www.libarchive.org/downloads/libarchive-3.7.2.tar.xz"
 hash="04357661e6717b6941682cde02ad741ae4819c67a260593dfb2431861b251acb"
@@ -19,6 +21,8 @@ touch archive.c
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -DHAVE_CONFIG_H -DLIBARCHIVE_STATIC -D__LIBARCHIVE_ENABLE_VISIBILITY \
   $(pkg-config --cflags mbedtls/mbedcrypto) \
+  $(pkg-config --cflags zlib/z) \
+  $(pkg-config --cflags zstd) \
   -cflags $cflags -include "$BUILD_DEPS/mbedtls/include/mbedtls/compat-2.x.h" -- \
   archive.c *.c -lc
 lib="$PWD/$(zigi lib archive)"
@@ -32,15 +36,22 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   -lc
 libfe="$PWD/$(zigi lib archive_fe)"
 
+ldflags="
+$libfe
+$lib
+$(pkg-config --libs mbedtls/mbedcrypto)
+$(pkg-config --libs zlib/z)
+$(pkg-config --libs zstd)
+-lc
+"
+
 cd "$src/tar"
 zig build-exe -target $TARGET -O $OPT_ZIG \
   -DHAVE_CONFIG_H \
   -I "$src/libarchive" \
   -I "$src/libarchive_fe" \
   bsdtar.c cmdline.c creation_set.c read.c subst.c util.c write.c bsdtar_windows.c \
-  $libfe $lib \
-  $(pkg-config --libs mbedtls/mbedcrypto) \
-  -lc
+  $ldflags
 btar="$PWD/$(zigi exe bsdtar)"
 
 cd "$src/cpio"
@@ -49,9 +60,7 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
   -I "$src/libarchive" \
   -I "$src/libarchive_fe" \
   cpio.c cmdline.c cpio_windows.c \
-  $libfe $lib \
-  $(pkg-config --libs mbedtls/mbedcrypto) \
-  -lc
+  $ldflags
 bcpio="$PWD/$(zigi exe cpio)"
 
 cd "$src/cat"
@@ -60,9 +69,7 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
   -I "$src/libarchive" \
   -I "$src/libarchive_fe" \
   bsdcat.c cmdline.c \
-  $libfe $lib \
-  $(pkg-config --libs mbedtls/mbedcrypto) \
-  -lc
+  $ldflags
 bcat="$PWD/$(zigi exe bsdcat)"
 
 if [ "$TARGET_OS" != "windows" ]
@@ -73,9 +80,7 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
   -I "$src/libarchive" \
   -I "$src/libarchive_fe" \
   bsdunzip.c cmdline.c la_getline.c \
-  $libfe $lib \
-  $(pkg-config --libs mbedtls/mbedcrypto) \
-  -lc
+  $ldflags
 bunzip="$PWD/$(zigi exe bsdunzip)"
 fi
 

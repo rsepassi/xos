@@ -37,3 +37,4 @@ mkdir "$BUILD_OUT/bin" "$BUILD_OUT/lib" "$BUILD_OUT/include"
 cp lib/*.h "$BUILD_OUT/include"
 mv $lib "$BUILD_OUT/lib"
 mv $src/programs/$(zigi exe zstd) "$BUILD_OUT/bin"
+pkg-config --gendefault zstd
