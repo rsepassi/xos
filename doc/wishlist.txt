@@ -30,6 +30,7 @@ struct/isoalloc
 certbot equivalent
 torrent client
 ocr? (easyocr, paddleocr)
+simd
 
 gui:
 webview
