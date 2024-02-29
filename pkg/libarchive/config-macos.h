@@ -663,7 +663,7 @@
 /* #undef HAVE_LIBLZO2 */
 
 /* Define to 1 if you have the `mbedcrypto' library (-lmbedcrypto). */
-/* #undef HAVE_LIBMBEDCRYPTO */
+#define HAVE_LIBMBEDCRYPTO 1
 
 /* Define to 1 if you have the `md' library (-lmd). */
 /* #undef HAVE_LIBMD */
@@ -693,7 +693,7 @@
 /* #undef HAVE_LIBXML_XMLWRITER_H */
 
 /* Define to 1 if you have the `z' library (-lz). */
-/* #undef HAVE_LIBZ */
+#define HAVE_LIBZ 1
 
 /* Define to 1 if you have the `zstd' library (-lzstd). */
 #define HAVE_LIBZSTD 1
