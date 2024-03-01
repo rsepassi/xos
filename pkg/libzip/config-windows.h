@@ -6,60 +6,64 @@
 /* BEGIN DEFINES */
 #define ENABLE_FDOPEN
 /* #undef HAVE___PROGNAME */
-/* #undef HAVE__CLOSE */
-/* #undef HAVE__DUP */
-/* #undef HAVE__FDOPEN */
-/* #undef HAVE__FILENO */
-/* #undef HAVE__SETMODE */
+#define HAVE__CLOSE
+#define HAVE__DUP
+#define HAVE__FDOPEN
+#define HAVE__FILENO
+#define HAVE__SETMODE
 /* #undef HAVE__SNPRINTF */
-/* #undef HAVE__SNPRINTF_S */
-/* #undef HAVE__SNWPRINTF_S */
-/* #undef HAVE__STRDUP */
-/* #undef HAVE__STRICMP */
-/* #undef HAVE__STRTOI64 */
-/* #undef HAVE__STRTOUI64 */
-/* #undef HAVE__UNLINK */
+#define HAVE__SNPRINTF_S
+#define HAVE__SNWPRINTF_S
+#define HAVE__STRDUP
+#define HAVE__STRICMP
+#define HAVE__STRTOI64
+#define HAVE__STRTOUI64
+#define HAVE__UNLINK
 /* #undef HAVE_ARC4RANDOM */
 /* #undef HAVE_CLONEFILE */
 /* #undef HAVE_COMMONCRYPTO */
-#define HAVE_CRYPTO 1
+#define HAVE_CRYPTO
 /* #undef HAVE_FICLONERANGE */
 #define HAVE_FILENO
-#define HAVE_FCHMOD
-#define HAVE_FSEEKO
-#define HAVE_FTELLO
-#define HAVE_GETPROGNAME
+/* #undef HAVE_FCHMOD */
+#define HAVE_FSEEKO 1
+#define HAVE_FTELLO 1
+/* #undef HAVE_GETPROGNAME */
 /* #undef HAVE_GNUTLS */
 /* #undef HAVE_LIBBZ2 */
 #define HAVE_LIBLZMA 1
-#define HAVE_LIBZSTD
-#define HAVE_LOCALTIME_R
-/* #undef HAVE_LOCALTIME_S */
-/* #undef HAVE_MEMCPY_S */
-#define HAVE_MBEDTLS 1
+#define HAVE_LIBZSTD 1
+/* #undef HAVE_LOCALTIME_R */
+#define HAVE_LOCALTIME_S
+#define HAVE_MEMCPY_S
+/* #undef HAVE_MBEDTLS */
 /* #undef HAVE_MKSTEMP */
-#define HAVE_NULLABLE
+/* #undef HAVE_NULLABLE */
 /* #undef HAVE_OPENSSL */
 #define HAVE_SETMODE
 #define HAVE_SNPRINTF
 /* #undef HAVE_SNPRINTF_S */
-#define HAVE_STRCASECMP
+/* #undef HAVE_STRCASECMP */
 #define HAVE_STRDUP
-/* #undef HAVE_STRERROR_S */
+#define HAVE_STRERROR_S
 /* #undef HAVE_STRERRORLEN_S */
-/* #undef HAVE_STRICMP */
-/* #undef HAVE_STRNCPY_S */
+#define HAVE_STRICMP
+#define HAVE_STRNCPY_S
 #define HAVE_STRTOLL
 #define HAVE_STRTOULL
 /* #undef HAVE_STRUCT_TM_TM_ZONE */
 #define HAVE_STDBOOL_H
-#define HAVE_STRINGS_H
-#define HAVE_UNISTD_H
-/* #undef HAVE_WINDOWS_CRYPTO */
-#define SIZEOF_OFF_T 8
+#define HAVE_STRINGS_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_WINDOWS_CRYPTO
+#define SIZEOF_OFF_T 4
+#ifdef _WIN64
 #define SIZEOF_SIZE_T 8
+#else
+#define SIZEOF_SIZE_T 4
+#endif
 /* #undef HAVE_DIRENT_H */
-#define HAVE_FTS_H
+/* #undef HAVE_FTS_H */
 /* #undef HAVE_NDIR_H */
 /* #undef HAVE_SYS_DIR_H */
 /* #undef HAVE_SYS_NDIR_H */

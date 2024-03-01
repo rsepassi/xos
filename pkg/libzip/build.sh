@@ -1,5 +1,3 @@
-[ "$TARGET_OS" = "windows" ] && { >&2 echo "windows build incomplete"; exit 1; }
-
 need zlib
 need zstd
 need xz
@@ -26,14 +24,22 @@ then
   cflags="
   -DHAVE_ARC4RANDOM
   -DHAVE_CLONEFILE 
+  -DHAVE_SECURE_RANDOM
   "
   echo $windows_srcs | xargs rm
+  cp "$BUILD_PKG/config.h" .
 elif [ "$TARGET_OS" = "linux" ]
 then
+  cflags="
+  -DHAVE_SECURE_RANDOM
+  "
   echo $windows_srcs | xargs rm
+  cp "$BUILD_PKG/config.h" .
 elif [ "$TARGET_OS" = "windows" ]
 then
-  :
+  ldflags="-lbcrypt"
+  cp "$BUILD_PKG/config-windows.h" config.h
+  rm lib/zip_crypto_mbedtls.c
 fi
 
 rm lib/zip_algorithm_bzip2.c
@@ -42,12 +48,11 @@ rm lib/zip_crypto_commoncrypto.c
 rm lib/zip_crypto_openssl.c
 rm lib/zip_random_uwp.c
 
-cp "$BUILD_PKG/config.h" .
 cp "$BUILD_PKG/zipconf.h" .
 cp "$BUILD_PKG/zip_err_str.c" lib
 touch zip.c
 zig build-lib -target $TARGET -O $OPT_ZIG \
-  -I. -Ilib -DHAVE_SECURE_RANDOM \
+  -I. -Ilib \
   zip.c lib/*.c \
   $cflags \
   $(pkg-config --cflags xz/lzma) \
@@ -64,7 +69,7 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
   $(pkg-config --libs mbedtls/mbedcrypto) \
   $(pkg-config --libs zstd) \
   $(pkg-config --libs zlib/z) \
-  -lc
+  $ldflags -lc
 
 cd "$BUILD_OUT"
 mkdir lib include bin
