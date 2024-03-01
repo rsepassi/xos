@@ -162,6 +162,13 @@ const lib_src_files = [_][]const u8{
     "src/liblzma/simple/simple_encoder.c",
     "src/liblzma/simple/sparc.c",
     "src/liblzma/simple/x86.c",
+    "src/common/tuklib_progname.c",
+    "src/common/tuklib_exit.c",
+    "src/common/tuklib_mbstr_width.c",
+    "src/common/tuklib_mbstr_fw.c",
+    "src/common/tuklib_cpucores.c",
+    "src/common/tuklib_open_stdxxx.c",
+    "src/common/tuklib_physmem.c",
 };
 
 const xz_src_files = [_][]const u8{
@@ -177,17 +184,8 @@ const xz_src_files = [_][]const u8{
     "src/xz/signals.c",
     "src/xz/suffix.c",
     "src/xz/util.c",
-    "src/common/tuklib_progname.c",
-    "src/common/tuklib_exit.c",
-    "src/common/tuklib_mbstr_width.c",
-    "src/common/tuklib_mbstr_fw.c",
-    "src/common/tuklib_cpucores.c",
-    "src/common/tuklib_open_stdxxx.c",
-    "src/common/tuklib_physmem.c",
 };
 
 const xzdec_src_files = [_][]const u8{
     "src/xzdec/xzdec.c",
-    "src/common/tuklib_exit.c",
-    "src/common/tuklib_progname.c",
 };
