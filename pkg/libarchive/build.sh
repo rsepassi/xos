@@ -1,3 +1,4 @@
+need xz
 need mbedtls
 need zlib
 need zstd
@@ -23,6 +24,7 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   $(pkg-config --cflags mbedtls/mbedcrypto) \
   $(pkg-config --cflags zlib/z) \
   $(pkg-config --cflags zstd) \
+  $(pkg-config --cflags xz/lzma) \
   -cflags $cflags -include "$BUILD_DEPS/mbedtls/include/mbedtls/compat-2.x.h" -- \
   archive.c *.c -lc
 lib="$PWD/$(zigi lib archive)"
@@ -42,6 +44,7 @@ $lib
 $(pkg-config --libs mbedtls/mbedcrypto)
 $(pkg-config --libs zlib/z)
 $(pkg-config --libs zstd)
+$(pkg-config --libs xz/lzma)
 -lc
 "
 
