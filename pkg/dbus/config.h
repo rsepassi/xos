@@ -279,7 +279,7 @@
 /* #undef HAVE_SELINUX */
 
 /* Define to 1 if you have the `setenv' function. */
-#define HAVE_SETENV 1
+/* #undef HAVE_SETENV */
 
 /* Define to 1 if you have the `setlocale' function. */
 #define HAVE_SETLOCALE 1
@@ -360,7 +360,7 @@
 /* #undef HAVE_UNPCBID */
 
 /* Define to 1 if you have the `unsetenv' function. */
-#define HAVE_UNSETENV 1
+/* #undef HAVE_UNSETENV */
 
 /* Define to 1 if you have the `usleep' function. */
 #define HAVE_USLEEP 1

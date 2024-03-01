@@ -1,5 +1,3 @@
-[ "$TARGET_OS" = "windows" ] && { >&2 echo "windows support incomplete"; exit 1; }
-
 need expat
 
 url="https://dbus.freedesktop.org/releases/dbus/dbus-1.14.10.tar.xz"
@@ -52,10 +50,12 @@ then
   -DHAVE_BACKTRACE 
   -DHAVE_POLL
   -DHAVE_UNIX_FD_PASSING 
+  -DHAVE_SETENV
+  -DHAVE_UNSETENV
   "
   echo "$windows_files" | xargs rm
   echo "$linux_files" | xargs rm
-  daemon_os_sources="bus/dir-watch-kqueue.c"
+  os_dsrcs="bus/dir-watch-kqueue.c"
 elif [ "$TARGET_OS" = "linux" ]
 then
   cflags="
@@ -63,18 +63,23 @@ then
   -DDBUS_UNIX 
   -DHAVE_POLL
   -DHAVE_UNIX_FD_PASSING 
+  -DHAVE_SETENV
+  -DHAVE_UNSETENV
   "
   echo "$windows_files" | xargs rm
-  daemon_os_sources="bus/dir-watch-inotify.c"
+  os_dsrcs="bus/dir-watch-inotify.c"
 elif [ "$TARGET_OS" = "windows" ]
 then
   cflags="
   -DDBUS_WIN 
+  -DHAVE_WS2TCPIP_H
   "
+  ldflags="-lws2_32 -liphlpapi"
   echo "$linux_files" | xargs rm
   echo "$unix_files" | xargs rm
   rm dbus/dbus-sysdeps-wince-glue.c
-  daemon_os_sources="bus/dir-watch-default.c"
+  os_srcs="dbus/dbus-init-win.cpp"
+  os_dsrcs="bus/dir-watch-default.c"
 fi
 
 touch dbus.c
@@ -87,7 +92,7 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   -Ddbus_1_EXPORTS \
   -I. \
   $cflags \
-  dbus.c dbus/*.c \
+  dbus.c dbus/*.c $os_srcs \
   -lc
 
 daemon_sources="
@@ -115,17 +120,17 @@ bus/utils.c
 "
 touch dbus-daemon.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
-  -DHAVE_CONFIG_H -DDBUS_COMPILATION \
+  -DHAVE_CONFIG_H -DDBUS_STATIC_BUILD -DDBUS_COMPILATION \
   -DDBUS_MACHINE_UUID_FILE="\"\"" \
   -DDBUS_SYSTEM_CONFIG_FILE="\"\"" \
   -DDBUS_SESSION_CONFIG_FILE="\"\"" \
   -DDBUS_RUNSTATEDIR="\"\"" \
   -I. -Ibus \
   $cflags \
-  dbus-daemon.c $daemon_sources $daemon_os_sources \
+  dbus-daemon.c $daemon_sources $os_dsrcs \
   $(pkg-config --cflags --libs expat) \
   $(zigi lib dbus) \
-  -lc
+  $ldflags -lc
 
 cd "$BUILD_OUT"
 mkdir lib include bin
