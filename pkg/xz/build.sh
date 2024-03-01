@@ -10,3 +10,4 @@ zig build -Dtarget=$TARGET -Doptimize=$OPT_ZIG
 mv $PWD/zig-out/bin $BUILD_OUT
 mv $PWD/zig-out/lib $BUILD_OUT
 mv $PWD/zig-out/include $BUILD_OUT
+pkg-config --gendefault lzma
