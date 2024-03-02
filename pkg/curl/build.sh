@@ -5,6 +5,7 @@ need zlib
 need zstd
 need c-ares
 need libssh2
+need cacert
 
 # fetch source
 file="curl.tar.gz"
@@ -33,14 +34,9 @@ zig build -Doptimize=$OPT_ZIG -Dtarget=$TARGET $zigopt \
   -Dcares="$BUILD_DEPS/c-ares" \
   -Dssh2="$BUILD_DEPS/libssh2"
 
-# fetch certificate bundle
-fetch "https://curl.se/ca/cacert-2023-12-12.pem" \
-  cacert.pem \
-  "ccbdfc2fe1a0d7bbbb9cc15710271acf1bb1afe4c8f1725fe95c4c7733fcbe5a"
-
 # install
 mv $PWD/zig-out/bin "$BUILD_OUT"
 mv $PWD/zig-out/lib "$BUILD_OUT"
-mkdir -p "$BUILD_OUT/include/curl" "$BUILD_OUT/share"
+mkdir -p "$BUILD_OUT/include/curl"
 cp "$src/include/curl"/*.h "$BUILD_OUT/include/curl"
-cp "$BUILD_DEPS/cacert.pem" "$BUILD_OUT/share"
+ln -s "$BUILD_DEPS/cacert/share" "$BUILD_OUT"
