@@ -11,5 +11,5 @@ cp "$BUILD_PKG/arch/config-$TARGET_OS.h" config.h
 zig build -Dtarget=$TARGET -Doptimize=$OPT_ZIG
 
 mkdir -p "$BUILD_OUT/include/nghttp2"
-ln -s "$PWD/zig-out/lib" "$BUILD_OUT"
+mv "$PWD/zig-out/lib" "$BUILD_OUT"
 cp lib/includes/nghttp2/*.h "$BUILD_OUT/include/nghttp2"
