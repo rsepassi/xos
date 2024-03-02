@@ -9,4 +9,4 @@ cp $BUILD_PKG/genheaders/fnmatch.h lib/
 cp $BUILD_PKG/genheaders/glob.h lib/
 printf '%s\n%s\n' "#include <makeint.h>" "$(cat lib/concat-filename.c)" > lib/concat-filename.c
 zig build -Dtarget=$TARGET -Doptimize=$OPT_ZIG
-ln -s $PWD/zig-out/bin $BUILD_OUT
+mv $PWD/zig-out/bin $BUILD_OUT
