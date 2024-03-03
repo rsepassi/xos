@@ -1,5 +1,3 @@
-[ "$TARGET_OS" = "macos" ] && { >&2 echo "mac unimpl"; exit 1; }
-
 url="https://github.com/unicode-org/icu/releases/download/release-74-2/icu4c-74_2-src.tgz"
 hash="68db082212a96d6f53e35d60f47d38b962e9f9d207a74cfac78029ae8ff5e08c"
 file="icu.tar.gz"
@@ -11,7 +9,9 @@ if [ "$TARGET_OS" = "macos" ]
 then
   need macossdk
   sdk="$BUILD_DEPS/macossdk/sdk"
-  cflags="-DTARGET_OS_OSX -cflags --sysroot=$sdk -- -I$sdk/usr/include -F$sdk/System/Library/Frameworks"
+  cflags="-cflags -std=c++11 -DTARGET_OS_OSX -I$sdk/usr/include/c++/v1 -I$sdk/usr/include --"
+else
+  cflags="-cflags -std=c++11 --"
 fi
 
 cflags="
@@ -26,9 +26,8 @@ $cflags
 cd "$src/stubdata"
 touch icudata.cpp
 zig build-lib -target $TARGET -O $OPT_ZIG \
-  $cflags \
   -I../common \
-  -cflags -std=c++11 -- \
+  $cflags \
   icudata.cpp *.cpp \
   -lc++ -lc
 
@@ -36,9 +35,8 @@ cd "$src/io"
 touch icuio.cpp
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -DU_IO_IMPLEMENTATION \
-  $cflags \
   -I. -I../common -I../i18n \
-  -cflags -std=c++11 -- \
+  $cflags \
   icuio.cpp *.cpp \
   -lc++
 
@@ -46,9 +44,8 @@ cd "$src/common"
 touch icuuc.cpp
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -DU_COMMON_IMPLEMENTATION \
-  $cflags \
   -I. \
-  -cflags -std=c++11 -- \
+  $cflags \
   icuuc.cpp *.cpp \
   -lc++
 
