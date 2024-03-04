@@ -81,6 +81,7 @@ cp -RL $frameworks/CloudKit.framework ./Frameworks/CloudKit.framework
 cp -RL $frameworks/CoreLocation.framework ./Frameworks/CoreLocation.framework
 cp -RL $frameworks/Kernel.framework ./Frameworks/Kernel.framework
 cp -RL $frameworks/GameController.framework ./Frameworks/GameController.framework
+cp -RL $frameworks/WebKit.framework ./Frameworks/WebKit.framework
 
 cp -RL $frameworks/AVFoundation.framework ./Frameworks/AVFoundation.framework
 cp -RL $frameworks/ForceFeedback.framework ./Frameworks/ForceFeedback.framework
