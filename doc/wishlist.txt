@@ -53,3 +53,4 @@ windows:
 * entr
 * zip
 * rust (zig issue)
+* lowdown
