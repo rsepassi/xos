@@ -1,5 +1,4 @@
 uwebsockets
-libbtc
 quic
 http3
 dropbear ssh
