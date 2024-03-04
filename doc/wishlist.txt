@@ -1,17 +1,16 @@
 uwebsockets
+libbtc
+quic
+http3
 dropbear ssh
 json5, jsonl, msgpack
-chibi scheme
 jit (mir)
 static site generator
 justfile
 text editor (vis, micro, vim)
 mtm, tmux
-libbtc
 crdt
 zk libs
-quic
-http3
 git, libgit, stagit
 whisper
 vpn (wireguard)
@@ -24,9 +23,6 @@ myip
 ffmpeg
 capn proto, flatbuffers
 json-rpc
-chriso/intern
-antirez/sds
-struct/isoalloc
 certbot equivalent
 torrent client
 ocr? (easyocr, paddleocr)
