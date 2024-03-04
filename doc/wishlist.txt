@@ -1,4 +1,3 @@
-uwebsockets
 quic
 http3
 dropbear ssh
