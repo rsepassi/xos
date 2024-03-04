@@ -5,12 +5,39 @@ include_libs=0
 include_cflags=0
 pkg=""
 
-pkg_config_default() {
+gen_pkg_config() {
   lib=$1
+  shift
+  while [ "$#" -gt 0 ]
+  do
+    case "$1" in
+      --deps)
+        shift
+        deps=$1
+        shift
+        requires=""
+        IFS=","
+        for dep in $deps
+        do
+          requires="$requires $dep"
+        done
+        ;;
+      --*)
+        >&2 echo "unrecognized flag $1"
+        exit 1
+        ;;
+      *)
+        >&2 echo "unrecognized arg $1"
+        exit 1
+        ;;
+    esac
+  done
+
   mkdir -p "$BUILD_OUT/pkgconfig"
   cat <<EOF > $BUILD_OUT/pkgconfig/$lib.pc
 Cflags: -I\${rootdir}/include
 Libs: \${rootdir}/lib/$(zigi lib $lib)
+Requires:$requires
 EOF
 }
 
@@ -25,7 +52,7 @@ do
     ;;
   --gendefault)
     shift
-    pkg_config_default $1
+    gen_pkg_config "$@"
     exit 0
     ;;
   --*)
@@ -58,16 +85,20 @@ rootdir="$depsdir/$pkg"
 while IFS= read -r line; do
   case $line in
     "Cflags:"*)
-      if [ "$include_cflags" = 1 ]
-      then
-        eval "echo ${line#Cflags:}"
-      fi
+      [ "$include_cflags" = 1 ] && eval "echo ${line#Cflags:}"
       ;;
     "Libs:"*)
-      if [ "$include_libs" = 1 ]
-      then
-        eval "echo ${line#Libs:}"
-      fi
+      [ "$include_libs" = 1 ] && eval "echo ${line#Libs:}"
+      ;;
+    "Requires:"*)
+      pc_flags=""
+      [ "$include_cflags" = 1 ] && pc_flags="$pc_flags --cflags"
+      [ "$include_libs" = 1 ] && pc_flags="$pc_flags --libs"
+      reqs=${line#Requires: }
+      for req in $reqs
+      do
+        PC_DEPS_DIR="$(realpath "$rootdir")/../deps" pkg-config $pc_flags $req
+      done
       ;;
     *)
       # ignore
