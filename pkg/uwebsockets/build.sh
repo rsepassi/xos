@@ -7,12 +7,10 @@ file="uwebsockets.tar.gz"
 src=$(fetch_untar "$url" "$file" "$hash")
 cd $src
 
-
 touch uwebsockets.c
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -Isrc \
-  $(pkg-config --cflags usockets) \
-  $(pkg-config --cflags zlib/z) \
+  $(pkg-config --cflags usockets zlib/z) \
   uwebsockets.c \
   -cflags -std=c++17 -- \
   capi/libuwebsockets.cpp \
@@ -24,8 +22,7 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
 #   -cflags -std=c11 -- \
 #   capi/examples/HelloWorld.c \
 #   $(zigi lib uwebsockets) \
-#   $(pkg-config --libs usockets) \
-#   $(pkg-config --libs zlib/z) \
+#   $(pkg-config --libs usockets zlib/z) \
 #   -lc++ -lc
 
 cd "$BUILD_OUT"

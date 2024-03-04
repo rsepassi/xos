@@ -21,10 +21,7 @@ cp "$BUILD_PKG/config-$TARGET_OS.h" config.h
 touch archive.c
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -DHAVE_CONFIG_H -DLIBARCHIVE_STATIC -D__LIBARCHIVE_ENABLE_VISIBILITY \
-  $(pkg-config --cflags mbedtls/mbedcrypto) \
-  $(pkg-config --cflags zlib/z) \
-  $(pkg-config --cflags zstd) \
-  $(pkg-config --cflags xz/lzma) \
+  $(pkg-config --cflags mbedtls/mbedcrypto zlib/z zstd xz/lzma) \
   -cflags $cflags -include "$BUILD_DEPS/mbedtls/include/mbedtls/compat-2.x.h" -- \
   archive.c *.c -lc
 lib="$PWD/$(zigi lib archive)"
@@ -41,10 +38,7 @@ libfe="$PWD/$(zigi lib archive_fe)"
 ldflags="
 $libfe
 $lib
-$(pkg-config --libs mbedtls/mbedcrypto)
-$(pkg-config --libs zlib/z)
-$(pkg-config --libs zstd)
-$(pkg-config --libs xz/lzma)
+$(pkg-config --libs mbedtls/mbedcrypto zlib/z zstd xz/lzma)
 -lc
 "
 

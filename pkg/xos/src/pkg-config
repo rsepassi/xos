@@ -3,7 +3,6 @@
 depsdir=${PC_DEPS_DIR:-$BUILD_DEPS}
 include_libs=0
 include_cflags=0
-pkg=""
 
 gen_pkg_config() {
   lib=$1
@@ -60,48 +59,52 @@ do
     exit 1
     ;;
   *)
-    pkg=$1
+    pkgs="$@"
+    break
     ;;
   esac
   shift
 done
 
-lib=$(echo "$pkg/" | cut -d'/' -f2)
-if [ -z "$lib" ]
-then
-  lib=$pkg
-else
-  pkg=$(echo "$pkg/" | cut -d'/' -f1)
-fi
+for pkg in $pkgs
+do
+  lib=$(echo "$pkg/" | cut -d'/' -f2)
+  if [ -z "$lib" ]
+  then
+    lib=$pkg
+  else
+    pkg=$(echo "$pkg/" | cut -d'/' -f1)
+  fi
 
-pc="$depsdir/$pkg/pkgconfig/$lib.pc"
-if [ ! -f "$pc" ]
-then
-  >&2 echo "pkg-config: pc file does not exist at $pc"
-  exit 1
-fi
+  pc="$depsdir/$pkg/pkgconfig/$lib.pc"
+  if [ ! -f "$pc" ]
+  then
+    >&2 echo "pkg-config: pc file does not exist at $pc"
+    exit 1
+  fi
 
-rootdir="$depsdir/$pkg"
-while IFS= read -r line; do
-  case $line in
-    "Cflags:"*)
-      [ "$include_cflags" = 1 ] && eval "echo ${line#Cflags:}"
-      ;;
-    "Libs:"*)
-      [ "$include_libs" = 1 ] && eval "echo ${line#Libs:}"
-      ;;
-    "Requires:"*)
-      pc_flags=""
-      [ "$include_cflags" = 1 ] && pc_flags="$pc_flags --cflags"
-      [ "$include_libs" = 1 ] && pc_flags="$pc_flags --libs"
-      reqs=${line#Requires: }
-      for req in $reqs
-      do
-        PC_DEPS_DIR="$(realpath "$rootdir")/../deps" pkg-config $pc_flags $req
-      done
-      ;;
-    *)
-      # ignore
-      ;;
-  esac
-done < "$pc"
+  rootdir="$depsdir/$pkg"
+  while IFS= read -r line; do
+    case $line in
+      "Cflags:"*)
+        [ "$include_cflags" = 1 ] && eval "echo ${line#Cflags:}"
+        ;;
+      "Libs:"*)
+        [ "$include_libs" = 1 ] && eval "echo ${line#Libs:}"
+        ;;
+      "Requires:"*)
+        pc_flags=""
+        [ "$include_cflags" = 1 ] && pc_flags="$pc_flags --cflags"
+        [ "$include_libs" = 1 ] && pc_flags="$pc_flags --libs"
+        reqs=${line#Requires:}
+        for req in $reqs
+        do
+          PC_DEPS_DIR="$(realpath "$rootdir")/../deps" pkg-config $pc_flags $req
+        done
+        ;;
+      *)
+        # ignore
+        ;;
+    esac
+  done < "$pc"
+done

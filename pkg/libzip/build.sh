@@ -3,7 +3,7 @@ need zstd
 need xz
 need mbedtls
 
-url="https://libzip.org/download/libzip-1.10.1.tar.xz"
+url="http://slackware.cs.utah.edu/pub/slackware/slackware-current/source/l/libzip/libzip-1.10.1.tar.xz"
 hash="dc3c8d5b4c8bbd09626864f6bcf93de701540f761d76b85d7c7d710f4bd90318"
 file="libzip.tar.xz"
 src=$(fetch_untar "$url" "$file" "$hash")
@@ -55,20 +55,14 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   -I. -Ilib \
   zip.c lib/*.c \
   $cflags \
-  $(pkg-config --cflags xz/lzma) \
-  $(pkg-config --cflags mbedtls) \
-  $(pkg-config --cflags zstd) \
-  $(pkg-config --cflags zlib/z) \
+  $(pkg-config --cflags xz/lzma mbedtls/mbedcrypto zstd zlib/z) \
   -lc
 
 zig build-exe -target $TARGET -O $OPT_ZIG \
   -I. -Ilib \
   zip.c src/ziptool.c \
   $(zigi lib zip) \
-  $(pkg-config --libs xz/lzma) \
-  $(pkg-config --libs mbedtls/mbedcrypto) \
-  $(pkg-config --libs zstd) \
-  $(pkg-config --libs zlib/z) \
+  $(pkg-config --libs xz/lzma mbedtls/mbedcrypto zstd zlib/z) \
   $ldflags -lc
 
 cd "$BUILD_OUT"
