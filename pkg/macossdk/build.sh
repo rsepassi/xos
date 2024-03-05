@@ -63,6 +63,7 @@ cp -RL $frameworks/AVFAudio.framework ./Frameworks/AVFAudio.framework
 
 # Graphics frameworks
 cp -RL $frameworks/Metal.framework ./Frameworks/Metal.framework
+cp -RL $frameworks/MetalKit.framework ./Frameworks/MetalKit.framework
 cp -RL $frameworks/OpenGL.framework ./Frameworks/OpenGL.framework
 cp -RL $frameworks/CoreGraphics.framework ./Frameworks/CoreGraphics.framework
 cp -RL $frameworks/IOSurface.framework ./Frameworks/IOSurface.framework
