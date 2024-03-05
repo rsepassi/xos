@@ -1,6 +1,3 @@
->&2 echo "sokol build still in development"
-exit 1
-
 url="https://api.github.com/repos/floooh/sokol/tarball/55dff3d"
 hash="8ab0cf0fbe1579002f6eb04a0612e628c6bdf7ab6416b092134012ba9e73717d"
 file="sokol.tar.gz"
@@ -12,7 +9,67 @@ hash="6e2341fbdc9aff0d99e9938bcdba8bb8a8b3c51207846d20d6a2668d5d718a5d"
 file="nuklear.h"
 fetch "$url" "$file" "$hash"
 
-cat <<EOF > sokol.c
+mkdir -p include/nuklear
+ln -s "$BUILD_DEPS/nuklear.h" include/nuklear
+
+sokol_file="sokol.c"
+if [ "$TARGET_OS" = "linux" ]
+then
+  # TODO: package up
+  ln -s /usr/include/GLES3 include
+  ln -s /usr/include/KHR include
+  ln -s /usr/include/X11 include
+  ln -s /usr/include/EGL include
+  cflags="-DSOKOL_GLES3"
+  ldflags="
+  -L/usr/lib
+  -lGL -lglfw -lEGL -lX11 -lXi -lXcursor
+  "
+elif [ "$TARGET_OS" = "macos" ]
+then
+  need macossdk
+  sdk="$BUILD_DEPS/macossdk/sdk"
+  ln -s $sdk/usr/include/libDER include
+  ln -s $sdk/usr/include/cups include
+  cflags="-DSOKOL_METAL -F$sdk/System/Library/Frameworks -L$sdk/usr/lib"
+  sokol_file="sokol.m"
+  frameworks="
+  Metal
+  MetalKit
+  Cocoa
+  "
+  frameworks_plus="
+  AppKit
+  CoreData
+  ApplicationServices
+  Foundation
+  ColorSync
+  CoreGraphics
+  CoreServices
+  CoreText
+  CoreFoundation
+  CFNetwork
+  ImageIO
+  QuartzCore
+  CoreImage
+  CoreVideo
+  "
+  ldflags="-lobjc"
+  for f in $frameworks
+  do
+    ldflags="$ldflags -framework $f"
+  done
+  for f in $frameworks_plus
+  do
+    ldflags="$ldflags -framework $f"
+  done
+elif [ "$TARGET_OS" = "windows" ]
+then
+  cflags="-DSOKOL_D3D11"
+  ldflags="-lkernel32 -luser32 -lshell32 -ldxgi -ld3d11 -lole32 -lgdi32"
+fi
+
+cat <<EOF > $sokol_file
 #define SOKOL_IMPL
 #define SOKOL_WIN32_FORCE_MAIN
 #include "sokol_app.h"
@@ -41,38 +98,10 @@ cat <<EOF > sokol.c
 #include "util/sokol_nuklear.h"
 EOF
 
-mkdir -p include/nuklear
-ln -s "$BUILD_DEPS/nuklear.h" include/nuklear
-
-if [ "$TARGET_OS" = "linux" ]
-then
-  # TODO: package up
-  ln -s /usr/include/GLES3 include
-  ln -s /usr/include/KHR include
-  ln -s /usr/include/X11 include
-  ln -s /usr/include/EGL include
-  cflags="-DSOKOL_GLES3"
-  ldflags="
-  -L/usr/lib
-  -lGL -lglfw -lEGL -lX11 -lXi -lXcursor
-  "
-elif [ "$TARGET_OS" = "macos" ]
-then
-  # TODO: fix, not working yet
-  need macossdk
-  sdk="$BUILD_DEPS/macossdk/sdk"
-  ln -s $sdk/usr/include/libDER include
-  cflags="-DSOKOL_METAL -cflags -mmacosx-version-min=13.0 -- -F$sdk/System/Library/Frameworks"
-elif [ "$TARGET_OS" = "windows" ]
-then
-  cflags="-DSOKOL_D3D11"
-  ldflags="-lkernel32 -luser32 -lshell32 -ldxgi -ld3d11 -lole32 -lgdi32"
-fi
-
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -Iinclude \
   $cflags \
-  sokol.c \
+  $sokol_file \
   -lc
 
 zig build-exe -target $TARGET -O $OPT_ZIG \
