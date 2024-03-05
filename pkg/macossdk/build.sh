@@ -1,7 +1,7 @@
 if [ "$1" != "local" ]
 then
-  url="https://github.com/rsepassi/xos/releases/download/macos-sdk-14.2-v4/macossdk.tar.gz"
-  hash="c5737ed0c523b7d495ddc79660440ceedf6a2cc4cfdcb9e9f0438c1c74ade3fe"
+  url="https://github.com/rsepassi/xos/releases/download/macos-sdk-14.2-v5/macossdk.tar.gz"
+  hash="61121dae9a1a7afd3199e43860995093ea40cd0110a4728b2a9546e1c784e99f"
   file="macossdk.tar.gz"
 
   fetch "$url" "$file" "$hash"
@@ -16,109 +16,271 @@ then
   exit 1
 fi
 
-# based on https://github.com/hexops/xcode-frameworks
-
 sdk='/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk'
-frameworks="$sdk/System/Library/Frameworks"
-includes="$sdk/usr/include"
-libs="$sdk/usr/lib"
+sdk_frameworks="$sdk/System/Library/Frameworks"
+sdk_includes="$sdk/usr/include"
+sdk_libs="$sdk/usr/lib"
 
-rm -rf Frameworks/
-rm -rf include/
-rm -rf lib/
+cp -RL $sdk_libs .
+cp -RL $sdk_includes .
 
-mkdir -p ./Frameworks
-cp -RL $includes .
-mkdir -p ./lib
+frameworks="
+AGL.framework
+AVFAudio.framework
+AVFoundation.framework
+AVKit.framework
+AVRouting.framework
+Accelerate.framework
+Accessibility.framework
+Accounts.framework
+AdServices.framework
+AdSupport.framework
+AddressBook.framework
+AppIntents.framework
+AppKit.framework
+AppTrackingTransparency.framework
+AppleScriptKit.framework
+AppleScriptObjC.framework
+ApplicationServices.framework
+AudioToolbox.framework
+AudioUnit.framework
+AudioVideoBridging.framework
+AuthenticationServices.framework
+AutomaticAssessmentConfiguration.framework
+Automator.framework
+BackgroundAssets.framework
+BackgroundTasks.framework
+BusinessChat.framework
+CFNetwork.framework
+CalendarStore.framework
+CallKit.framework
+CarKey.framework
+Carbon.framework
+Charts.framework
+Cinematic.framework
+ClassKit.framework
+CloudKit.framework
+Cocoa.framework
+Collaboration.framework
+ColorSync.framework
+Combine.framework
+Contacts.framework
+ContactsUI.framework
+CoreAudio.framework
+CoreAudioKit.framework
+CoreAudioTypes.framework
+CoreBluetooth.framework
+CoreData.framework
+CoreDisplay.framework
+CoreFoundation.framework
+CoreGraphics.framework
+CoreHaptics.framework
+CoreImage.framework
+CoreLocation.framework
+CoreMIDI.framework
+CoreMIDIServer.framework
+CoreML.framework
+CoreMedia.framework
+CoreMediaIO.framework
+CoreMotion.framework
+CoreServices.framework
+CoreSpotlight.framework
+CoreTelephony.framework
+CoreText.framework
+CoreTransferable.framework
+CoreVideo.framework
+CoreWLAN.framework
+CreateML.framework
+CreateMLComponents.framework
+CryptoKit.framework
+CryptoTokenKit.framework
+DVDPlayback.framework
+DataDetection.framework
+DeveloperToolsSupport.framework
+DeviceActivity.framework
+DeviceCheck.framework
+DirectoryService.framework
+DiscRecording.framework
+DiscRecordingUI.framework
+DiskArbitration.framework
+DockKit.framework
+DriverKit.framework
+EventKit.framework
+ExceptionHandling.framework
+ExecutionPolicy.framework
+ExtensionFoundation.framework
+ExtensionKit.framework
+ExternalAccessory.framework
+FamilyControls.framework
+FileProvider.framework
+FileProviderUI.framework
+FinanceKit.framework
+FinanceKitUI.framework
+FinderSync.framework
+ForceFeedback.framework
+Foundation.framework
+GLKit.framework
+GLUT.framework
+GSS.framework
+GameController.framework
+GameKit.framework
+GameplayKit.framework
+GroupActivities.framework
+HealthKit.framework
+Hypervisor.framework
+ICADevices.framework
+IOBluetooth.framework
+IOBluetoothUI.framework
+IOKit.framework
+IOSurface.framework
+IOUSBHost.framework
+IdentityLookup.framework
+ImageCaptureCore.framework
+ImageIO.framework
+InputMethodKit.framework
+InstallerPlugins.framework
+InstantMessage.framework
+Intents.framework
+IntentsUI.framework
+JavaNativeFoundation.framework
+JavaRuntimeSupport.framework
+JavaScriptCore.framework
+Kerberos.framework
+Kernel.framework
+KernelManagement.framework
+LDAP.framework
+LatentSemanticMapping.framework
+LinkPresentation.framework
+LocalAuthentication.framework
+LocalAuthenticationEmbeddedUI.framework
+MLCompute.framework
+MailKit.framework
+ManagedAppDistribution.framework
+ManagedSettings.framework
+MapKit.framework
+Matter.framework
+MatterSupport.framework
+MediaAccessibility.framework
+MediaLibrary.framework
+MediaPlayer.framework
+MediaToolbox.framework
+Message.framework
+Metal.framework
+MetalFX.framework
+MetalKit.framework
+MetalPerformanceShaders.framework
+MetalPerformanceShadersGraph.framework
+MetricKit.framework
+ModelIO.framework
+MultipeerConnectivity.framework
+MusicKit.framework
+NaturalLanguage.framework
+NearbyInteraction.framework
+NetFS.framework
+Network.framework
+NetworkExtension.framework
+NotificationCenter.framework
+OSAKit.framework
+OSLog.framework
+OpenAL.framework
+OpenCL.framework
+OpenDirectory.framework
+OpenGL.framework
+PCSC.framework
+PDFKit.framework
+PHASE.framework
+ParavirtualizedGraphics.framework
+PassKit.framework
+PencilKit.framework
+Photos.framework
+PhotosUI.framework
+PreferencePanes.framework
+PushKit.framework
+PushToTalk.framework
+QTKit.framework
+Quartz.framework
+QuartzCore.framework
+QuickLook.framework
+QuickLookThumbnailing.framework
+QuickLookUI.framework
+RealityFoundation.framework
+RealityKit.framework
+ReplayKit.framework
+SafariServices.framework
+SafetyKit.framework
+SceneKit.framework
+ScreenCaptureKit.framework
+ScreenSaver.framework
+ScreenTime.framework
+ScriptingBridge.framework
+Security.framework
+SecurityFoundation.framework
+SecurityInterface.framework
+SensitiveContentAnalysis.framework
+SensorKit.framework
+ServiceManagement.framework
+SharedWithYou.framework
+SharedWithYouCore.framework
+ShazamKit.framework
+Social.framework
+SoundAnalysis.framework
+Speech.framework
+SpriteKit.framework
+StoreKit.framework
+SwiftData.framework
+SwiftUI.framework
+Symbols.framework
+SyncServices.framework
+System.framework
+SystemConfiguration.framework
+SystemExtensions.framework
+TWAIN.framework
+TabularData.framework
+Tcl.framework
+ThreadNetwork.framework
+TipKit.framework
+Tk.framework
+UniformTypeIdentifiers.framework
+UserNotifications.framework
+UserNotificationsUI.framework
+VideoDecodeAcceleration.framework
+VideoSubscriberAccount.framework
+VideoToolbox.framework
+Virtualization.framework
+Vision.framework
+VisionKit.framework
+WeatherKit.framework
+WebKit.framework
+WidgetKit.framework
+_AVKit_SwiftUI.framework
+_AppIntents_AppKit.framework
+_AppIntents_SwiftUI.framework
+_AuthenticationServices_SwiftUI.framework
+_CoreData_CloudKit.framework
+_DeviceActivity_SwiftUI.framework
+_GroupActivities_AppKit.framework
+_LocalAuthentication_SwiftUI.framework
+_ManagedAppDistribution_SwiftUI.framework
+_MapKit_SwiftUI.framework
+_MusicKit_SwiftUI.framework
+_PassKit_SwiftUI.framework
+_PhotosUI_SwiftUI.framework
+_QuickLook_SwiftUI.framework
+_SceneKit_SwiftUI.framework
+_SpriteKit_SwiftUI.framework
+_StoreKit_SwiftUI.framework
+_SwiftData_CoreData.framework
+_SwiftData_SwiftUI.framework
+iTunesLibrary.framework
+vecLib.framework
+vmnet.framework
+"
 
-# General includes, removing uncommon or useless ones
-rm -rf ./include/apache2
-
-# General libraries
-mkdir -p lib/
-for l in $libs/*.tbd
+mkdir Frameworks
+for framework in $frameworks
 do
-  cp "$(realpath $l)" ./lib/$(basename $l)
+  cp -RL "$sdk_frameworks/$framework" Frameworks
 done
-
-# General frameworks
-cp -RL $frameworks/CoreFoundation.framework ./Frameworks/CoreFoundation.framework
-cp -RL $frameworks/Foundation.framework ./Frameworks/Foundation.framework
-cp -RL $frameworks/IOKit.framework ./Frameworks/IOKit.framework
-cp -RL $frameworks/Security.framework ./Frameworks/Security.framework
-cp -RL $frameworks/CoreServices.framework ./Frameworks/CoreServices.framework
-cp -RL $frameworks/DiskArbitration.framework ./Frameworks/DiskArbitration.framework
-cp -RL $frameworks/CFNetwork.framework ./Frameworks/CFNetwork.framework
-cp -RL $frameworks/ApplicationServices.framework ./Frameworks/ApplicationServices.framework
-cp -RL $frameworks/ImageIO.framework ./Frameworks/ImageIO.framework
-cp -RL $frameworks/Symbols.framework ./Frameworks/Symbols.framework
-cp -RL $frameworks/SystemConfiguration.framework ./Frameworks/SystemConfiguration.framework
-
-# Audio frameworks
-cp -RL $frameworks/AudioToolbox.framework ./Frameworks/AudioToolbox.framework
-cp -RL $frameworks/CoreAudio.framework ./Frameworks/CoreAudio.framework
-cp -RL $frameworks/CoreAudioTypes.framework ./Frameworks/CoreAudioTypes.framework
-cp -RL $frameworks/AudioUnit.framework ./Frameworks/AudioUnit.framework
-cp -RL $frameworks/AVFAudio.framework ./Frameworks/AVFAudio.framework
-
-# Graphics frameworks
-cp -RL $frameworks/Metal.framework ./Frameworks/Metal.framework
-cp -RL $frameworks/MetalKit.framework ./Frameworks/MetalKit.framework
-cp -RL $frameworks/OpenGL.framework ./Frameworks/OpenGL.framework
-cp -RL $frameworks/CoreGraphics.framework ./Frameworks/CoreGraphics.framework
-cp -RL $frameworks/IOSurface.framework ./Frameworks/IOSurface.framework
-cp -RL $frameworks/QuartzCore.framework ./Frameworks/QuartzCore.framework
-cp -RL $frameworks/CoreImage.framework ./Frameworks/CoreImage.framework
-cp -RL $frameworks/CoreVideo.framework ./Frameworks/CoreVideo.framework
-cp -RL $frameworks/CoreText.framework ./Frameworks/CoreText.framework
-cp -RL $frameworks/ColorSync.framework ./Frameworks/ColorSync.framework
-
-# Input/Windowing frameworks & deps
-cp -RL $frameworks/Carbon.framework ./Frameworks/Carbon.framework
-cp -RL $frameworks/Cocoa.framework ./Frameworks/Cocoa.framework
-cp -RL $frameworks/AppKit.framework ./Frameworks/AppKit.framework
-cp -RL $frameworks/CoreData.framework ./Frameworks/CoreData.framework
-cp -RL $frameworks/CloudKit.framework ./Frameworks/CloudKit.framework
-cp -RL $frameworks/CoreLocation.framework ./Frameworks/CoreLocation.framework
-cp -RL $frameworks/Kernel.framework ./Frameworks/Kernel.framework
-cp -RL $frameworks/GameController.framework ./Frameworks/GameController.framework
-cp -RL $frameworks/WebKit.framework ./Frameworks/WebKit.framework
-
-cp -RL $frameworks/AVFoundation.framework ./Frameworks/AVFoundation.framework
-cp -RL $frameworks/ForceFeedback.framework ./Frameworks/ForceFeedback.framework
-cp -RL $frameworks/CoreMIDI.framework ./Frameworks/CoreMIDI.framework
-
-# Remove unnecessary files
-find . | grep '\.swiftmodule' | xargs rm -rf
-rm -rf Frameworks/IOKit.framework/Versions/A/Headers/ndrvsupport
-rm -rf Frameworks/IOKit.framework/Versions/A/Headers/pwr_mgt
-rm -rf Frameworks/IOKit.framework/Versions/A/Headers/scsi
-rm -rf Frameworks/IOKit.framework/Versions/A/Headers/firewire
-rm -rf Frameworks/IOKit.framework/Versions/A/Headers/storage
-rm -rf Frameworks/IOKit.framework/Versions/A/Headers/usb
-
-# Trim large frameworks
-
-# 4.9M -> 1M
-cat ./Frameworks/Foundation.framework/Versions/C/Foundation.tbd | grep -v 'libswiftFoundation' > tmp
-mv tmp ./Frameworks/Foundation.framework/Versions/C/Foundation.tbd
-
-# 13M -> 368K
-find ./Frameworks/Kernel.framework -type f | grep -v IOKit/hidsystem | xargs rm -rf
-
-# 29M -> 28M
-find . | grep '\.apinotes' | xargs rm -rf
-find . | grep '\.r' | xargs rm -rf
-find . | grep '\.modulemap' | xargs rm -rf
-
-# 668K
-rm ./Frameworks/OpenGL.framework/Versions/A/Libraries/libLLVMContainer.tbd
-
-# 672K
-rm ./Frameworks/OpenGL.framework/Versions/A/Libraries/3425AMD/libLLVMContainer.tbd
-
-# 444K
-rm ./Frameworks/CloudKit.framework/Versions/A/CloudKit.tbd
 
 out="$BUILD_OUT/sdk"
 mkdir -p "$out/System/Library" "$out/usr"
