@@ -20,6 +20,7 @@ Args (or env vars):
   PKG= pkg/ directory path, defaults to ./pkg
   DRY={1,0} if 1, log info and exit
   DEBUG={1,0} if 1, build script -x enabled
+  DEV={1,0} if 1, allows for dev options
 EOF
 }
 
@@ -148,6 +149,8 @@ get_host_triple() {
 # script start
 
 [ "$#" = 0 ] && { usage; exit 1; }
+[ "$#" = 1 ] && [ "$1" = "-h" ] && { usage; exit 1; }
+[ "$#" = 1 ] && [ "$1" = "--help" ] && { usage; exit 1; }
 [ "$DEBUG" = 1 ] && set -x
 
 # ensure we're running under xos sh
@@ -180,6 +183,11 @@ do
   shift
 done
 # "$@" is for the pkg build
+
+if [ "$DEV" = 1 ] || [ "$XOS_DEV" = 1 ]
+then
+  export XOS_DEV=1
+fi
 
 # get directories
 export XOS_BUILD_ROOT="$(get_buildroot)"
@@ -262,10 +270,19 @@ pkgid="$(echo "$pkgid_text" | sha256sum | cut -d ' ' -f1)"
 pkgid_prefix=$(echo $pkgid | cut -c1-2)
 BUILD_OUT="$XOS_BUILD_CACHE/pkg/$pkgid_prefix/$pkgid"
 
+if [ "$XOS_DEV" != 1 ] && [ -f "$BUILD_PKG/dev_volatile" ]
+then
+  >&2 echo "warn: $pkg marked volatile, but DEV != 1, consider unmarking"
+fi
+
 # dependencies
 if [ -e "$BUILD_OUT/.ok" ]
 then
-  if [ -e "$BUILD_OUT/dyndeps.txt" ] && stale_dyndeps "$BUILD_OUT/dyndeps.txt"
+  if [ "$XOS_DEV" = 1 ] && [ -f "$BUILD_PKG/dev_volatile" ]
+  then
+    >&2 echo "DEV=1 and $pkg marked volatile, rebuilding"
+    rebuild=1
+  elif [ -e "$BUILD_OUT/dyndeps.txt" ] && stale_dyndeps "$BUILD_OUT/dyndeps.txt"
   then
     rebuild=1
   elif [ -e "$BUILD_OUT/dyntooldeps.txt" ] && stale_dyntooldeps "$BUILD_OUT/dyntooldeps.txt"
@@ -280,7 +297,7 @@ fi
 
 if [ "$DRY" = 1 ] || [ "$XOS_DRY" = 1 ]
 then
-  XOS_DRY=1
+  export XOS_DRY=1
   >&2 cat <<EOF
 ---
 build $ARGS
@@ -357,6 +374,7 @@ EOF
       XDG_CACHE_HOME="$XOS_BUILD_CACHE/xdg" \
       XOS_SH=1 \
       XOS_DRY="$XOS_DRY" \
+      XOS_DEV="$XOS_DEV" \
       XOS_ROOT="$XOS_ROOT" \
       XOS_PKG_ROOT="$XOS_PKG_ROOT" \
       XOS_BUILD_ROOT="$XOS_BUILD_ROOT" \
