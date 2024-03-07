@@ -33,7 +33,6 @@ then
   need winsdk
   sdk="$BUILD_DEPS/winsdk"
   cflags="
-  -DWEBVIEW_MSWEBVIEW2_BUILTIN_IMPL=0
   -I$sdk/WebView2/build/native/include
   -I$sdk/sdk-cpp/c/Include/10.0.22621.0/winrt
   "
