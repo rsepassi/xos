@@ -1,11 +1,10 @@
 url="https://github.com/libuv/libuv/archive/refs/tags/v1.48.0.tar.gz"
 hash="8c253adb0f800926a6cbd1c6576abae0bc8eb86a4f891049b72f9e5b7dc58f33"
 file="libuv.tar.gz"
-
-fetch "$url" "$file" "$hash"
-src=$(mktemp -d)
-untar "$BUILD_DEPS/$file" "$src"
+src=$(fetch_untar "$url" "$file" "$hash")
 cd $src
+
+patch -p1 < "$BUILD_PKG/ctty.patch"
 
 unix_files="
 src/unix/async.c

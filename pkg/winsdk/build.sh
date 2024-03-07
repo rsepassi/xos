@@ -12,6 +12,7 @@ cd "$BUILD_OUT"
 mkdir sdk-cpp
 cd sdk-cpp
 unzip "$BUILD_DEPS/cpp.zip"
+sed -i 's/DriverSpecs/driverspecs/' c/Include/10.0.22621.0/shared/kernelspecs.h
 
 cd "$BUILD_OUT"
 mkdir WebView2

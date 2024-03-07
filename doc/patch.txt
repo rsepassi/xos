@@ -1,0 +1,31 @@
+How to create and apply a patch
+
+Example: libuv
+
+First find and extract the source code
+
+# id=$(build libuv)
+# builddir="build/cache/pkg/$(echo $id | cut -c1-2)/$id"
+# mkdir /tmp/libuv
+# tar xf "$builddir/deps/libuv.tar.gz" -C /tmp/libuv --strip-components=1
+# cd /tmp/libuv/
+
+Prepare the patch environment with git
+
+# git init; git add .; git commit -m "base"
+
+Editing
+* In the packages build.sh, point the source directory at your tmp directory
+  e.g. in pkg/libuv/build.sh set src=/tmp/libuv
+* touch pkg/libuv/dev_volatile
+* Run build with DEV=1
+* Edit, build, edit, build
+
+Create patch file
+
+# git diff > my.patch
+# mv my.patch $MY_PKG_PATH/pkg/libuv
+
+Use patch in build.sh
+
+patch -p1 < "$BUILD_PKG/my.patch"
