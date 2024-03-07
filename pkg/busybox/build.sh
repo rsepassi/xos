@@ -143,4 +143,4 @@ done
 echo "linking..."
 mkdir -p $BUILD_OUT/bin
 cc --target=$TARGET -s -O$OPT -o $BUILD_OUT/bin/$(zigi exe busybox) \
-  $(echo $objs) $ldflags -lc
+  $objs $ldflags -lc

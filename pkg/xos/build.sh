@@ -11,7 +11,7 @@ mkdir -p $tools
 
 # zig+busybox
 zig="$BUILD_DEPS/zig"
-bb="$BUILD_DEPS/busybox/bin/busybox"
+bb="$BUILD_DEPS/busybox/bin/$(zigi exe busybox)"
 if [ "$TARGET_OS" = "windows" ]
 then
   exe=".exe"
@@ -105,7 +105,7 @@ patch
 "
 for tool in $bbtools
 do
-  ln -s busybox "$tools/$tool"
+  ln -s $(zigi exe busybox) "$tools/$tool"
 done
 
 # nproc
@@ -144,11 +144,10 @@ then
   if [ "$TARGET_OS" = "windows" ]
   then
     needtool zip
-    "$BUILD_TOOLDEPS/zip/bin/zip" xos.zip $(find xos -type f)
+    "$BUILD_TOOLDEPS/zip/bin/zip" -r --symlinks xos.zip xos
   else
     tar czf xos.tar.gz xos
   fi
-  rm -rf ./xos
 else
   cd "$out"
   mv ./* ./.xos "$BUILD_OUT"
