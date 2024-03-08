@@ -54,12 +54,12 @@ then
   CoreImage
   CoreVideo
   "
+  all_frameworks="
+  $frameworks
+  $frameworks_plus
+  "
   ldflags="-lobjc"
-  for f in $frameworks
-  do
-    ldflags="$ldflags -framework $f"
-  done
-  for f in $frameworks_plus
+  for f in $all_frameworks
   do
     ldflags="$ldflags -framework $f"
   done
