@@ -11,3 +11,4 @@ cd "$BUILD_OUT"
 mkdir include lib
 mv "$src/sds.h" "$src/sdsalloc.h" include
 mv "$src/$(zigi lib sds)" lib
+pkg-config --gendefault sds
