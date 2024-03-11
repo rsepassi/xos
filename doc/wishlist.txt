@@ -49,6 +49,5 @@ windows:
 * termbox2
 * bestline
 * entr
-* zip
 * rust (zig issue)
 * lowdown
