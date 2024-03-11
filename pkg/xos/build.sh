@@ -143,8 +143,8 @@ then
   cd "$BUILD_OUT"
   if [ "$TARGET_OS" = "windows" ]
   then
-    needtool zip
-    "$BUILD_TOOLDEPS/zip/bin/zip" -r --symlinks xos.zip xos
+    needtool libarchive
+    "$BUILD_TOOLDEPS/libarchive/bin/bsdtar" -c --format zip -f xos.zip xos
   else
     tar czf xos.tar.gz xos
   fi
