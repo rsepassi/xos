@@ -3,7 +3,7 @@ need libuv
 need xglob
 need sds
 
-if [ "$DEBUG" = 1 ]
+if [ "$OPT_ZIG" = "Debug" ]
 then
   cflags="-DDEBUG"
 fi
@@ -23,7 +23,8 @@ usagestr="$(cstr "$BUILD_PKG/usage.txt")"
 sed -i "s^@@IOWREN@@^$iowren^" wrensh.c
 sed -i "s^@@WRENSHUSAGE@@^$usagestr^" wrensh.c
 
-zig build-exe -target $TARGET -O $OPT_ZIG \
+zig cc -target $TARGET -O$OPT \
+  -o $(zigi exe wrensh) \
   wrensh.c \
   $cflags \
   $(pkg-config --cflags --libs wren libuv/uv xglob sds) \

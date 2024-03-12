@@ -1,11 +1,6 @@
-class Trap {
-  construct new(ptr) {
-    _ptr = ptr
-  }
-
-  cancel() {
-    IO.trap_cancel_(_ptr)
-  }
+foreign class Trap {
+  construct new(signal, fn) {}
+  foreign cancel()
 }
 
 class IO {
@@ -55,15 +50,13 @@ class IO {
   }
 
   static trap(sig, fn) {
-    return Trap.new(trap_(sig, fn))
+    return Trap.new(sig, fn)
   }
 
   foreign static glob(pattern)
   foreign static glob(pattern, dir)
 
   foreign static exit(c)
-  foreign static trap_(sig, fn)
-  foreign static trap_cancel_(ptr)
 
   // private
   foreign static read_(f)
