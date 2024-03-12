@@ -11,7 +11,8 @@ touch lmdb.c
 zig build-lib -target $TARGET -O $OPT_ZIG lmdb.c mdb.c midl.c -lc
 
 # install
-out=$BUILD_OUT
-mkdir -p $out/lib $out/include
-cp $src/lmdb.h $out/include
-cp $src/$(zigi lib lmdb) $out/lib
+cd "$BUILD_OUT"
+mkdir lib include
+cp $src/lmdb.h include
+cp $src/$(zigi lib lmdb) lib
+pkg-config --gendefault lmdb
