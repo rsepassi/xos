@@ -161,6 +161,7 @@ void wrenshReadCb(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf) {
 
   if (nread < 0) {
     uv_read_stop(stream);
+    uv_close((uv_handle_t*)stream, NULL);
     wrenshReadFinalize(state);
     return;
   }
@@ -482,6 +483,7 @@ void wrenshRunStdoutRead(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf
   if (nread < 0) {
     DLOG("wrenshRunStdoutRead done state=%p", state);
     uv_read_stop(stream);
+    uv_close((uv_handle_t*)stream, NULL);
     return;
   }
 
@@ -689,7 +691,7 @@ WrenVM* setupWren(Ctx* ctx) {
   ctx->wren_call_val = wrenMakeCallHandle(vm, "call(_)");
 
   CHECK(wrenInterpret(vm, "io", io_src) == WREN_RESULT_SUCCESS, "bad io src");
-  CHECK(wrenInterpret(vm, "main", "import \"io\" for IO") == WREN_RESULT_SUCCESS);
+  CHECK(wrenInterpret(vm, "main", "import \"io\" for IO, X") == WREN_RESULT_SUCCESS);
 
   return vm;
 }
@@ -804,12 +806,14 @@ int main(int argc, char** argv) {
     live = uv_run(loop, UV_RUN_ONCE);
   }
   uv_timer_stop(&ticker);
+  uv_close((uv_handle_t*)&ticker, NULL);
   DLOG("uv loop done, exiting");
 
   // Cleanup
-  // if (file_src) free(user_src);
-  // cleanupWren(wren);
-  // cleanupUV(&ctx);
+  if (file_src) free(user_src);
+  cleanupWren(wren);
+  cleanupUV(&ctx);
+  cleanup_garbage(&ctx);
 
   return 0;
 }

@@ -3,6 +3,53 @@ foreign class Trap {
   foreign cancel()
 }
 
+class AsyncValue {
+  construct new() {
+    _done = false
+  }
+
+  err=(err) {
+    if (!(err is Null)) {
+      _done = true
+      _err = err
+    }
+  }
+  val=(val) {
+    _done = true
+    _val = val
+  }
+
+  await() {
+    while (!_done) Fiber.yield()
+    if (!(_err is Null)) Fiber.abort(_err)
+    return _val
+  }
+}
+
+class X_ {
+  construct new() {}
+
+  async(fn) {
+    var val = AsyncValue.new()
+    var parent = Fiber.current
+    var f = Fiber.new {
+      val.val = fn.call()
+      parent.transfer()
+    }
+    val.err = f.try()
+    return val
+  }
+
+  await(vals) {
+    var outs = []
+    for (v in vals) {
+      outs.add(v.await())
+    }
+    return outs
+  }
+}
+var X = X_.new()
+
 class IO {
   foreign static arg(i)
   foreign static argc()
@@ -20,9 +67,7 @@ class IO {
   }
 
   static writeln(s) {
-    write_(Fiber.current, s)
-    Fiber.yield()
-    write_(Fiber.current, "\n")
+    write_(Fiber.current, "%(s)\n")
     Fiber.yield()
   }
 
@@ -30,6 +75,16 @@ class IO {
 
   foreign static cwd()
   foreign static chdir(dir)
+
+  static runs(cmd) {
+    run_(Fiber.current, cmd.split(" "))
+    return Fiber.yield()
+  }
+
+  static runs(cmd, env) {
+    run_(Fiber.current, cmd.split(" "), env)
+    return Fiber.yield()
+  }
 
   static run(argv) {
     run_(Fiber.current, argv)
