@@ -77,12 +77,12 @@ class IO {
   foreign static chdir(dir)
 
   static runs(cmd) {
-    run_(Fiber.current, cmd.split(" "))
+    run(cmd.split(" "))
     return Fiber.yield()
   }
 
   static runs(cmd, env) {
-    run_(Fiber.current, cmd.split(" "), env)
+    run(cmd.split(" "), env)
     return Fiber.yield()
   }
 
@@ -92,7 +92,14 @@ class IO {
   }
 
   static run(argv, env) {
-    run_(Fiber.current, argv, env)
+    var envl = env
+    if (env is Map) {
+      envl = []
+      for (x in env) {
+        envl.add("%(x.key)=%(x.value)")
+      }
+    }
+    run_(Fiber.current, argv, envl)
     return Fiber.yield()
   }
 
