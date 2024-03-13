@@ -429,9 +429,9 @@ void wrenshExec(WrenVM* vm) {
       const char* warg = wrenGetSlotString(vm, 3);
       env[i] = warg;
     }
-    execve(path, argv, env);
+    execve(path, (char* const*)argv, (char* const*)env);
   } else {
-    execvp(path, argv);
+    execvp(path, (char* const*)argv);
   }
 
   WREN_CHECK(false, "exec failed");
@@ -441,33 +441,57 @@ typedef struct {
   WrenHandle* fiber;
   WrenVM* vm;
   uv_process_t handle;
+  int64_t exit_status;
+  bool process_done;
+
+  // If reading from stdout
   uv_pipe_t stdout_pipe;
   char readbuf[1 << 16];
   sds stdout_str;
+  bool stdout_done;
+
+  // If redirecting to a file
+  int stdout_fd;
+  int stderr_fd;
+
   Node gc;
 } runstate;
 
-void wrenshRunExitCb(uv_process_t* process, int64_t exit_status, int term_signal) {
-  runstate* state = (runstate*)uv_handle_get_data((uv_handle_t*)process);
-  DLOG("wrenshRun exit code=%ld state=%p vm=%p", exit_status, state, state->vm);
-
+void wrenshRunFinalize(runstate* state) {
   wrenEnsureSlots(state->vm, 2);
   wrenSetSlotHandle(state->vm, 0, state->fiber);
   Ctx* ctx = (Ctx*)wrenGetUserData(state->vm);
-  if (exit_status == 0) {
-    wrenSetSlotBytes(state->vm, 1, state->stdout_str, sdslen(state->stdout_str));
-    QCHECK(wrenCall(state->vm, ctx->wren_tx_val) == WREN_RESULT_SUCCESS);
+  if (state->exit_status == 0) {
+    if (state->stdout_fd == -1) {
+      wrenSetSlotBytes(state->vm, 1, state->stdout_str, sdslen(state->stdout_str));
+      QCHECK(wrenCall(state->vm, ctx->wren_tx_val) == WREN_RESULT_SUCCESS);
+    } else {
+      QCHECK(wrenCall(state->vm, ctx->wren_tx) == WREN_RESULT_SUCCESS);
+    }
   } else {
-    sprintf(wrenErrorStr, "process failed with code=%ld", exit_status);
+    sprintf(wrenErrorStr, "process failed with code=%ld", state->exit_status);
     wrenSetSlotString(state->vm, 1, wrenErrorStr);
     QCHECK(wrenCall(state->vm, ctx->wren_tx_err) == WREN_RESULT_SUCCESS);
   }
 
   wrenReleaseHandle(state->vm, state->fiber);
   sdsfree(state->stdout_str);
-  uv_close((uv_handle_t*)process, NULL);
+  uv_close((uv_handle_t*)&state->handle, NULL);
+  if (state->stdout_fd > 0) close(state->stdout_fd);
+  if (state->stderr_fd > 0) close(state->stderr_fd);
 
   add_garbage(ctx, &state->gc);
+}
+
+void wrenshRunExitCb(uv_process_t* process, int64_t exit_status, int term_signal) {
+  runstate* state = (runstate*)uv_handle_get_data((uv_handle_t*)process);
+  DLOG("wrenshRun exit code=%ld state=%p vm=%p", exit_status, state, state->vm);
+  state->process_done = true;
+  state->exit_status = exit_status;
+
+  if (state->process_done && (state->stdout_fd > 0 || state->stdout_done))
+    wrenshRunFinalize(state);
+
   DLOG("wrenshRunExitCb done");
 }
 
@@ -478,12 +502,15 @@ void wrenshRunStdoutAlloc(uv_handle_t* process, size_t suggested_size, uv_buf_t*
 }
 
 void wrenshRunStdoutRead(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
-  DLOG("wrenshRunStdoutRead");
+  DLOG("wrenshRunStdoutRead nread=%zd", nread);
   runstate* state = (runstate*)uv_handle_get_data((uv_handle_t*)stream);
   if (nread < 0) {
     DLOG("wrenshRunStdoutRead done state=%p", state);
+    state->stdout_done = true;
     uv_read_stop(stream);
     uv_close((uv_handle_t*)stream, NULL);
+    if (state->process_done && (state->stdout_fd > 0 || state->stdout_done))
+      wrenshRunFinalize(state);
     return;
   }
 
@@ -512,10 +539,11 @@ void wrenshRun(WrenVM* vm) {
   dbgArgs(argc, (char**)args);
 
   // Read env
+  WrenType envt = wrenGetSlotType(vm, 3);
+  bool has_env = envt != WREN_TYPE_NULL;
   char** env = NULL;
-  if (nargs == 4) {
-    WrenType t = wrenGetSlotType(vm, 3);
-    WREN_CHECK(t == WREN_TYPE_LIST, "run env must be a list");
+  if (has_env) {
+    WREN_CHECK(envt == WREN_TYPE_LIST, "run env must be a list");
     int envc = wrenGetListCount(vm, 3);
     env = malloc(envc * sizeof(env));
     CHECK(env);
@@ -526,8 +554,15 @@ void wrenshRun(WrenVM* vm) {
     env[envc] = NULL;
   }
 
+  // Redirects
+  WrenType stdoutt = wrenGetSlotType(vm, 4);
+  bool stdout_redir = stdoutt != WREN_TYPE_NULL;
+  WrenType stderrt = wrenGetSlotType(vm, 5);
+  bool stderr_redir = stderrt != WREN_TYPE_NULL;
+  DLOG("stdout_redir=%d stderr_redir=%d", stdout_redir, stderr_redir);
+
   // Alloc runstate
-  const runstate state_ = {.vm = vm, .fiber = fiber, .stdout_str = sdsempty()};
+  const runstate state_ = {.vm = vm, .fiber = fiber, .stdout_str = sdsempty(), .stdout_fd = -1, .stderr_fd = -1 };
   runstate* state = malloc(sizeof(runstate));
   CHECK(state);
   *state = state_;
@@ -537,13 +572,29 @@ void wrenshRun(WrenVM* vm) {
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
   uv_stdio_container_t stdio[3];
   stdio[0].flags = UV_IGNORE;
-  stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  stdio[1].data.stream = (uv_stream_t*)&state->stdout_pipe;
-  uv_pipe_init(ctx->loop, &state->stdout_pipe, 0);
-  uv_handle_set_data((uv_handle_t*)&state->stdout_pipe, state);
-  stdio[2].flags = UV_INHERIT_FD;
-  stdio[2].data.fd = STDERR_FILENO;
-  DCHECK(state->vm == vm);
+  if (stdout_redir) {
+    FILE* f = fopen(wrenGetSlotString(vm, 4), "w");
+    WREN_CHECK(f, "stdout redirect bad file");
+    state->stdout_fd = fileno(f);
+    stdio[1].flags = UV_INHERIT_FD;
+    stdio[1].data.fd = state->stdout_fd;
+  } else {
+    stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+    stdio[1].data.stream = (uv_stream_t*)&state->stdout_pipe;
+    uv_pipe_init(ctx->loop, &state->stdout_pipe, 0);
+    uv_handle_set_data((uv_handle_t*)&state->stdout_pipe, state);
+  }
+  if (stderr_redir) {
+    fopen(wrenGetSlotString(vm, 5), "w");
+    FILE* f = fopen(wrenGetSlotString(vm, 4), "w");
+    WREN_CHECK(f, "stderr redirect bad file");
+    state->stderr_fd = fileno(f);
+    stdio[2].flags = UV_INHERIT_FD;
+    stdio[2].data.fd = state->stderr_fd;
+  } else {
+    stdio[2].flags = UV_INHERIT_FD;
+    stdio[2].data.fd = STDERR_FILENO;
+  }
 
   // Setup process options
   uv_process_options_t opts = {0};
@@ -562,7 +613,9 @@ void wrenshRun(WrenVM* vm) {
   if (env != NULL) free(env);
 
   // Start stdout read
-  UV_CHECK(uv_read_start((uv_stream_t*)&state->stdout_pipe, wrenshRunStdoutAlloc, wrenshRunStdoutRead))
+  if (!stdout_redir) {
+    UV_CHECK(uv_read_start((uv_stream_t*)&state->stdout_pipe, wrenshRunStdoutAlloc, wrenshRunStdoutRead))
+  }
 }
 
 void wrenshChdir(WrenVM* vm) {
@@ -664,8 +717,7 @@ WrenForeignMethodFn bindForeignMethod(
   if (!strcmp(signature, "exec(_,_)")) return wrenshExec;
   if (!strcmp(signature, "glob(_)")) return wrenshGlob;
   if (!strcmp(signature, "glob(_,_)")) return wrenshGlob;
-  if (!strcmp(signature, "run_(_,_)")) return wrenshRun;
-  if (!strcmp(signature, "run_(_,_,_)")) return wrenshRun;
+  if (!strcmp(signature, "run_(_,_,_,_,_)")) return wrenshRun;
   if (!strcmp(signature, "chdir(_)")) return wrenshChdir;
   if (!strcmp(signature, "cwd()")) return wrenshCwd;
 
@@ -823,7 +875,8 @@ static const char* io_src = \@@IOWREN@@;
 
 // TODO:
 // * read(n), readln
-// * Background process, job control
-// * Redirection
+// * Kill process, process signals
+// * Streams
+// * Redirection >>
 // * -x print all commands
 // * Loading/running other scripts

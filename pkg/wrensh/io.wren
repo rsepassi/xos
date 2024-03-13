@@ -50,6 +50,27 @@ class X_ {
 }
 var X = X_.new()
 
+class ProcessBuilder {
+  construct new(args) {
+    _args = args
+  }
+  env(e) {
+    _env = e
+    return this
+  }
+  stdout(filename) {
+    _stdout = filename
+    return this
+  }
+  stderr(filename) {
+    _stderr = filename
+    return this
+  }
+  run() {
+    return IO.run_wrap_(_args, _env, _stdout, _stderr)
+  }
+}
+
 class IO {
   foreign static arg(i)
   foreign static argc()
@@ -76,31 +97,16 @@ class IO {
   foreign static cwd()
   foreign static chdir(dir)
 
-  static runs(cmd) {
-    run(cmd.split(" "))
-    return Fiber.yield()
-  }
-
-  static runs(cmd, env) {
-    run(cmd.split(" "), env)
-    return Fiber.yield()
+  static Process(args) {
+    return ProcessBuilder.new(args)
   }
 
   static run(argv) {
-    run_(Fiber.current, argv)
-    return Fiber.yield()
+    return run_wrap_(argv, null, null, null)
   }
 
   static run(argv, env) {
-    var envl = env
-    if (env is Map) {
-      envl = []
-      for (x in env) {
-        envl.add("%(x.key)=%(x.value)")
-      }
-    }
-    run_(Fiber.current, argv, envl)
-    return Fiber.yield()
+    return run_wrap_(argv, env, null, null)
   }
 
   foreign static exec(argv)
@@ -124,6 +130,18 @@ class IO {
   foreign static read_(f)
   foreign static write_(f, s)
   foreign static sleep_(f, n)
-  foreign static run_(f, args)
-  foreign static run_(f, args, env)
+  foreign static run_(f, args, env, stdout, stderr)
+
+  static run_wrap_(argv, env, stdout, stderr) {
+    if (argv is String) argv = argv.split(" ")
+    var envl = env
+    if (env is Map) {
+      envl = []
+      for (x in env) {
+        envl.add("%(x.key)=%(x.value)")
+      }
+    }
+    run_(Fiber.current, argv, envl, stdout, stderr)
+    return Fiber.yield()
+  }
 }
