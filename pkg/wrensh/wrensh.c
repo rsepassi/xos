@@ -316,10 +316,13 @@ void wrenshEnv(WrenVM* vm) {
   DLOG("wrenshEnv");
   WrenType t = wrenGetSlotType(vm, 1);
   WREN_CHECK(t == WREN_TYPE_STRING, "must pass a string to IO.env");
-  int len = 0;
-  const char* s = wrenGetSlotBytes(vm, 1, &len);
+  const char* s = wrenGetSlotString(vm, 1);
   const char* val = getenv(s);
-  wrenSetSlotBytes(vm, 0, val, strlen(val));
+  if (val) {
+    wrenSetSlotString(vm, 0, val);
+  } else {
+    wrenSetSlotNull(vm, 0);
+  }
 }
 
 void wrenshExit(WrenVM* vm) {
@@ -328,39 +331,6 @@ void wrenshExit(WrenVM* vm) {
   WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to IO.exit");
   int n = (int)wrenGetSlotDouble(vm, 1);
   exit(n);
-}
-
-int findexe(const char* exe, char* exepath) {
-  DLOG("findexe");
-  int exelen = strlen(exe);
-  if (exe[0] == '/' || exe[0] == '\\') {
-    // absolute path
-    memcpy(exepath, exe, exelen);
-    return 0;
-  }
-
-  char* path = getenv("PATH");
-  if (!path) {
-    sprintf(wrenErrorStr, "no PATH set");
-    return -1;
-  }
-  int pathlen = strlen(path);
-
-  for (char *z = path, *p = path; *z != '\0'; p = z+1) {
-    z = strchr(p, ':');
-    if (!z) z = &path[pathlen];
-
-    int segmentlen = z-p;
-    memcpy(exepath, p, segmentlen);
-    exepath[segmentlen] = '/';
-    memcpy(exepath+segmentlen+1, exe, exelen);
-    exepath[segmentlen + exelen + 1] = '\0';
-
-    if (access(exepath, F_OK) == 0) return 0;
-  }
-
-  sprintf(wrenErrorStr, "could not find %s in PATH", exe);
-  return -1;
 }
 
 void wrenshGlob(WrenVM* vm) {
@@ -410,28 +380,33 @@ void wrenshExec(WrenVM* vm) {
     argv[i] = warg;
   }
 
-  // path lookup
-  char path[maxpathlen];
-  if (findexe(argv[0], (char*)path) != 0) {
-    wrenshError(vm);
-    return;
-  }
-
-  if (nslots == 3) {
+  const char** env = NULL;
+  bool has_env = wrenGetSlotType(vm, 2) != WREN_TYPE_NULL;
+  if (has_env) {
     // with env
     WrenType t = wrenGetSlotType(vm, 2);
     WREN_CHECK(t == WREN_TYPE_LIST, "must pass a list to exec");
-    int argc = wrenGetListCount(vm, 2);
-    const char** env = malloc((argc + 1) * sizeof(char*));
-    env[argc] = NULL;
-    for (int i = 0; i < argc; ++i) {
+    int envc = wrenGetListCount(vm, 2);
+    env = malloc((envc + 1) * sizeof(char*));
+    env[envc] = NULL;
+    for (int i = 0; i < envc; ++i) {
       wrenGetListElement(vm, 2, i, 3);
       const char* warg = wrenGetSlotString(vm, 3);
       env[i] = warg;
     }
-    execve(path, (char* const*)argv, (char* const*)env);
+  }
+
+  if (env) {
+    DLOG("execve");
+    dbgArgs(argc, argv);
+    const char* val;
+    int i = 0;
+    while ((val = env[i++])) DLOG("env %s", env[i-1]);
+    execve(argv[0], (char* const*)argv, (char* const*)env);
   } else {
-    execvp(path, (char* const*)argv);
+    DLOG("execvp");
+    dbgArgs(argc, argv);
+    execvp(argv[0], (char* const*)argv);
   }
 
   WREN_CHECK(false, "exec failed");
@@ -442,6 +417,7 @@ typedef struct {
   WrenVM* vm;
   uv_process_t handle;
   int64_t exit_status;
+  bool return_code;
   bool process_done;
 
   // If reading from stdout
@@ -461,11 +437,17 @@ void wrenshRunFinalize(runstate* state) {
   wrenEnsureSlots(state->vm, 2);
   wrenSetSlotHandle(state->vm, 0, state->fiber);
   Ctx* ctx = (Ctx*)wrenGetUserData(state->vm);
-  if (state->exit_status == 0) {
-    if (state->stdout_fd == -1) {
+  if (state->exit_status == 0 || state->return_code) {
+    if (state->exit_status != 0) {
+      // return exit code
+      wrenSetSlotDouble(state->vm, 1, state->exit_status);
+      QCHECK(wrenCall(state->vm, ctx->wren_tx_val) == WREN_RESULT_SUCCESS);
+    } else if (state->stdout_fd == -1) {
+      // return stdout
       wrenSetSlotBytes(state->vm, 1, state->stdout_str, sdslen(state->stdout_str));
       QCHECK(wrenCall(state->vm, ctx->wren_tx_val) == WREN_RESULT_SUCCESS);
     } else {
+      // return nothing
       QCHECK(wrenCall(state->vm, ctx->wren_tx) == WREN_RESULT_SUCCESS);
     }
   } else {
@@ -522,42 +504,47 @@ void wrenshRun(WrenVM* vm) {
   DLOG("wrenshRun");
   int nargs = wrenGetSlotCount(vm); // IO fiber args [env]
   int scratch_args = 1;
+  const int args_i = 2;
+  const int env_i = 3;
+  const int rc_i = 4;
+  const int stdout_i = 5;
+  const int stderr_i = 6;
 
   WrenHandle* fiber = wrenGetSlotHandle(vm, 1);
 
   // Read args
-  WrenType t = wrenGetSlotType(vm, 2);
+  WrenType t = wrenGetSlotType(vm, args_i);
   WREN_CHECK(t == WREN_TYPE_LIST, "run args must be a list");
-  int argc = wrenGetListCount(vm, 2);
+  int argc = wrenGetListCount(vm, args_i);
   const char* args[argc + 1];
   wrenEnsureSlots(vm, nargs + scratch_args);
   for (int i = 0; i < argc; ++i) {
-    wrenGetListElement(vm, 2, i, nargs + 1);
+    wrenGetListElement(vm, args_i, i, nargs + 1);
     args[i] = wrenGetSlotString(vm, nargs + 1);
   }
   args[argc] = NULL;
   dbgArgs(argc, (char**)args);
 
   // Read env
-  WrenType envt = wrenGetSlotType(vm, 3);
+  WrenType envt = wrenGetSlotType(vm, env_i);
   bool has_env = envt != WREN_TYPE_NULL;
   char** env = NULL;
   if (has_env) {
     WREN_CHECK(envt == WREN_TYPE_LIST, "run env must be a list");
-    int envc = wrenGetListCount(vm, 3);
+    int envc = wrenGetListCount(vm, env_i);
     env = malloc(envc * sizeof(env));
     CHECK(env);
     for (int i = 0; i < envc; ++i) {
-      wrenGetListElement(vm, 3, i, nargs + 1);
+      wrenGetListElement(vm, env_i, i, nargs + 1);
       env[i] = (char*)wrenGetSlotString(vm, nargs + 1);
     }
     env[envc] = NULL;
   }
 
   // Redirects
-  WrenType stdoutt = wrenGetSlotType(vm, 4);
+  WrenType stdoutt = wrenGetSlotType(vm, stdout_i);
   bool stdout_redir = stdoutt != WREN_TYPE_NULL;
-  WrenType stderrt = wrenGetSlotType(vm, 5);
+  WrenType stderrt = wrenGetSlotType(vm, stderr_i);
   bool stderr_redir = stderrt != WREN_TYPE_NULL;
   DLOG("stdout_redir=%d stderr_redir=%d", stdout_redir, stderr_redir);
 
@@ -568,12 +555,14 @@ void wrenshRun(WrenVM* vm) {
   *state = state_;
   state->gc.data = state;
 
+  state->return_code = wrenGetSlotBool(vm, rc_i);
+
   // Setup stdio
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
   uv_stdio_container_t stdio[3];
   stdio[0].flags = UV_IGNORE;
   if (stdout_redir) {
-    FILE* f = fopen(wrenGetSlotString(vm, 4), "w");
+    FILE* f = fopen(wrenGetSlotString(vm, stdout_i), "w");
     WREN_CHECK(f, "stdout redirect bad file");
     state->stdout_fd = fileno(f);
     stdio[1].flags = UV_INHERIT_FD;
@@ -585,8 +574,7 @@ void wrenshRun(WrenVM* vm) {
     uv_handle_set_data((uv_handle_t*)&state->stdout_pipe, state);
   }
   if (stderr_redir) {
-    fopen(wrenGetSlotString(vm, 5), "w");
-    FILE* f = fopen(wrenGetSlotString(vm, 4), "w");
+    FILE* f = fopen(wrenGetSlotString(vm, stderr_i), "w");
     WREN_CHECK(f, "stderr redirect bad file");
     state->stderr_fd = fileno(f);
     stdio[2].flags = UV_INHERIT_FD;
@@ -638,6 +626,7 @@ typedef struct {
   uv_signal_t handle;
   WrenVM* vm;
   WrenHandle* fn;
+  bool cancelled;
 } trapstate;
 
 void trapCb(uv_signal_t* handle, int signal) {
@@ -669,12 +658,18 @@ void trapAlloc(WrenVM* vm) {
 void trapFinal(void* data) {
   DLOG("trapFinal");
   trapstate* state = (trapstate*)data;
-  uv_signal_stop(&state->handle);
+  if (!state->cancelled) {
+    uv_signal_stop(&state->handle);
+    uv_close(&state->handle, NULL);
+  }
 }
 
 void trapCancel(WrenVM* vm) {
   DLOG("trapCancel");
-  trapFinal(wrenGetSlotForeign(vm, 0));
+  void* data = wrenGetSlotForeign(vm, 0);
+  trapstate* state = (trapstate*)data;
+  trapFinal(data);
+  state->cancelled = true;
 }
 
 WrenForeignClassMethods bindForeignClass(
@@ -713,11 +708,10 @@ WrenForeignMethodFn bindForeignMethod(
   if (!strcmp(signature, "args()")) return wrenshArgs;
   if (!strcmp(signature, "env(_)")) return wrenshEnv;
   if (!strcmp(signature, "exit(_)")) return wrenshExit;
-  if (!strcmp(signature, "exec(_)")) return wrenshExec;
-  if (!strcmp(signature, "exec(_,_)")) return wrenshExec;
+  if (!strcmp(signature, "exec_(_,_)")) return wrenshExec;
   if (!strcmp(signature, "glob(_)")) return wrenshGlob;
   if (!strcmp(signature, "glob(_,_)")) return wrenshGlob;
-  if (!strcmp(signature, "run_(_,_,_,_,_)")) return wrenshRun;
+  if (!strcmp(signature, "run_(_,_,_,_,_,_)")) return wrenshRun;
   if (!strcmp(signature, "chdir(_)")) return wrenshChdir;
   if (!strcmp(signature, "cwd()")) return wrenshCwd;
 
@@ -789,6 +783,7 @@ void cleanupUV(Ctx* ctx) {
   uv_walk(ctx->loop, uv_cleanup_cb, 0);
   uv_run(ctx->loop, UV_RUN_DEFAULT);
   uv_loop_close(ctx->loop);
+  DLOG("cleanupUV done");
 }
 
 void tickerCb(uv_timer_t* handle) {

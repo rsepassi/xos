@@ -67,7 +67,15 @@ class ProcessBuilder {
     return this
   }
   run() {
-    return IO.run_wrap_(_args, _env, _stdout, _stderr)
+    return IO.run_wrap_(_args, _env, false, _stdout, _stderr)
+  }
+  runc() {
+    return IO.run_wrap_(_args, _env, true, _stdout, _stderr)
+  }
+  test() {
+    var out = IO.run_wrap_(_args, _env, true, "/dev/null", "/dev/null")
+    if (out is Num) return out
+    return false
   }
 }
 
@@ -102,15 +110,23 @@ class IO {
   }
 
   static run(argv) {
-    return run_wrap_(argv, null, null, null)
+    return run_wrap_(argv, null, false, null, null)
   }
 
   static run(argv, env) {
-    return run_wrap_(argv, env, null, null)
+    return run_wrap_(argv, env, false, null, null)
   }
 
-  foreign static exec(argv)
-  foreign static exec(argv, env)
+  static exec(argv) {
+    exec(argv, null)
+  }
+  static exec(argv, env) {
+    argv = normalize_argv_(argv)
+    env = normalize_env_(env)
+    var exe = IO.run(["which", argv[0]]).trim()
+    argv[0] = exe
+    exec_(argv, env)
+  }
 
   static sleep(n) {
     sleep_(Fiber.current, n)
@@ -130,10 +146,20 @@ class IO {
   foreign static read_(f)
   foreign static write_(f, s)
   foreign static sleep_(f, n)
-  foreign static run_(f, args, env, stdout, stderr)
+  foreign static exec_(args, env)
+  foreign static run_(f, args, env, rc, stdout, stderr)
 
-  static run_wrap_(argv, env, stdout, stderr) {
+  static run_wrap_(argv, env, rc, stdout, stderr) {
+    argv = normalize_argv_(argv)
+    env = normalize_env_(env)
+    run_(Fiber.current, argv, env, rc, stdout, stderr)
+    return Fiber.yield()
+  }
+  static normalize_argv_(argv) {
     if (argv is String) argv = argv.split(" ")
+    return argv
+  }
+  static normalize_env_(env) {
     var envl = env
     if (env is Map) {
       envl = []
@@ -141,7 +167,6 @@ class IO {
         envl.add("%(x.key)=%(x.value)")
       }
     }
-    run_(Fiber.current, argv, envl, stdout, stderr)
-    return Fiber.yield()
+    return envl
   }
 }
