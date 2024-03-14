@@ -1,0 +1,4 @@
+#!/usr/bin/env wrensh
+for (i in 2...IO.argc()) {
+  IO.writeln(IO.arg(i))
+}
