@@ -1,5 +1,7 @@
 need zig
 need busybox
+need wrensh
+needtool cstrbake
 
 mode=$1
 
@@ -26,6 +28,24 @@ else
 fi
 ln -s ../zig/"zig$exe" "$tools"/zig
 
+# bake in wren build script
+cat "$BUILD_PKG/src/xos_internal_build2" | \
+  "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" baked_user_src \
+  > xos_internal_build2.c
+zig build-exe -target $TARGET -O $OPT_ZIG \
+  xos_internal_build2.c \
+  $(pkg-config --cflags --libs wrensh) \
+  -lc
+
+# echo
+cat "$BUILD_PKG/src/echo" | \
+  "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" baked_user_src \
+  > echo.c
+zig build-exe -target $TARGET -O $OPT_ZIG \
+  echo.c \
+  $(pkg-config --cflags --libs wrensh) \
+  -lc
+
 # internal tools
 scripts="
 fetch
@@ -39,7 +59,6 @@ windres
 need
 needtool
 untar
-xos_internal_build
 xos_internal_pkgid
 xos_internal_link_tools
 zigi
@@ -49,8 +68,10 @@ for script in $scripts
 do
   cp "$BUILD_PKG/src/$script" "$tools"
 done
+cp xos_internal_build2 "$tools/xos_internal_build"
+cp echo "$tools"
+chmod +x "$tools/xos_internal_build"
 ln -s cc "$tools/ld"
-ln -s tools/xos_internal_build "$out/build"
 cat <<EOF > "$tools/xos_internal_mktemp"
 #!/usr/bin/env sh
 set -e
@@ -150,5 +171,5 @@ then
   fi
 else
   cd "$out"
-  mv ./* ./.xos "$BUILD_OUT"
+  mv ./* ./.xos* "$BUILD_OUT"
 fi

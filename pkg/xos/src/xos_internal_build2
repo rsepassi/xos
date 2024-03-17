@@ -1,5 +1,3 @@
-#!/usr/bin/env wrensh
-
 var ctx = {}
 
 var usage_str = "
@@ -56,7 +54,7 @@ var readlink = Fn.new { |f|
 var get_xosroot = Fn.new {
   var envval = IO.env("XOS_ROOT")
   if (envval && !envval.isEmpty) return envval
-  var script = IO.arg(1)
+  var script = IO.arg(0)
   var scriptdir = dirname.call(script)
   while (!exists.call("%(scriptdir)/.xos")) {
     // internal tools/build
@@ -108,7 +106,7 @@ var stale_dyndeps_ = Fn.new { |dyndeps_f, target|
     var depid = fields[0]
     var depname = fields[1]
     var depargs = fields[2..-1]
-    var depid2 = IO.run([IO.arg(1)] + depargs, {"TARGET": target}).trim()
+    var depid2 = IO.run([IO.arg(0)] + depargs, {"TARGET": target}).trim()
     if (depid != depid2) return true
   }
   return false
@@ -142,9 +140,9 @@ var get_host_triple = Fn.new {
 }
 
 var process_args = Fn.new {
-  var pkg = IO.arg(2)
+  var pkg = IO.arg(1)
   var pkg_args = []
-  for (argi in 3...IO.argc()) {
+  for (argi in 2...IO.argc()) {
     var arg = IO.arg(argi)
     if (arg == "--") {
       pkg_args = IO.args()[argi + 1..-1]
@@ -168,7 +166,7 @@ var process_args = Fn.new {
 }
 
 // script start
-if (IO.argc() == 2 || ["-h", "--help"].contains(IO.arg(2))) {
+if (IO.argc() == 1 || ["-h", "--help"].contains(IO.arg(1))) {
   IO.write(usage_str)
   IO.exit(1)
 }

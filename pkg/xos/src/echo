@@ -1,4 +1,14 @@
-#!/usr/bin/env wrensh
-for (i in 2...IO.argc()) {
-  IO.writeln(IO.arg(i))
+var nl = true
+
+var argstart = 1
+if (IO.arg(argstart) == "-n") {
+  argstart = 2
+  nl = false
 }
+
+for (i in argstart...IO.argc()) {
+  if (i > argstart) IO.write(" ")
+  IO.write(IO.arg(i))
+}
+
+if (nl) IO.write("\n")
