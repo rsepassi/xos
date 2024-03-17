@@ -51,8 +51,9 @@
 #define PTR_SIZE 8
 #define PTR_INT_T uint64_t
 
-static char* usage_str;
+static const char* usage_str;
 static const char* io_src;
+extern const char* baked_user_src;
 static const int maxpathlen = 4096;
 static char wrenErrorStr[4096];
 
@@ -91,7 +92,7 @@ void cleanup_garbage(Ctx* ctx) {
   ctx->garbage = NULL;
 }
 
-void dbgArgs(int argc, char** argv) {
+void dbgArgs(int argc, const char* const* argv) {
   DLOG("argc=%d", argc);
   for (int i = 0; i < argc; ++i) {
     DLOG("argv[%d]=%s", i, argv[i]);
@@ -523,7 +524,7 @@ void wrenshRun(WrenVM* vm) {
     args[i] = wrenGetSlotString(vm, nargs + 1);
   }
   args[argc] = NULL;
-  dbgArgs(argc, (char**)args);
+  dbgArgs(argc, args);
 
   // Read env
   WrenType envt = wrenGetSlotType(vm, env_i);
@@ -660,7 +661,7 @@ void trapFinal(void* data) {
   trapstate* state = (trapstate*)data;
   if (!state->cancelled) {
     uv_signal_stop(&state->handle);
-    uv_close(&state->handle, NULL);
+    uv_close((uv_handle_t*)&state->handle, NULL);
   }
 }
 
@@ -793,19 +794,25 @@ void tickerCb(uv_timer_t* handle) {
 
 int main(int argc, char** argv) {
   DLOG("wrensh main");
-  dbgArgs(argc, argv);
+  dbgArgs(argc, (const char* const*)argv);
+  bool has_baked_user_src = baked_user_src != NULL;
+  DLOG("has_baked_user_src %d", has_baked_user_src);
 
-  // usage
-  if (argc == 1 ||
-      (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")))) {
-    fputs(usage_str, stderr);
-    exit(1);
+  if (!has_baked_user_src) {
+    // usage
+    if (argc == 1 ||
+        (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")))) {
+      fputs(usage_str, stderr);
+      exit(1);
+    }
   }
 
   // read src
   char* user_src;
   bool file_src = false;
-  if (argc > 2 && !strcmp(argv[1], "-c")) {
+  if (has_baked_user_src) {
+    user_src = (char*)baked_user_src;
+  } else if (argc > 2 && !strcmp(argv[1], "-c")) {
     user_src = argv[2];
   } else {
     user_src = readFile(argv[1]);
@@ -865,7 +872,7 @@ int main(int argc, char** argv) {
   return 0;
 }
 
-static char* usage_str = \@@WRENSHUSAGE@@;
+static const char* usage_str = \@@WRENSHUSAGE@@;
 static const char* io_src = \@@IOWREN@@;
 
 // TODO:

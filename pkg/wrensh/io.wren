@@ -117,6 +117,10 @@ class IO {
     return run_wrap_(argv, env, false, null, null)
   }
 
+  static runc(argv) {
+    return run_wrap_(argv, null, true, null, null)
+  }
+
   static exec(argv) {
     exec(argv, null)
   }

@@ -1,14 +1,20 @@
 wrensh command line utility
-  wrensh [args...] wren_src
 
-https://wren.io
+  wrensh wren_script_path [args...]
+  wrensh -c "wren_src" [args...]
 
-IO.read(): read stdin in full
-IO.write(s): write to stdout
-IO.flush(): flush stdout
-IO.arg(i): read args[i]
-IO.argc(): num args
-IO.env(name): read env var
-IO.exit(c): exit with code c
-IO.exec(argv): replace current process with argv
-IO.exec(argv, env): replace current process with argv and env
+Wren language: https://wren.io
+
+IO:
+  arg(i)  argc()  args()  env(name)  read()  write(s)  writeln(s)  flush()
+  cwd()  chdir(dir)  Process(args)  run(args)  run(args, env)  runc(args)
+  exec(args)  exec(args, env)   sleep(n)  trap(sig, fn)  glob(pattern)
+  glob(pattern, dir)  exit(code)
+ProcessBuilder:
+  env(env)  stdout(fname)  stderr(fname)  run()  runc()  test()
+X:
+  async(fn)  await(vals)
+AsyncValue:
+  await()
+Trap:
+  cancel()
