@@ -37,14 +37,15 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
   $(pkg-config --cflags --libs wrensh) \
   -lc
 
-# echo
-cat "$BUILD_PKG/src/echo" | \
+# wrenshbox
+cat "$BUILD_PKG/src/wrenshbox" | \
   "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" baked_user_src \
-  > echo.c
+  > wrenshbox.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
-  echo.c \
+  wrenshbox.c \
   $(pkg-config --cflags --libs wrensh) \
   -lc
+mv $(zigi exe wrenshbox) "$tools"
 
 # internal tools
 scripts="
@@ -69,7 +70,6 @@ do
   cp "$BUILD_PKG/src/$script" "$tools"
 done
 cp xos_internal_build2 "$tools/xos_internal_build"
-cp echo "$tools"
 chmod +x "$tools/xos_internal_build"
 ln -s cc "$tools/ld"
 cat <<EOF > "$tools/xos_internal_mktemp"
@@ -87,8 +87,6 @@ rm
 mv
 cp
 ln
-basename
-dirname
 realpath
 tar
 gzip
@@ -127,6 +125,16 @@ patch
 for tool in $bbtools
 do
   ln -s $(zigi exe busybox) "$tools/$tool"
+done
+
+wrenshboxtools="
+echo
+dirname
+basename
+"
+for tool in $wrenshboxtools
+do
+  ln -s $(zigi exe wrenshbox) "$tools/$tool"
 done
 
 # nproc

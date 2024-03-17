@@ -2,7 +2,6 @@ build.sh
 src/ar
 src/cc
 src/c++
-src/echo
 src/pkg-config
 src/rc
 src/windres
@@ -11,6 +10,7 @@ src/fetch_urltxt
 src/need
 src/needtool
 src/untar
+src/wrenshbox
 src/xos_internal_build
 src/xos_internal_build2
 src/xos_internal_link_tools
