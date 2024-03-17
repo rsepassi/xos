@@ -149,6 +149,9 @@ else
   ln -s busybox "$tools/nproc"
 fi
 
+# top-level build
+ln -s tools/xos_internal_build "$out/build"
+
 # readme
 cp "$BUILD_PKG/src/dist_readme.txt" "$out/readme.txt"
 
