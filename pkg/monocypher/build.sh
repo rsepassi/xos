@@ -1,13 +1,17 @@
-file=monocypher.tar.gz
-fetch_urltxt $BUILD_PKG/url.txt $file
-src=$(mktemp -d)
-untar $BUILD_DEPS/$file $src
+url="https://monocypher.org/download/monocypher-4.0.2.tar.gz"
+hash="38d07179738c0c90677dba3ceb7a7b8496bcfea758ba1a53e803fed30ae0879c"
+file="monocypher.tar.gz"
+src=$(fetch_untar "$url" "$file" "$hash")
+cd $src
 
-cd $src/src
+zig build-lib -target $TARGET -O $OPT_ZIG \
+  -Isrc \
+  src/monocypher.c \
+  src/optional/monocypher-ed25519.c
 
-zig build-lib -target $TARGET -O $OPT_ZIG monocypher.c optional/monocypher-ed25519.c -I.
-
-mkdir -p $BUILD_OUT/lib $BUILD_OUT/include
-cp $(zigi lib monocypher) $BUILD_OUT/lib
-cp monocypher.h $BUILD_OUT/include
-cp optional/monocypher-ed25519.h $BUILD_OUT/include
+cd "$BUILD_OUT"
+mkdir lib include
+cp "$src"/$(zigi lib monocypher) lib
+cp "$src/src/monocypher.h" include
+cp "$src/src/optional/monocypher-ed25519.h" include
+pkg-config --gendefault monocypher
