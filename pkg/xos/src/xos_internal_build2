@@ -1,5 +1,41 @@
 var ctx = {}
 
+var PATHSEP = "/"
+
+var read_env = Fn.new {
+  var env_vars = [
+    "TARGET",
+    "OPT",
+    "BUILD",
+    "PKG",
+    "DEV",
+    "XOS_ROOT",
+    "XOS_BUILD_ROOT",
+    "XOS_PKG_ROOT",
+    "XOS_SEAL",
+    "XOS_DEV",
+    "XOS_ID",
+    "XOS_DRY",
+  ]
+  var env = {}
+  for (v in env_vars) {
+    env[v] = IO.env(v)
+  }
+  return env
+}
+
+var read_args = Fn.new {
+  return {
+    "prog": IO.arg(0),
+    "self": [IO.arg(0)],
+    "nself": 1,
+    "pkg": IO.argc() > 1 ? IO.arg(1) : null,
+  }
+}
+
+var ARGS = read_args.call()
+var ENV = read_env.call()
+
 var usage_str = "
 usage: build pkgname TARGET= OPT=
 
@@ -31,10 +67,10 @@ var argsquote = Fn.new { |args|
 }
 
 var dirname = Fn.new { |d|
-  return d.split("/")[0...-1].join("/")
+  return d.split(PATHSEP)[0...-1].join(PATHSEP)
 }
 var basename = Fn.new { |d|
-  return d.split("/")[-1]
+  return d.split(PATHSEP)[-1]
 }
 var exists = Fn.new { |f|
   return !IO.Process(["ls", f]).test()
@@ -52,9 +88,18 @@ var readlink = Fn.new { |f|
 }
 
 var get_xosroot = Fn.new {
-  var envval = IO.env("XOS_ROOT")
+  var envval = ENV["XOS_ROOT"]
   if (envval && !envval.isEmpty) return envval
-  var script = IO.arg(0)
+
+  var script = ARGS["prog"]
+  if (!script.startsWith(PATHSEP)) {
+    if (script.contains(PATHSEP)) {
+      script = realpath.call(script)
+    } else {
+      script = IO.run(["which", script]).trim()
+    }
+  }
+
   var scriptdir = dirname.call(script)
   while (!exists.call("%(scriptdir)/.xos")) {
     // internal tools/build
@@ -69,7 +114,7 @@ var get_xosroot = Fn.new {
       IO.exit(1)
     }
 
-    if (link.startsWith("/")) {
+    if (link.startsWith(PATHSEP)) {
       script = link
       scriptdir = dirname.call(link)
     } else {
@@ -81,17 +126,17 @@ var get_xosroot = Fn.new {
 }
 
 var get_buildroot = Fn.new {
-  var envval = IO.env("XOS_BUILD_ROOT")
+  var envval = ENV["XOS_BUILD_ROOT"]
   if (envval && !envval.isEmpty) return envval
-  envval = IO.env("BUILD")
+  envval = ENV["BUILD"]
   if (envval && !envval.isEmpty) return envval
   return "%(IO.cwd())/build"
 }
 
 var get_pkgroot = Fn.new {
-  var envval = IO.env("XOS_PKG_ROOT")
+  var envval = ENV["XOS_PKG_ROOT"]
   if (envval && !envval.isEmpty) return envval
-  envval = IO.env("PKG")
+  envval = ENV["PKG"]
   if (envval && !envval.isEmpty) return envval
   if (exists.call("pkg")) {
     return "%(IO.cwd())/pkg"
@@ -106,7 +151,7 @@ var stale_dyndeps_ = Fn.new { |dyndeps_f, target|
     var depid = fields[0]
     var depname = fields[1]
     var depargs = fields[2..-1]
-    var depid2 = IO.run([IO.arg(0)] + depargs, {"TARGET": target}).trim()
+    var depid2 = IO.run(ARGS["self"] + depargs, {"TARGET": target}).trim()
     if (depid != depid2) return true
   }
   return false
@@ -140,9 +185,9 @@ var get_host_triple = Fn.new {
 }
 
 var process_args = Fn.new {
-  var pkg = IO.arg(1)
+  var pkg = ARGS["pkg"]
   var pkg_args = []
-  for (argi in 2...IO.argc()) {
+  for (argi in (ARGS["nself"] + 1)...IO.argc()) {
     var arg = IO.arg(argi)
     if (arg == "--") {
       pkg_args = IO.args()[argi + 1..-1]
@@ -160,213 +205,216 @@ var process_args = Fn.new {
   }
 
   return {
-    "pkg": pkg,
     "pkg_args": pkg_args,
   }
 }
 
-// script start
-if (IO.argc() == 1 || ["-h", "--help"].contains(IO.arg(1))) {
-  IO.write(usage_str)
-  IO.exit(1)
-}
-
-ctx["XOS_ROOT"] = get_xosroot.call()
-ctx["XOS_BUILD_ROOT"] = get_buildroot.call()
-ctx["XOS_BUILD_CACHE"] = "%(ctx["XOS_BUILD_ROOT"])/cache"
-
-// local tools
-var tools_dir = "%(ctx["XOS_BUILD_CACHE"])/tools"
-if (!exists.call("%(tools_dir)/.ok")) {
-  IO.run(["%(ctx["XOS_ROOT"])/tools/xos_internal_link_tools", tools_dir])
-}
-// re-exec with sealed path
-// TODO: fix
-// var seal = IO.env("XOS_SEAL")
-// if (!seal || seal.isEmpty) {
-//   ctx["XOS_SEAL"] = 1
-//   ctx["PATH"] = "%(ctx["XOS_ROOT"])/tools"
-//   IO.exec(IO.args(), ctx)
-// }
-
-var args = process_args.call()
-var pkg = args["pkg"]
-ctx["XOS_PKG_ROOT"] = get_pkgroot.call()
-if (IO.env("DEV") == "1" || IO.env("XOS_DEV") == "1") {
-  ctx["XOS_DEV"] = 1
-}
-
-// determine package
-var pkg_args_str = argsquote.call(args["pkg_args"])
-var build_pkg = "%(ctx["XOS_PKG_ROOT"])/%(pkg)"
-if (!exists.call("%(build_pkg)/build.sh")) {
-  System.print("unrecognized pkg %(pkg), missing build.sh")
-  IO.exit(1)
-}
-
-// xos version
-ctx["XOS_ID"] = IO.env("XOS_ID") || IO.run(["cat", "%(ctx["XOS_ROOT"])/.xos_id"]).trim()
-
-// Host and target triples
-ctx["HOST"] = get_host_triple.call()
-ctx["TARGET"] = IO.env("TARGET") || ctx["TARGET"] || ctx["HOST"]
-
-var host_parts = ctx["HOST"].split("-")
-ctx["HOST_ARCH"] = host_parts[0]
-ctx["HOST_OS"] = host_parts[1].split(".")[0]
-var target_parts = ctx["TARGET"].split("-")
-ctx["TARGET_ARCH"] = target_parts[0]
-ctx["TARGET_OS"] = target_parts[1].split(".")[0]
-
-var get_opt = Fn.new { |opt|
-  var optz = null
-  if (["0", "Debug"].contains(opt)) {
-    opt = 0
-    optz = "Debug"
-  } else if (["1", "Safe"].contains(opt)) {
-    opt = 1
-    optz = "ReleaseSafe"
-  } else if (["2", "Fast"].contains(opt)) {
-    opt = 2
-    optz = "ReleaseFast"
-  } else if (["Small"].contains(opt)) {
-    opt = "s"
-    optz = "ReleaseSmall"
-  } else if (["3", "fast"].contains(opt)) {
-    opt = opt
-    optz = "ReleaseFast"
-  } else if (["s", "z"].contains(opt)) {
-    opt = opt
-    optz = "ReleaseSmall"
-  } else {
-    System.print("unrecognized OPT=%(opt)")
+var main = Fn.new {
+  // script start
+  if (IO.argc() == 1 || ["-h", "--help"].contains(IO.arg(1))) {
+    IO.write(usage_str)
     IO.exit(1)
   }
-  return {
-    "c": opt,
-    "zig": optz,
+
+  ctx["XOS_ROOT"] = get_xosroot.call()
+  ctx["XOS_BUILD_ROOT"] = get_buildroot.call()
+  ctx["XOS_BUILD_CACHE"] = "%(ctx["XOS_BUILD_ROOT"])/cache"
+
+  // local tools
+  var tools_dir = "%(ctx["XOS_BUILD_CACHE"])/tools"
+  if (!exists.call("%(tools_dir)/.ok")) {
+    IO.run(["%(ctx["XOS_ROOT"])/tools/xos_internal_link_tools", tools_dir])
   }
-}
+  // re-exec with sealed path
+  // TODO: fix
+  // var seal = ENV["XOS_SEAL"]
+  // if (!seal || seal.isEmpty) {
+  //   ctx["XOS_SEAL"] = 1
+  //   ctx["PATH"] = "%(ctx["XOS_ROOT"])/tools"
+  //   IO.exec(IO.args(), ctx)
+  // }
 
-var opt = IO.env("OPT") || "s"
-opt = get_opt.call(opt)
+  var args = process_args.call()
+  var pkg = ARGS["pkg"]
+  ctx["XOS_PKG_ROOT"] = get_pkgroot.call()
+  if (ENV["DEV"] == "1" || ENV["XOS_DEV"] == "1") {
+    ctx["XOS_DEV"] = 1
+  }
 
-// identify pkg id
-var pkgid_text = IO.run(["%(ctx["XOS_ROOT"])/tools/xos_internal_pkgid", pkg], {
-  "XOS": ctx["XOS_ID"],
-  "BUILD_PKG": build_pkg,
-  "TARGET": ctx["TARGET"],
-  "OPT": opt["c"],
-  "ARGS": pkg_args_str,
-})
-
-var sha256 = Fn.new { |val|
-  var out = IO.run(["sh", "-c", "echo \"%(val)\" | sha256sum"])
-  return out.split(" ")[0]
-}
-
-var pkgid = sha256.call(pkgid_text)
-var pkgid_prefix = pkgid[0...2]
-var build_out = "%(ctx["XOS_BUILD_CACHE"])/pkg/%(pkgid_prefix)/%(pkgid)"
-
-if (ctx["XOS_DEV"] != 1 && exists.call("%(build_pkg)/dev_volatile")) {
-  System.print("warn: %(pkg) marked volatile, but DEV != 1, consider unmarking")
-}
-
-
-var need_rebuild = Fn.new {
-  if (!exists.call("%(build_out)/.ok")) return true
-  if (ctx["XOS_DEV"] = 1 && exists.call("%(build_pkg)/dev_volatile")) return true
-  if (exists.call("%(build_out)/dyndeps.txt") && stale_dyndeps.call("%(build_out)/dyndeps.txt")) return true
-  if (exists.call("%(build_out)/dyntooldeps.txt") && stale_dyntooldeps.call("%(build_out)/dyntooldeps.txt")) return true
-  return false
-}
-
-// dependencies
-var rebuild = need_rebuild.call()
-
-if (IO.env("XOS_DRY") == "1" || ctx["DRY"] == "1") {
-  ctx["XOS_DRY"] = 1
-
-  var dry_log = "
----
-build %(pkg) %(pkg_args_str)
-BUILD_PKG=%(build_pkg)
-BUILD_OUT=%(build_out)
-TARGET=%(ctx["TARGET"])
-HOST=%(ctx["HOST"])
-OPT=%(opt["c"])
-OPT_ZIG=%(opt["zig"])
-XOS_ROOT=%(ctx["XOS_ROOT"])
-XOS_PKG_ROOT=%(ctx["XOS_PKG_ROOT"])
-XOS_BUILD_ROOT=%(ctx["XOS_BUILD_ROOT"])
-XOS_BUILD_CACHE=%(ctx["XOS_BUILD_CACHE"])
-XOS_ID=%(ctx["XOS_ID"])
-rebuild?=%(rebuild)
----
-"
-  System.print(dry_log)
-  IO.writeln(pkgid)
-  IO.exit(0)
-}
-
-// build if necessary
-if (rebuild) {
-  IO.run(["rm", "-rf", build_out])
-  IO.run(["mkdir", "-p", "%(build_out)/out", "%(build_out)/tmp"])
-  IO.Process(["echo", pkgid_text]).stdout("%(build_out)/pkgid").run()
-
-  // pkg-specific tools
-  var pkg_tools_dir = "%(build_out)/tools"
-  IO.run(["mkdir", "-p", pkg_tools_dir])
-  var mktemp = "#!/usr/bin/env sh
-set -e
-xos_internal_mktemp \"$@\" \"%(build_out)/tmp/tmpXXXXXX\"
-"
-  IO.Process(["echo", mktemp]).stdout("%(pkg_tools_dir)/mktemp").run()
-  IO.run(["chmod", "+x", "%(pkg_tools_dir)/mktemp"])
-
-  // setup log and interrupt/fail fns
-  var logfile = "%(build_out)/build.log"
-
-  var trap = IO.trap(2, Fn.new {
-    // TODO: cat logfile
-    System.print("interrupted building pkg %(pkg) %(pkgid)")
+  // determine package
+  var pkg_args_str = argsquote.call(args["pkg_args"])
+  var build_pkg = "%(ctx["XOS_PKG_ROOT"])/%(pkg)"
+  if (!exists.call("%(build_pkg)/build.sh")) {
+    System.print("unrecognized pkg %(pkg), missing build.sh")
     IO.exit(1)
+  }
+
+  // xos version
+  ctx["XOS_ID"] = ENV["XOS_ID"] || IO.run(["cat", "%(ctx["XOS_ROOT"])/.xos_id"]).trim()
+
+  // Host and target triples
+  ctx["HOST"] = get_host_triple.call()
+  ctx["TARGET"] = ENV["TARGET"] || ctx["TARGET"] || ctx["HOST"]
+
+  var host_parts = ctx["HOST"].split("-")
+  ctx["HOST_ARCH"] = host_parts[0]
+  ctx["HOST_OS"] = host_parts[1].split(".")[0]
+  var target_parts = ctx["TARGET"].split("-")
+  ctx["TARGET_ARCH"] = target_parts[0]
+  ctx["TARGET_OS"] = target_parts[1].split(".")[0]
+
+  var get_opt = Fn.new { |opt|
+    var optz = null
+    if (["0", "Debug"].contains(opt)) {
+      opt = 0
+      optz = "Debug"
+    } else if (["1", "Safe"].contains(opt)) {
+      opt = 1
+      optz = "ReleaseSafe"
+    } else if (["2", "Fast"].contains(opt)) {
+      opt = 2
+      optz = "ReleaseFast"
+    } else if (["Small"].contains(opt)) {
+      opt = "s"
+      optz = "ReleaseSmall"
+    } else if (["3", "fast"].contains(opt)) {
+      opt = opt
+      optz = "ReleaseFast"
+    } else if (["s", "z"].contains(opt)) {
+      opt = opt
+      optz = "ReleaseSmall"
+    } else {
+      System.print("unrecognized OPT=%(opt)")
+      IO.exit(1)
+    }
+    return {
+      "c": opt,
+      "zig": optz,
+    }
+  }
+
+  var opt = ENV["OPT"] || "s"
+  opt = get_opt.call(opt)
+
+  // identify pkg id
+  var pkgid_text = IO.run(["%(ctx["XOS_ROOT"])/tools/xos_internal_pkgid", pkg], {
+    "XOS": ctx["XOS_ID"],
+    "BUILD_PKG": build_pkg,
+    "TARGET": ctx["TARGET"],
+    "OPT": opt["c"],
+    "ARGS": pkg_args_str,
   })
 
-  // run build script
-  IO.chdir("%(build_out)/tmp")
-  var script = "%(build_pkg)/build.sh"
+  var sha256 = Fn.new { |val|
+    var out = IO.run(["sh", "-c", "echo \"%(val)\" | sha256sum"])
+    return out.split(" ")[0]
+  }
 
-  ctx["PATH"] = "%(pkg_tools_dir):%(tools_dir):%(ctx["XOS_ROOT"])/tools"
-  ctx["HOME"] = "%(build_out)/tmp"
-  ctx["USER"] = "xos"
-  ctx["XDG_CACHE_HOME"] = "%(ctx["XOS_BUILD_CACHE"])/xdg"
-  ctx["XOS_SEAL"] = 1
-  ctx["XOS_BUILD_OUT"] = "%(build_out)"
-  ctx["OPT"] = opt["c"]
-  ctx["OPT_ZIG"] = opt["zig"]
-  ctx["BUILD_OUT"] = "%(build_out)/out"
-  ctx["BUILD_DEPS"] = "%(build_out)/deps"
-  ctx["BUILD_TOOLDEPS"] = "%(build_out)/tooldeps"
-  ctx["BUILD_PKG"] = "%(build_pkg)"
-  var out = IO.Process(["sh", "-e", script] + args["pkg_args"])
-    .env(ctx)
-    .stdout(logfile)
-    .runc()
-  trap.cancel()
-  if (iserror.call(out)) {
-    System.print("error building pkg %(pkg) %(pkgid)")
-    IO.exit(1)
+  var pkgid = sha256.call(pkgid_text)
+  var pkgid_prefix = pkgid[0...2]
+  var build_out = "%(ctx["XOS_BUILD_CACHE"])/pkg/%(pkgid_prefix)/%(pkgid)"
+
+  if (ctx["XOS_DEV"] != 1 && exists.call("%(build_pkg)/dev_volatile")) {
+    System.print("warn: %(pkg) marked volatile, but DEV != 1, consider unmarking")
   }
 
 
-  // ok
-  IO.run(["touch", "%(build_out)/.ok"])
+  var need_rebuild = Fn.new {
+    if (!exists.call("%(build_out)/.ok")) return true
+    if (ctx["XOS_DEV"] = 1 && exists.call("%(build_pkg)/dev_volatile")) return true
+    if (exists.call("%(build_out)/dyndeps.txt") && stale_dyndeps.call("%(build_out)/dyndeps.txt")) return true
+    if (exists.call("%(build_out)/dyntooldeps.txt") && stale_dyntooldeps.call("%(build_out)/dyntooldeps.txt")) return true
+    return false
+  }
+
+  // dependencies
+  var rebuild = need_rebuild.call()
+
+  if (ENV["XOS_DRY"] == "1" || ctx["DRY"] == "1") {
+    ctx["XOS_DRY"] = 1
+
+    var dry_log = "
+  ---
+  build %(pkg) %(pkg_args_str)
+  BUILD_PKG=%(build_pkg)
+  BUILD_OUT=%(build_out)
+  TARGET=%(ctx["TARGET"])
+  HOST=%(ctx["HOST"])
+  OPT=%(opt["c"])
+  OPT_ZIG=%(opt["zig"])
+  XOS_ROOT=%(ctx["XOS_ROOT"])
+  XOS_PKG_ROOT=%(ctx["XOS_PKG_ROOT"])
+  XOS_BUILD_ROOT=%(ctx["XOS_BUILD_ROOT"])
+  XOS_BUILD_CACHE=%(ctx["XOS_BUILD_CACHE"])
+  XOS_ID=%(ctx["XOS_ID"])
+  rebuild?=%(rebuild)
+  ---
+  "
+    System.print(dry_log)
+    IO.writeln(pkgid)
+    IO.exit(0)
+  }
+
+  // build if necessary
+  if (rebuild) {
+    IO.run(["rm", "-rf", build_out])
+    IO.run(["mkdir", "-p", "%(build_out)/out", "%(build_out)/tmp"])
+    IO.Process(["echo", pkgid_text]).stdout("%(build_out)/pkgid").run()
+
+    // pkg-specific tools
+    var pkg_tools_dir = "%(build_out)/tools"
+    IO.run(["mkdir", "-p", pkg_tools_dir])
+    var mktemp = "#!/usr/bin/env sh
+  set -e
+  xos_internal_mktemp \"$@\" \"%(build_out)/tmp/tmpXXXXXX\"
+  "
+    IO.Process(["echo", mktemp]).stdout("%(pkg_tools_dir)/mktemp").run()
+    IO.run(["chmod", "+x", "%(pkg_tools_dir)/mktemp"])
+
+    // setup log and interrupt/fail fns
+    var logfile = "%(build_out)/build.log"
+
+    var trap = IO.trap(2, Fn.new {
+      // TODO: cat logfile
+      System.print("interrupted building pkg %(pkg) %(pkgid)")
+      IO.exit(1)
+    })
+
+    // run build script
+    IO.chdir("%(build_out)/tmp")
+    var script = "%(build_pkg)/build.sh"
+
+    ctx["PATH"] = "%(pkg_tools_dir):%(tools_dir):%(ctx["XOS_ROOT"])/tools"
+    ctx["HOME"] = "%(build_out)/tmp"
+    ctx["USER"] = "xos"
+    ctx["XDG_CACHE_HOME"] = "%(ctx["XOS_BUILD_CACHE"])/xdg"
+    ctx["XOS_SEAL"] = 1
+    ctx["XOS_BUILD_OUT"] = "%(build_out)"
+    ctx["OPT"] = opt["c"]
+    ctx["OPT_ZIG"] = opt["zig"]
+    ctx["BUILD_OUT"] = "%(build_out)/out"
+    ctx["BUILD_DEPS"] = "%(build_out)/deps"
+    ctx["BUILD_TOOLDEPS"] = "%(build_out)/tooldeps"
+    ctx["BUILD_PKG"] = "%(build_pkg)"
+    var out = IO.Process(["sh", "-e", script] + args["pkg_args"])
+      .env(ctx)
+      .stdout(logfile)
+      .runc()
+    trap.cancel()
+    if (iserror.call(out)) {
+      System.print("error building pkg %(pkg) %(pkgid)")
+      IO.exit(1)
+    }
+
+
+    // ok
+    IO.run(["touch", "%(build_out)/.ok"])
+  }
+
+  // link to build/out
+  IO.run(["rm", "-f", "%(ctx["XOS_BUILD_ROOT"])/out"])
+  IO.run(["ln", "-s", "%(build_out)/out", "%(ctx["XOS_BUILD_ROOT"])/out"])
+  IO.writeln(pkgid)
 }
 
-// link to build/out
-IO.run(["rm", "-f", "%(ctx["XOS_BUILD_ROOT"])/out"])
-IO.run(["ln", "-s", "%(build_out)/out", "%(ctx["XOS_BUILD_ROOT"])/out"])
-IO.writeln(pkgid)
+main.call()
