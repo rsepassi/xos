@@ -2,11 +2,29 @@
 set -e
 
 rewrite_flags() {
+  filename="x"
+  outfilename="x"
+  outdepfilename="x"
+  simple_compile=0
+
   transformed_args=""
   for arg in "$@"; do
       case "$arg" in
+          -c)
+            simple_compile=1
+            transformed_args="${transformed_args} ${arg}"
+            ;;
+          *.o)
+            outfilename=$arg
+            transformed_args="${transformed_args} ${arg}"
+            ;;
+          *.c)
+            filename=$arg
+            transformed_args="${transformed_args} ${arg}"
+            ;;
           -Wp,-MD,*)
               mfarg=$(echo "$arg" | sed 's/^-Wp,-MD,//')
+              outdepfilename=$mfarg
               transformed_args="${transformed_args} -MD -MF ${mfarg}"
               ;;
           -Wl,--warn-common)
@@ -19,11 +37,39 @@ rewrite_flags() {
               transformed_args="${transformed_args} ${arg}"
       esac
   done
-  echo "$transformed_args"
+  echo "$simple_compile $filename $outfilename $outdepfilename $transformed_args"
 }
+rewritten="$(rewrite_flags "$@")"
+flags="
+--target=$BB_BUILD_TARGET
+-DBB_GLOBAL_CONST=
+$(echo $rewritten | cut -d' ' -f5-)
+"
 
-zig cc --target=$BB_BUILD_TARGET \
-  -DBB_GLOBAL_CONST='' \
-  -Wno-unused-command-line-argument \
-  -Wno-ignored-optimization-argument \
-  $(rewrite_flags "$@")
+simple_compile=$(echo $rewritten | cut -d' ' -f1)
+filename=$(echo $rewritten | cut -d' ' -f2)
+
+cache_key_contents() {
+  echo "$flags"
+  sha256sum $filename
+}
+if [ $simple_compile = 1 ] && [ -e $filename ]
+then
+  key="$(cache_key_contents | sha256sum | cut -d' ' -f1)"
+  key_prefix="$(echo $key | cut -c 1-2)"
+  cache_dir="$XDG_CACHE_HOME/bbcross-gcc/$key_prefix/$key"
+  mkdir -p $cache_dir
+  outfilename=$(echo $rewritten | cut -d' ' -f3)
+  outdepfilename=$(echo $rewritten | cut -d' ' -f4)
+  if [ -e "$cache_dir/file" ]
+  then
+    cp "$cache_dir/file" $outfilename
+    cp "$cache_dir/file.o.d" $outdepfilename
+  else
+    zig cc -w $flags
+    cp $outdepfilename "$cache_dir/file.o.d"
+    cp $outfilename "$cache_dir/file"
+  fi
+else
+  exec zig cc -w $flags
+fi
