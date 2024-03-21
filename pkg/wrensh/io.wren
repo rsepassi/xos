@@ -79,10 +79,55 @@ class ProcessBuilder {
   }
 }
 
+class Data {
+  static Record(name, fields) {
+    if (fields is String) {
+      fields = fields.split(" ")
+    }
+
+    var class_str = "class %(name) {\n"
+
+    // new
+    var fields_init = fields.join(", ")
+    var sets = fields.map { |x| "    _%(x) = %(x)\n" }
+    class_str = class_str + "  construct new(%(fields_init)) {\n"
+    class_str = class_str + "%(sets.join(""))"
+    class_str = class_str + "  }\n"
+
+    // new from map
+    var mapgets = (fields.map { |x| "map[\"%(x)\"]" }).join(", ")
+    class_str = class_str + "  static newFromMap(map) {\n"
+    class_str = class_str + "return %(name).new(%(mapgets))\n"
+    class_str = class_str + "  }\n"
+
+    // getters
+    var getters = fields.map { |x| "  %(x) { _%(x) }\n" }
+    class_str = class_str + "%(getters.join(""))"
+
+    // setters
+    var setters = fields.map { |x| "  %(x)=(val) { _%(x) = val }\n" }
+    class_str = class_str + "%(setters.join(""))"
+
+    // toString
+    var fieldstrs = fields.map { |x| "%(x)=\%(_%(x))" }
+    class_str = class_str + "  toString {\n"
+    class_str = class_str + "    return \"%(name)("
+    class_str = class_str + fieldstrs.join(", ")
+    class_str = class_str + ")\"\n"
+    class_str = class_str + "  }\n"
+
+    class_str = class_str + "}\n"
+
+    Meta.eval(class_str)
+    return Meta.compileExpression(name).call()
+  }
+}
+
 class IO {
   foreign static arg(i)
   foreign static argc()
   foreign static args()
+  foreign static env()
   foreign static env(name)
 
   static read() {
@@ -91,6 +136,7 @@ class IO {
   }
 
   static write(s) {
+    if (!(s is String)) s = "%(s)"
     write_(Fiber.current, s)
     Fiber.yield()
   }

@@ -2,40 +2,33 @@ need wren
 need libuv
 need xglob
 need sds
+needtool cstrbake
+
+cstrbake="$BUILD_TOOLDEPS/cstrbake/bin/cstrbake"
 
 if [ "$OPT_ZIG" = "Debug" ]
 then
   cflags="-DDEBUG"
 fi
 
-# Preprocess wrensh.c to bake in io.wren and the usage string
-cp "$BUILD_PKG/wrensh.c" .
-cstr() {
-  clines=""
-  while IFS='' read -r line; do
-    line="$(echo "$line" | sed -e 's/\\/\\\\/g' | sed -e 's/"/\\\\"/g')"
-    clines="$clines\n\"$line\\\\n\""
-  done < "$1"
-  echo "$clines"
-}
-iowren="$(cstr "$BUILD_PKG/io.wren")"
-usagestr="$(cstr "$BUILD_PKG/usage.txt")"
+cat "$BUILD_PKG/usage.txt" | $cstrbake wrensh_src_usage > usage_src.c
+cat "$BUILD_PKG/io.wren" | $cstrbake wrensh_src_io > io_src.c
+echo "const char* wrensh_src_user = 0;" > user_src.c
 
-sed -i "s^@@IOWREN@@^$iowren^" wrensh.c
-sed -i "s^@@WRENSHUSAGE@@^$usagestr^" wrensh.c
+zig build-lib -target $TARGET -O $OPT_ZIG \
+  "$BUILD_PKG/wrensh.c" \
+  usage_src.c \
+  io_src.c \
+  "$BUILD_PKG/wrensh.zig" \
+  $(pkg-config --cflags wren libuv/uv xglob sds) \
+  -lc
 
-echo "const char* baked_user_src = 0;" > user_src.c
-
+touch wrensh.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
   wrensh.c \
   user_src.c \
-  $cflags \
+  $(zigi lib wrensh) \
   $(pkg-config --cflags --libs wren libuv/uv xglob sds) \
-  -lc
-
-zig build-lib -target $TARGET -O $OPT_ZIG \
-  wrensh.c \
-  $(pkg-config --cflags wren libuv/uv xglob sds) \
   -lc
 
 cd "$BUILD_OUT"

@@ -51,9 +51,10 @@
 #define PTR_SIZE 8
 #define PTR_INT_T uint64_t
 
-static const char* usage_str;
-static const char* io_src;
-extern const char* baked_user_src;
+extern const char* wrensh_src_usage;
+extern const char* wrensh_src_io;
+extern const char* wrensh_src_user;
+extern const char* wrensh_src_meta;
 static const int maxpathlen = 4096;
 static char wrenErrorStr[4096];
 
@@ -684,6 +685,15 @@ WrenForeignClassMethods bindForeignClass(
   return m;
 }
 
+extern void wrenshEnvMap(WrenVM* vm);
+
+extern char* wrenMetaSource();
+extern WrenForeignMethodFn wrenMetaBindForeignMethod(
+    WrenVM* vm,
+    const char* className,
+    bool isStatic,
+    const char* signature);
+
 WrenForeignMethodFn bindForeignMethod(
     WrenVM* vm,
     const char* module,
@@ -697,6 +707,9 @@ WrenForeignMethodFn bindForeignMethod(
       && !isStatic
       && !strcmp(signature, "cancel()")) return trapCancel;
 
+  WrenForeignMethodFn meta = wrenMetaBindForeignMethod(vm, className, isStatic, signature);
+  if (meta != NULL) return meta;
+
   // IO
   CHECK(!strcmp(className, "IO") &&
         isStatic, "unexpected foreign method");
@@ -707,6 +720,7 @@ WrenForeignMethodFn bindForeignMethod(
   if (!strcmp(signature, "arg(_)")) return wrenshArg;
   if (!strcmp(signature, "argc()")) return wrenshArgc;
   if (!strcmp(signature, "args()")) return wrenshArgs;
+  if (!strcmp(signature, "env()")) return wrenshEnvMap;
   if (!strcmp(signature, "env(_)")) return wrenshEnv;
   if (!strcmp(signature, "exit(_)")) return wrenshExit;
   if (!strcmp(signature, "exec_(_,_)")) return wrenshExec;
@@ -737,8 +751,9 @@ WrenVM* setupWren(Ctx* ctx) {
   ctx->wren_call = wrenMakeCallHandle(vm, "call()");
   ctx->wren_call_val = wrenMakeCallHandle(vm, "call(_)");
 
-  CHECK(wrenInterpret(vm, "io", io_src) == WREN_RESULT_SUCCESS, "bad io src");
-  CHECK(wrenInterpret(vm, "main", "import \"io\" for IO, X") == WREN_RESULT_SUCCESS);
+  CHECK(wrenInterpret(vm, "io", wrenMetaSource()) == WREN_RESULT_SUCCESS, "bad meta src");
+  CHECK(wrenInterpret(vm, "io", wrensh_src_io) == WREN_RESULT_SUCCESS, "bad io src");
+  CHECK(wrenInterpret(vm, "main", "import \"io\" for IO, X, Data") == WREN_RESULT_SUCCESS);
 
   return vm;
 }
@@ -795,14 +810,14 @@ void tickerCb(uv_timer_t* handle) {
 int main(int argc, char** argv) {
   DLOG("wrensh main");
   dbgArgs(argc, (const char* const*)argv);
-  bool has_baked_user_src = baked_user_src != NULL;
-  DLOG("has_baked_user_src %d", has_baked_user_src);
+  bool has_user_src = wrensh_src_user != NULL;
+  DLOG("has_user_src %d", has_user_src);
 
-  if (!has_baked_user_src) {
+  if (!has_user_src) {
     // usage
     if (argc == 1 ||
         (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")))) {
-      fputs(usage_str, stderr);
+      fputs(wrensh_src_usage, stderr);
       exit(1);
     }
   }
@@ -810,8 +825,8 @@ int main(int argc, char** argv) {
   // read src
   char* user_src;
   bool file_src = false;
-  if (has_baked_user_src) {
-    user_src = (char*)baked_user_src;
+  if (has_user_src) {
+    user_src = (char*)wrensh_src_user;
   } else if (argc > 2 && !strcmp(argv[1], "-c")) {
     user_src = argv[2];
   } else {
@@ -871,9 +886,6 @@ int main(int argc, char** argv) {
 
   return 0;
 }
-
-static const char* usage_str = \@@WRENSHUSAGE@@;
-static const char* io_src = \@@IOWREN@@;
 
 // TODO:
 // * read(n), readln
