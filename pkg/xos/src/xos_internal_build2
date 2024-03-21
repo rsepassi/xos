@@ -253,8 +253,14 @@ var main = Fn.new {
     // setup log and interrupt/fail fns
     var logfile = "%(build_out)/build.log"
 
+    var fail = Fn.new {
+      IO.Process(["cat", logfile]).stdout(2).run()
+      System.print("failed building pkg %(pkg) %(pkgid)")
+      IO.exit(1)
+    }
+
     var trap = IO.trap(2, Fn.new {
-      // TODO: cat logfile
+      IO.Process(["cat", logfile]).stdout(2).run()
       System.print("interrupted building pkg %(pkg) %(pkgid)")
       IO.exit(1)
     })
@@ -280,11 +286,7 @@ var main = Fn.new {
       .stdout(logfile)
       .runc()
     trap.cancel()
-    if (iserror.call(out)) {
-      System.print("error building pkg %(pkg) %(pkgid)")
-      IO.exit(1)
-    }
-
+    if (iserror.call(out)) fail.call()
 
     // ok
     IO.run(["touch", "%(build_out)/.ok"])
