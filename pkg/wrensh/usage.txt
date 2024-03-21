@@ -6,7 +6,8 @@ wrensh command line utility
 Wren language: https://wren.io
 
 IO:
-  arg(i)  argc()  args()  env(name)  read()  write(s)  writeln(s)  flush()
+  arg(i)  argc()  args()  env() env(name)
+  read()  write(s)  writeln(s)  flush()
   cwd()  chdir(dir)  Process(args)  run(args)  run(args, env)  runc(args)
   exec(args)  exec(args, env)   sleep(n)  trap(sig, fn)  glob(pattern)
   glob(pattern, dir)  exit(code)
@@ -18,3 +19,5 @@ AsyncValue:
   await()
 Trap:
   cancel()
+Data:
+  Record(name, fields)
