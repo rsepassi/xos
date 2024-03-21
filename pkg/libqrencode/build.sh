@@ -1,9 +1,7 @@
 file="qrencode.tar.gz"
-fetch "https://fukuchi.org/works/qrencode/qrencode-4.1.1.tar.gz" \
+src=$(fetch_untar "https://fukuchi.org/works/qrencode/qrencode-4.1.1.tar.gz" \
   $file \
-  "da448ed4f52aba6bcb0cd48cac0dd51b8692bccc4cd127431402fca6f8171e8e"
-src=$(mktemp -d)
-untar "$BUILD_DEPS/$file" "$src"
+  "da448ed4f52aba6bcb0cd48cac0dd51b8692bccc4cd127431402fca6f8171e8e")
 cd $src
 
 cp "$BUILD_PKG/arch/config-$TARGET_OS.h" config.h
