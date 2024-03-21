@@ -193,8 +193,7 @@ then
 fi
 
 echo "xos bootstrap build" > "$out/readme.txt"
-echo "xos bootstrap build" > "$out/.xos"
 echo "$TARGET" > "$out/.xos_host"
-sha256sum "$out/.xos" | cut -d' ' -f1 > "$out/.xos_id"
+echo "xos bootstrap build" | sha256sum | cut -d' ' -f1 > "$out/.xos_id"
 
 echo "bootstrap ok"

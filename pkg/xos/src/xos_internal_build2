@@ -1,61 +1,50 @@
+#!/usr/bin/env wrensh
 var ctx = {}
 
 var PATHSEP = "/"
-
-var read_env = Fn.new {
-  var env_vars = [
-    "TARGET",
-    "OPT",
-    "BUILD",
-    "PKG",
-    "DEV",
-    "XOS_ROOT",
-    "XOS_BUILD_ROOT",
-    "XOS_PKG_ROOT",
-    "XOS_SEAL",
-    "XOS_DEV",
-    "XOS_ID",
-    "XOS_DRY",
-  ]
-  var env = {}
-  for (v in env_vars) {
-    env[v] = IO.env(v)
-  }
-  return env
+var basename = Fn.new { |d|
+  return d.split(PATHSEP)[-1]
+}
+var exists = Fn.new { |f|
+  return !IO.Process(["ls", f]).test()
+}
+var iserror = Fn.new { |c|
+  return (c is Num && c != 0)
 }
 
 var read_args = Fn.new {
+  var args = IO.args()
+  var nself = basename.call(args[0]) == "wrensh" ? 2 : 1
+
+  var pkg_args = []
+  for (argi in (nself + 1)...IO.argc()) {
+    var arg = IO.arg(argi)
+    if (arg == "--") {
+      pkg_args = IO.args()[argi + 1..-1]
+      break
+    }
+    if (arg.contains("=")) {
+      var parts = arg.split("=")
+      var key = parts[0]
+      var value = parts[1..-1].join("=")
+      ctx[key] = value
+    } else {
+      System.print("unrecognized argument %(arg), separate build script args with --")
+      IO.exit(1)
+    }
+  }
+
   return {
-    "prog": IO.arg(0),
-    "self": [IO.arg(0)],
-    "nself": 1,
-    "pkg": IO.argc() > 1 ? IO.arg(1) : null,
+    "prog": args[nself - 1],
+    "self": args[0...nself],
+    "nself": nself,
+    "pkg": IO.argc() > nself ? IO.arg(nself) : null,
+    "pkg_args": pkg_args,
   }
 }
 
+var ENV = IO.env()
 var ARGS = read_args.call()
-var ENV = read_env.call()
-
-var usage_str = "
-usage: build pkgname TARGET= OPT=
-
-echoes pkgid on successful build
-build artifacts for last successful build available in build/out/
-
-https://github.com/rsepassi/xos
-
-example:
-  build sqlite TARGET=aarch64-linux-musl OPT=s
-
-Args (or env vars):
-  TARGET= zig target triple, defaults to host
-  OPT={Debug, Safe, Fast, Small, 0, 1, 2, 3, fast, s, z} optimization level, defaults to Small
-  BUILD= directory for build artifacts, defaults to ./build
-  PKG= pkg/ directory path, defaults to ./pkg
-  DRY={1,0} if 1, log info and exit
-  DEBUG={1,0} if 1, build script -x enabled
-  DEV={1,0} if 1, allows for dev options
-"
 
 var argsquote = Fn.new { |args|
   var quoted = []
@@ -64,73 +53,6 @@ var argsquote = Fn.new { |args|
     quoted.add("'%(arg)'")
   }
   return quoted.join(" ")
-}
-
-var dirname = Fn.new { |d|
-  return d.split(PATHSEP)[0...-1].join(PATHSEP)
-}
-var basename = Fn.new { |d|
-  return d.split(PATHSEP)[-1]
-}
-var exists = Fn.new { |f|
-  return !IO.Process(["ls", f]).test()
-}
-var realpath = Fn.new { |f|
-  return IO.run(["realpath", f]).trim()
-}
-var iserror = Fn.new { |c|
-  return (c is Num && c != 0)
-}
-var readlink = Fn.new { |f|
-  var out = IO.runc(["readlink", f])
-  if (iserror.call(out)) return out
-  return out.trim()
-}
-
-var get_xosroot = Fn.new {
-  var envval = ENV["XOS_ROOT"]
-  if (envval && !envval.isEmpty) return envval
-
-  var script = ARGS["prog"]
-  if (!script.startsWith(PATHSEP)) {
-    if (script.contains(PATHSEP)) {
-      script = realpath.call(script)
-    } else {
-      script = IO.run(["which", script]).trim()
-    }
-  }
-
-  var scriptdir = dirname.call(script)
-  while (!exists.call("%(scriptdir)/.xos")) {
-    // internal tools/build
-    if (basename.call(scriptdir) == "tools") {
-      scriptdir = dirname.call(scriptdir)
-      break
-    }
-    // external user link
-    var link = readlink.call(script)
-    if (iserror.call(link)) {
-      System.print("could not find xos/ root directory")
-      IO.exit(1)
-    }
-
-    if (link.startsWith(PATHSEP)) {
-      script = link
-      scriptdir = dirname.call(link)
-    } else {
-      script = "%(scriptdir)/%(link)"
-      scriptdir = dirname.call(script)
-    }
-  }
-  return realpath.call(scriptdir)
-}
-
-var get_buildroot = Fn.new {
-  var envval = ENV["XOS_BUILD_ROOT"]
-  if (envval && !envval.isEmpty) return envval
-  envval = ENV["BUILD"]
-  if (envval && !envval.isEmpty) return envval
-  return "%(IO.cwd())/build"
 }
 
 var get_pkgroot = Fn.new {
@@ -147,11 +69,13 @@ var get_pkgroot = Fn.new {
 var stale_dyndeps_ = Fn.new { |dyndeps_f, target|
   for (line in IO.run(["cat", dyndeps_f]).split("\n")) {
     if (line.isEmpty) continue
-    var fields = line.split(" ")
+    var fields = line.split("  ")
     var depid = fields[0]
     var depname = fields[1]
     var depargs = fields[2..-1]
-    var depid2 = IO.run(ARGS["self"] + depargs, {"TARGET": target}).trim()
+    var env = IO.env()
+    env["TARGET"] = target
+    var depid2 = IO.run(ARGS["self"] + depargs, env).trim()
     if (depid != depid2) return true
   }
   return false
@@ -184,65 +108,20 @@ var get_host_triple = Fn.new {
   IO.exit(1)
 }
 
-var process_args = Fn.new {
-  var pkg = ARGS["pkg"]
-  var pkg_args = []
-  for (argi in (ARGS["nself"] + 1)...IO.argc()) {
-    var arg = IO.arg(argi)
-    if (arg == "--") {
-      pkg_args = IO.args()[argi + 1..-1]
-      break
-    }
-    if (arg.contains("=")) {
-      var parts = arg.split("=")
-      var key = parts[0]
-      var value = parts[1..-1].join("=")
-      ctx[key] = value
-    } else {
-      System.print("unrecognized argument %(arg), separate build script args with --")
-      IO.exit(1)
-    }
-  }
-
-  return {
-    "pkg_args": pkg_args,
-  }
-}
-
 var main = Fn.new {
-  // script start
-  if (IO.argc() == 1 || ["-h", "--help"].contains(IO.arg(1))) {
-    IO.write(usage_str)
-    IO.exit(1)
-  }
-
-  ctx["XOS_ROOT"] = get_xosroot.call()
-  ctx["XOS_BUILD_ROOT"] = get_buildroot.call()
-  ctx["XOS_BUILD_CACHE"] = "%(ctx["XOS_BUILD_ROOT"])/cache"
-
-  // local tools
+  ctx["XOS_ROOT"] = ENV["XOS_ROOT"]
+  ctx["XOS_BUILD_ROOT"] = ENV["XOS_BUILD_ROOT"]
+  ctx["XOS_BUILD_CACHE"] = "%(ENV["XOS_BUILD_ROOT"])/cache"
   var tools_dir = "%(ctx["XOS_BUILD_CACHE"])/tools"
-  if (!exists.call("%(tools_dir)/.ok")) {
-    IO.run(["%(ctx["XOS_ROOT"])/tools/xos_internal_link_tools", tools_dir])
-  }
-  // re-exec with sealed path
-  // TODO: fix
-  // var seal = ENV["XOS_SEAL"]
-  // if (!seal || seal.isEmpty) {
-  //   ctx["XOS_SEAL"] = 1
-  //   ctx["PATH"] = "%(ctx["XOS_ROOT"])/tools"
-  //   IO.exec(IO.args(), ctx)
-  // }
 
-  var args = process_args.call()
   var pkg = ARGS["pkg"]
   ctx["XOS_PKG_ROOT"] = get_pkgroot.call()
-  if (ENV["DEV"] == "1" || ENV["XOS_DEV"] == "1") {
-    ctx["XOS_DEV"] = 1
+  if (ENV["DEV"] == "1" || ENV["XOS_USER_DEV"] == "1") {
+    ctx["XOS_USER_DEV"] = 1
   }
 
   // determine package
-  var pkg_args_str = argsquote.call(args["pkg_args"])
+  var pkg_args_str = argsquote.call(ARGS["pkg_args"])
   var build_pkg = "%(ctx["XOS_PKG_ROOT"])/%(pkg)"
   if (!exists.call("%(build_pkg)/build.sh")) {
     System.print("unrecognized pkg %(pkg), missing build.sh")
@@ -314,17 +193,17 @@ var main = Fn.new {
   var pkgid_prefix = pkgid[0...2]
   var build_out = "%(ctx["XOS_BUILD_CACHE"])/pkg/%(pkgid_prefix)/%(pkgid)"
 
-  if (ctx["XOS_DEV"] != 1 && exists.call("%(build_pkg)/dev_volatile")) {
+  if (ctx["XOS_USER_DEV"] != 1 && exists.call("%(build_pkg)/dev_volatile")) {
     System.print("warn: %(pkg) marked volatile, but DEV != 1, consider unmarking")
   }
 
 
   var need_rebuild = Fn.new {
-    if (!exists.call("%(build_out)/.ok")) return true
-    if (ctx["XOS_DEV"] = 1 && exists.call("%(build_pkg)/dev_volatile")) return true
-    if (exists.call("%(build_out)/dyndeps.txt") && stale_dyndeps.call("%(build_out)/dyndeps.txt")) return true
-    if (exists.call("%(build_out)/dyntooldeps.txt") && stale_dyntooldeps.call("%(build_out)/dyntooldeps.txt")) return true
-    return false
+    if (!exists.call("%(build_out)/.ok")) return "y, not built"
+    if (ctx["XOS_USER_DEV"] = 1 && exists.call("%(build_pkg)/dev_volatile")) return "y, volatile"
+    if (exists.call("%(build_out)/dyndeps.txt") && stale_dyndeps.call("%(build_out)/dyndeps.txt")) return "y, dyndeps stale"
+    if (exists.call("%(build_out)/dyntooldeps.txt") && stale_dyntooldeps.call("%(build_out)/dyntooldeps.txt")) return "y, dyntoolteps stale"
+    return null
   }
 
   // dependencies
@@ -347,7 +226,7 @@ var main = Fn.new {
   XOS_BUILD_ROOT=%(ctx["XOS_BUILD_ROOT"])
   XOS_BUILD_CACHE=%(ctx["XOS_BUILD_CACHE"])
   XOS_ID=%(ctx["XOS_ID"])
-  rebuild?=%(rebuild)
+  rebuild=%(rebuild)
   ---
   "
     System.print(dry_log)
@@ -396,7 +275,7 @@ var main = Fn.new {
     ctx["BUILD_DEPS"] = "%(build_out)/deps"
     ctx["BUILD_TOOLDEPS"] = "%(build_out)/tooldeps"
     ctx["BUILD_PKG"] = "%(build_pkg)"
-    var out = IO.Process(["sh", "-e", script] + args["pkg_args"])
+    var out = IO.Process(["sh", "-e", script] + ARGS["pkg_args"])
       .env(ctx)
       .stdout(logfile)
       .runc()

@@ -5,32 +5,21 @@ needtool cstrbake
 
 mode=$1
 
-out="$(mktemp -d)"
+# Build XOS executables
 
-# setup output dirs
-tools="$out/tools"
-mkdir -p $tools
+# build
+zig build-exe -target $TARGET -O $OPT_ZIG \
+  "$BUILD_PKG/src/xos_build.zig" \
+  -lc
 
-# zig+busybox
-zig="$BUILD_DEPS/zig"
-bb="$BUILD_DEPS/busybox/bin/$(zigi exe busybox)"
-if [ "$TARGET_OS" = "windows" ]
-then
-  exe=".exe"
-fi
-if [ "$mode" = "release" ]
-then
-  cp -rL "$zig" "$out/zig"
-  cp "$bb" "$tools"
-else
-  ln -s "$zig" "$out/zig"
-  ln -s "$bb" "$tools"
-fi
-ln -s ../zig/"zig$exe" "$tools"/zig
+# sha256sum
+zig build-exe -target $TARGET -O $OPT_ZIG \
+  "$BUILD_PKG/src/sha256sum.zig" \
+  -lc
 
-# bake in wren build script
+# xos_internal_build2 executable
 cat "$BUILD_PKG/src/xos_internal_build2" | \
-  "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" baked_user_src \
+  "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" wrensh_src_user \
   > xos_internal_build2.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
   xos_internal_build2.c \
@@ -39,47 +28,72 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
 
 # wrenshbox
 cat "$BUILD_PKG/src/wrenshbox" | \
-  "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" baked_user_src \
+  "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" wrensh_src_user \
   > wrenshbox.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
   wrenshbox.c \
   $(pkg-config --cflags --libs wrensh) \
   -lc
-mv $(zigi exe wrenshbox) "$tools"
 
-# internal tools
+# setup output dirs
+out="$(mktemp -d)"
+tools="$out/tools"
+mkdir -p $tools
+
+# XOS executables
+mv $(zigi exe xos_build) "$out/build"
+mv $(zigi exe xos_internal_build2) "$tools/xos_internal_build"
+mv $(zigi exe wrenshbox) "$tools"
+mv $(zigi exe sha256sum) "$tools"
+
+# wrensh
+ln -s "$BUILD_DEPS/wrensh/bin/$(zigi exe wrensh)" "$tools"
+
+# zig+busybox links
+zig="$BUILD_DEPS/zig"
+bb="$BUILD_DEPS/busybox/bin/$(zigi exe busybox)"
+if [ "$mode" = "release" ]
+then
+  cp -rL "$zig" "$out/zig"
+  cp "$bb" "$tools"
+else
+  ln -s "$zig" "$out/zig"
+  ln -s "$bb" "$tools"
+fi
+ln -s ../zig/$(zigi exe zig) "$tools"/zig
+
+# install internal tools
 scripts="
+ar
+c++
+cc
 fetch
 fetch_untar
 fetch_urltxt
-cc
-c++
-ar
-rc
-windres
+ld
 need
 needtool
-untar
-xos_internal_pkgid
-xos_internal_link_tools
-zigi
 pkg-config
+rc
+untar
+windres
+xos_internal_link_tools
+xos_internal_mktemp
+xos_internal_pkgid
+zigi
 "
 for script in $scripts
 do
-  cp "$BUILD_PKG/src/$script" "$tools"
+  s="$BUILD_PKG/src/$script"
+  if [ "$mode" = "release" ]
+  then
+    cp "$s" "$tools"
+  else
+    ln -s "$s" "$tools"
+  fi
 done
-cp xos_internal_build2 "$tools/xos_internal_build"
-chmod +x "$tools/xos_internal_build"
-ln -s cc "$tools/ld"
-cat <<EOF > "$tools/xos_internal_mktemp"
-#!/usr/bin/env sh
-set -e
-busybox mktemp \$@
-EOF
-chmod +x "$tools/xos_internal_mktemp"
 
-# link busybox
+# install busybox links
 bbtools="
 mkdir
 ls
@@ -92,7 +106,6 @@ tar
 gzip
 unzip
 wget
-sha256sum
 cat
 cut
 grep
@@ -127,6 +140,7 @@ do
   ln -s $(zigi exe busybox) "$tools/$tool"
 done
 
+# install wrenshbox links
 wrenshboxtools="
 echo
 dirname
@@ -149,9 +163,6 @@ else
   ln -s busybox "$tools/nproc"
 fi
 
-# top-level build
-ln -s tools/xos_internal_build "$out/build"
-
 # readme
 cp "$BUILD_PKG/src/dist_readme.txt" "$out/readme.txt"
 
@@ -159,14 +170,15 @@ cp "$BUILD_PKG/src/dist_readme.txt" "$out/readme.txt"
 zigid="0.12.0-dev.2341+92211135f"
 bbid="1.36.1 FRP-5236-g7dff7f376"
 xosid() {
+  src="$PWD"
+  cd "$BUILD_PKG"
   echo "ZIG=$zigid"
   echo "BUSYBOX=$bbid"
   files=$(find . -type f | sort)
   sha256sum $files
+  cd "$src"
 }
-cd "$BUILD_PKG"
-xosid > "$out/.xos"
-sha256sum "$out/.xos" | cut -d' ' -f1 > "$out/.xos_id"
+xosid | sha256sum | cut -d' ' -f1 > "$out/.xos_id"
 echo "$TARGET" > "$out/.xos_host"
 
 if [ "$mode" = "release" ]
@@ -181,6 +193,9 @@ then
     tar czf xos.tar.gz xos
   fi
 else
-  cd "$out"
-  mv ./* ./.xos* "$BUILD_OUT"
+  mv "$out"/build "$BUILD_OUT"
+  mv "$out"/tools "$BUILD_OUT"
+  mv "$out"/zig "$BUILD_OUT"
+  mv "$out"/.xos_id "$BUILD_OUT"
+  mv "$out"/.xos_host "$BUILD_OUT"
 fi

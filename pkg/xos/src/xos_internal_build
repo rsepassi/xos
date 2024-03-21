@@ -45,7 +45,7 @@ get_xosroot() {
   else
     script="$0"
     scriptdir=$(dirname "$script")
-    while [ ! -e "$scriptdir/.xos" ]
+    while [ ! -e "$scriptdir/.xos_id" ]
     do
       # internal tools/build
       if [ "$(basename "$scriptdir")" = "tools" ]
