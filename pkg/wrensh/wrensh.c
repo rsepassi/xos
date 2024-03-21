@@ -564,9 +564,14 @@ void wrenshRun(WrenVM* vm) {
   uv_stdio_container_t stdio[3];
   stdio[0].flags = UV_IGNORE;
   if (stdout_redir) {
-    FILE* f = fopen(wrenGetSlotString(vm, stdout_i), "w");
-    WREN_CHECK(f, "stdout redirect bad file");
-    state->stdout_fd = fileno(f);
+    if (wrenGetSlotType(vm, stdout_i) == WREN_TYPE_STRING) {
+      FILE* f = fopen(wrenGetSlotString(vm, stdout_i), "w");
+      WREN_CHECK(f, "stdout redirect bad file");
+      state->stdout_fd = fileno(f);
+    } else {
+      state->stdout_fd = (int)wrenGetSlotDouble(vm, stdout_i);
+      WREN_CHECK(state->stdout_fd <= 2, "stdout redirect bad fileno");
+    }
     stdio[1].flags = UV_INHERIT_FD;
     stdio[1].data.fd = state->stdout_fd;
   } else {
@@ -576,9 +581,14 @@ void wrenshRun(WrenVM* vm) {
     uv_handle_set_data((uv_handle_t*)&state->stdout_pipe, state);
   }
   if (stderr_redir) {
-    FILE* f = fopen(wrenGetSlotString(vm, stderr_i), "w");
-    WREN_CHECK(f, "stderr redirect bad file");
-    state->stderr_fd = fileno(f);
+    if (wrenGetSlotType(vm, stderr_i) == WREN_TYPE_STRING) {
+      FILE* f = fopen(wrenGetSlotString(vm, stderr_i), "w");
+      WREN_CHECK(f, "stderr redirect bad file");
+      state->stderr_fd = fileno(f);
+    } else {
+      state->stderr_fd = (int)wrenGetSlotDouble(vm, stderr_i);
+      WREN_CHECK(state->stderr_fd <= 2, "stderr redirect bad fileno");
+    }
     stdio[2].flags = UV_INHERIT_FD;
     stdio[2].data.fd = state->stderr_fd;
   } else {

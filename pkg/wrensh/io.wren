@@ -108,6 +108,13 @@ class Data {
     var setters = fields.map { |x| "  %(x)=(val) { _%(x) = val }\n" }
     class_str = class_str + "%(setters.join(""))"
 
+    // equality
+    var eqstrs = fields.map { |x| "_%(x) == other.%(x)" }
+    class_str = class_str + "  ==(other) {\n"
+    class_str = class_str + "  return other is %(name) && " + eqstrs.join(" && ") + "\n"
+    class_str = class_str + "  }\n"
+    class_str = class_str + "  !=(other) {\n  return !(this == other)\n  }\n"
+
     // toString
     var fieldstrs = fields.map { |x| "%(x)=\%(_%(x))" }
     class_str = class_str + "  toString {\n"
