@@ -177,6 +177,7 @@ var main = Fn.new {
 
   // identify pkg id
   var pkgid_text = IO.run(["%(ctx["XOS_ROOT"])/tools/xos_internal_pkgid", pkg], {
+    "PATH": ENV["PATH"],
     "XOS": ctx["XOS_ID"],
     "BUILD_PKG": build_pkg,
     "TARGET": ctx["TARGET"],

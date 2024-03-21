@@ -40,26 +40,32 @@ fn runBuild(alloc: std.mem.Allocator, args: []str, env: *std.process.EnvMap, xos
 }
 
 fn getXosRoot(alloc: std.mem.Allocator) !str {
-    switch (builtin.os.tag) {
-        .macos => {
-            const buf = try alloc.alloc(u8, std.os.PATH_MAX);
-            var len: c_int = 0;
+    const self = switch (builtin.os.tag) {
+        .macos => blk: {
+            const path_max = std.os.PATH_MAX;
+            const buf = try alloc.allocSentinel(u8, path_max, 0);
+            var len: u32 = path_max;
             const rc = std.os.darwin._NSGetExecutablePath(buf.ptr, &len);
             if (rc != 0) return error.NotFound;
-            var buf2 = try alloc.alloc(u8, std.os.PATH_MAX);
-            return try std.os.realpath(buf, &buf2);
+            var buf2 = try alloc.alloc(u8, path_max);
+            break :blk try std.os.realpathZ(buf, buf2[0..path_max]);
         },
-        .linux => {
-            const buf = try alloc.alloc(u8, std.os.PATH_MAX);
-            const arg0 = try std.os.readlink("/proc/self/exe", buf);
-            return std.fs.path.dirname(arg0).?;
+        .linux => blk: {
+            const path_max = std.os.PATH_MAX;
+            const buf = try alloc.alloc(u8, path_max);
+            break :blk try std.os.readlink("/proc/self/exe", buf);
         },
-        .windows => {
-            const buf = try alloc.alloc(u16, std.os.PATH_MAX);
-            std.os.windows.GetModuleFileNameW(null, buf, buf.len);
+        .windows => blk: {
+            const path_max = std.os.windows.PATH_MAX_WIDE;
+            const buf = try alloc.alloc(u16, path_max);
+            const path = try std.os.windows.GetModuleFileNameW(null, buf.ptr, @intCast(buf.len));
+            const max_bytes = path_max * 3 + 1;
+            var buf2 = try alloc.alloc(u8, max_bytes);
+            break :blk try std.os.realpathW(path, buf2[0..max_bytes]);
         },
         else => return error.Unimplemented,
-    }
+    };
+    return std.fs.path.dirname(self).?;
 }
 
 fn getBuildRoot(alloc: std.mem.Allocator, env: std.process.EnvMap) !str {
