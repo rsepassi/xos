@@ -6,7 +6,7 @@ build artifacts for last successful build available in build/out/
 https://github.com/rsepassi/xos
 
 example:
-  build sqlite TARGET=aarch64-linux-musl OPT=s
+  build sqlite3 TARGET=aarch64-linux-musl OPT=s
 
 Args (or env vars):
   TARGET= zig target triple, defaults to host
