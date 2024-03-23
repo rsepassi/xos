@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const Hash = std.crypto.hash.sha2.Sha256;
+const bufsize = 4096;
 
 pub fn main() !void {
     const alloc = std.heap.c_allocator;
@@ -36,7 +37,6 @@ fn printEntry(writer: anytype, hash: [Hash.digest_length]u8, file: []const u8) !
 
 fn getHash(unbuf: anytype) ![Hash.digest_length]u8 {
     var hash = Hash.init(.{});
-    const bufsize = 4096;
     var reader = std.io.bufferedReaderSize(bufsize, unbuf);
     var buf: [bufsize]u8 = undefined;
     while (true) {

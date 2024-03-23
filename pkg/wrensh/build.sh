@@ -20,6 +20,7 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   usage_src.c \
   io_src.c \
   "$BUILD_PKG/wrensh.zig" \
+  $cflags \
   $(pkg-config --cflags wren libuv/uv xglob sds) \
   -lc
 
@@ -27,6 +28,7 @@ touch wrensh.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
   wrensh.c \
   user_src.c \
+  $cflags \
   $(zigi lib wrensh) \
   $(pkg-config --cflags --libs wren libuv/uv xglob sds) \
   -lc

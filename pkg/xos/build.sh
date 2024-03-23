@@ -1,6 +1,7 @@
 need zig
 need busybox
 need wrensh
+need wrenshbox
 needtool cstrbake
 
 mode=$1
@@ -26,15 +27,6 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
   $(pkg-config --cflags --libs wrensh) \
   -lc
 
-# wrenshbox
-cat "$BUILD_PKG/src/wrenshbox" | \
-  "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" wrensh_src_user \
-  > wrenshbox.c
-zig build-exe -target $TARGET -O $OPT_ZIG \
-  wrenshbox.c \
-  $(pkg-config --cflags --libs wrensh) \
-  -lc
-
 # setup output dirs
 out="$(mktemp -d)"
 tools="$out/tools"
@@ -43,22 +35,24 @@ mkdir -p $tools
 # XOS executables
 mv $(zigi exe xos_build) "$out/build"
 mv $(zigi exe xos_internal_build2) "$tools/xos_internal_build"
-mv $(zigi exe wrenshbox) "$tools"
 mv $(zigi exe sha256sum) "$tools"
 
-# wrensh
-ln -s "$BUILD_DEPS/wrensh/bin/$(zigi exe wrensh)" "$tools"
-
-# zig+busybox links
+# zig+busybox+wrensh+wrenshbox
 zig="$BUILD_DEPS/zig"
 bb="$BUILD_DEPS/busybox/bin/$(zigi exe busybox)"
+wrensh="$BUILD_DEPS/wrensh/bin/$(zigi exe wrensh)"
+wrenshbox="$BUILD_DEPS/wrenshbox/bin/$(zigi exe wrenshbox)"
 if [ "$mode" = "release" ]
 then
   cp -rL "$zig" "$out/zig"
   cp "$bb" "$tools"
+  cp "$wrensh" "$tools"
+  cp "$wrenshbox" "$tools"
 else
   ln -s "$zig" "$out/zig"
   ln -s "$bb" "$tools"
+  ln -s "$wrensh" "$tools"
+  ln -s "$wrenshbox" "$tools"
 fi
 ln -s ../zig/$(zigi exe zig) "$tools"/zig
 

@@ -7,8 +7,9 @@
 #include "xglob.h"
 #include "sds.h"
 
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define LOG_HELPER(prefix, fmt, ...) do { \
-	fprintf(stderr, "[" prefix " %s:%d] " fmt "%s\n", &__FILE__[0], __LINE__, __VA_ARGS__); \
+	fprintf(stderr, "[" prefix " %s:%d] " fmt "%s\n", &__FILENAME__[0], __LINE__, __VA_ARGS__); \
 	} while(0)
 #define LOG(...) LOG_HELPER("info", __VA_ARGS__, "")
 
@@ -453,7 +454,7 @@ void wrenshRunFinalize(runstate* state) {
       QCHECK(wrenCall(state->vm, ctx->wren_tx) == WREN_RESULT_SUCCESS);
     }
   } else {
-    sprintf(wrenErrorStr, "process failed with code=%ld", state->exit_status);
+    sprintf(wrenErrorStr, "process failed with code=%lld", state->exit_status);
     wrenSetSlotString(state->vm, 1, wrenErrorStr);
     QCHECK(wrenCall(state->vm, ctx->wren_tx_err) == WREN_RESULT_SUCCESS);
   }
@@ -469,7 +470,7 @@ void wrenshRunFinalize(runstate* state) {
 
 void wrenshRunExitCb(uv_process_t* process, int64_t exit_status, int term_signal) {
   runstate* state = (runstate*)uv_handle_get_data((uv_handle_t*)process);
-  DLOG("wrenshRun exit code=%ld state=%p vm=%p", exit_status, state, state->vm);
+  DLOG("wrenshRun exit code=%lld state=%p vm=%p", exit_status, state, state->vm);
   state->process_done = true;
   state->exit_status = exit_status;
 
@@ -593,7 +594,7 @@ void wrenshRun(WrenVM* vm) {
     stdio[2].data.fd = state->stderr_fd;
   } else {
     stdio[2].flags = UV_INHERIT_FD;
-    stdio[2].data.fd = STDERR_FILENO;
+    stdio[2].data.fd = fileno(stderr);
   }
 
   // Setup process options
@@ -859,10 +860,15 @@ int main(int argc, char** argv) {
   DLOG("wren setup vm=%p", wren);
 
   // setup std{in,out}
+  uv_handle_type stdin_type = uv_guess_handle(fileno(stdin));
+  uv_handle_type stdout_type = uv_guess_handle(fileno(stdout));
+  DLOG("uv stdin=%s stdout=%s", uv_handle_type_name(stdin_type), uv_handle_type_name(stdout_type));
+
   UV_CHECK(uv_pipe_init(loop, &ctx.stdin_pipe, 0));
-  UV_CHECK(uv_pipe_open(&ctx.stdin_pipe, STDIN_FILENO));
   UV_CHECK(uv_pipe_init(loop, &ctx.stdout_pipe, 0));
-  UV_CHECK(uv_pipe_open(&ctx.stdout_pipe, STDOUT_FILENO));
+  UV_CHECK(uv_pipe_open(&ctx->stdin_pipe, fileno(stdin)));
+  UV_CHECK(uv_pipe_open(&ctx.stdout_pipe, fileno(stdout)));
+
   DLOG("stdio setup");
 
   // setup ticker (garbage collection)
@@ -881,7 +887,7 @@ int main(int argc, char** argv) {
   DLOG("uv loop start");
   int live = 1;
   while (live) {
-    DLOG("uv loop tick %lu", uv_now(loop));
+    DLOG("uv loop tick %lld", uv_now(loop));
     live = uv_run(loop, UV_RUN_ONCE);
   }
   uv_timer_stop(&ticker);
