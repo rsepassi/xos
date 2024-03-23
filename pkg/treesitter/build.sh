@@ -14,7 +14,7 @@ src=$(mktemp -d)
 untar "$BUILD_DEPS/$file" "$src"
 cd $src
 
-PATH="$BUILD_TOOLDEPS/rust/.cargo/bin:$PATH"
+PATH="$BUILD_TOOLS/rust/.cargo/bin:$PATH"
 xcargo build \
   --target $(rusti target) \
   --release \

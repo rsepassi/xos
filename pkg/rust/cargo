@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 exec env \
-  RUSTUP_HOME="$BUILD_TOOLDEPS/rust/.rustup" \
-  CARGO_HOME="$BUILD_TOOLDEPS/rust/.cargo" \
+  RUSTUP_HOME="$BUILD_TOOLS/rust/.rustup" \
+  CARGO_HOME="$BUILD_TOOLS/rust/.cargo" \
   CC="rustcc" \
   "$(rusti linkervar)=rustcc" \
   cargo "$@"

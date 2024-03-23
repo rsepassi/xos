@@ -14,5 +14,4 @@ Args (or env vars):
   BUILD= directory for build artifacts, defaults to ./build
   PKG= pkg/ directory path, defaults to ./pkg
   DRY={1,0} if 1, log info and exit
-  DEBUG={1,0} if 1, build script -x enabled
   DEV={1,0} if 1, allows for dev options

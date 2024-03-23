@@ -130,7 +130,7 @@ TARGET="$TARGET" \
 OPT="s" \
 TARGET_OS=$TARGET_OS \
 BUILD_DEPS="$tmp" \
-BUILD_TOOLDEPS="$tmp" \
+BUILD_TOOLS="$tmp" \
 XOS_BUILD_CACHE="$cache" \
 BUILD_OUT="$tmp/busybox" \
 sh -ex "$xosroot/pkg/busybox/build.sh"

@@ -14,7 +14,7 @@ cd $src
 # jemalloc xcompile is broken
 patch -p1 < "$BUILD_PKG/rm_jemalloc.patch"
 
-PATH="$BUILD_TOOLDEPS/rust/.cargo/bin:$PATH"
+PATH="$BUILD_TOOLS/rust/.cargo/bin:$PATH"
 xcargo build \
   --target $(rusti target) \
   --release \

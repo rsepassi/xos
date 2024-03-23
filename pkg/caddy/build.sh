@@ -1,5 +1,5 @@
 needtool golang
-PATH="$BUILD_TOOLDEPS/golang/bin:$PATH"
+PATH="$BUILD_TOOLS/golang/bin:$PATH"
 
 url="https://github.com/caddyserver/caddy/archive/refs/tags/v2.7.6.tar.gz"
 hash="e1c524fc4f4bd2b0d39df51679d9d065bb811e381b7e4e51466ba39a0083e3ed"

@@ -1,5 +1,5 @@
 needtool golang
-PATH="$BUILD_TOOLDEPS/golang/bin:$PATH"
+PATH="$BUILD_TOOLS/golang/bin:$PATH"
 
 version="v1.27.3"
 

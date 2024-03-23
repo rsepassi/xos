@@ -1,5 +1,5 @@
 needtool make
-make=$BUILD_TOOLDEPS/make/bin/make
+make=$BUILD_TOOLS/make/bin/make
 
 if [ "$TARGET_OS" = "windows" ]
 then

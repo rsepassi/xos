@@ -83,7 +83,7 @@ void add_garbage(Ctx* ctx, Node* garbage) {
   ctx->garbage = garbage;
 }
 
-void cleanup_garbage(Ctx* ctx) {
+void cleanupGarbage(Ctx* ctx) {
   void* data = NULL;
   Node* g = ctx->garbage;
   while (g) {
@@ -686,6 +686,12 @@ void trapCancel(WrenVM* vm) {
   state->cancelled = true;
 }
 
+extern void timerAlloc(WrenVM*);
+extern void timerFinal(void*);
+extern void timerLap(WrenVM*);
+extern void timerRead(WrenVM*);
+extern void timerReset(WrenVM*);
+
 WrenForeignClassMethods bindForeignClass(
     WrenVM* vm, const char* module, const char* className) {
   CHECK(!strcmp(module, "io"), "unexpected foreign class");
@@ -693,6 +699,10 @@ WrenForeignClassMethods bindForeignClass(
   if (!strcmp(className, "Trap")) {
     m.allocate = trapAlloc;
     m.finalize = trapFinal;
+  }
+  if (!strcmp(className, "Timer")) {
+    m.allocate = timerAlloc;
+    m.finalize = timerFinal;
   }
   return m;
 }
@@ -719,8 +729,16 @@ WrenForeignMethodFn bindForeignMethod(
       && !isStatic
       && !strcmp(signature, "cancel()")) return trapCancel;
 
+  // Meta
   WrenForeignMethodFn meta = wrenMetaBindForeignMethod(vm, className, isStatic, signature);
   if (meta != NULL) return meta;
+
+  // Timer
+  if (!strcmp(className, "Timer") && !isStatic) {
+      if (!strcmp(signature, "lap()")) return timerLap;
+      if (!strcmp(signature, "read()")) return timerRead;
+      if (!strcmp(signature, "reset()")) return timerReset;
+  }
 
   // IO
   CHECK(!strcmp(className, "IO") &&
@@ -816,7 +834,7 @@ void cleanupUV(Ctx* ctx) {
 
 void tickerCb(uv_timer_t* handle) {
   Ctx* ctx = (Ctx*)uv_handle_get_data((uv_handle_t*)handle);
-  cleanup_garbage(ctx);
+  cleanupGarbage(ctx);
 }
 
 typedef union {
@@ -869,14 +887,14 @@ int main(int argc, char** argv) {
 
   // read src
   char* user_src;
-  bool file_src = false;
+  char* file_src = NULL;
   if (has_user_src) {
     user_src = (char*)wrensh_src_user;
   } else if (argc > 2 && !strcmp(argv[1], "-c")) {
     user_src = argv[2];
   } else {
-    user_src = readFile(argv[1]);
-    file_src = true;
+    file_src = readFile(argv[1]);
+    user_src = file_src;
   }
 
   // uv setup
@@ -901,13 +919,14 @@ int main(int argc, char** argv) {
   uv_stdio_stream_t stdin_stream = {0};
   uv_stdio_stream_t stdout_stream = {0};
 
-  if (stdin_type == UV_NAMED_PIPE) {
-    UV_CHECK(uv_pipe_init(loop, &stdin_stream.pipe, 0));
-    UV_CHECK(uv_pipe_open(&stdin_stream.pipe, fileno(stdin)));
-  } else if (stdin_type == UV_TTY) {
+  if (stdin_type == UV_TTY) {
     UV_CHECK(uv_tty_init(loop, &stdin_stream.tty, fileno(stdin), 0));
   } else {
-    CHECK(false, "unsupported stdio type");
+    if (stdin_type != UV_NAMED_PIPE) {
+      DLOG("treating stdin as pipe but type=%s", uv_handle_type_name(stdin_type));
+    }
+    UV_CHECK(uv_pipe_init(loop, &stdin_stream.pipe, 0));
+    UV_CHECK(uv_pipe_open(&stdin_stream.pipe, fileno(stdin)));
   }
   ctx.stdin_stream = (uv_stream_t*)&stdin_stream;
 
@@ -940,7 +959,7 @@ int main(int argc, char** argv) {
     UV_CHECK(uv_tty_init(loop, &stdout_stream.tty, fileno(stdout), 0));
     ctx.stdout_stream = (uv_stream_t*)&stdout_stream;
   } else {
-    CHECK(false, "unsupported stdio type");
+    CHECK(false, "unsupported stdout type %s", uv_handle_type_name(stdout_type));
   }
 
   DLOG("stdio setup");
@@ -969,10 +988,10 @@ int main(int argc, char** argv) {
   DLOG("uv loop done, exiting");
 
   // Cleanup
-  if (file_src) free(user_src);
+  if (file_src) free(file_src);
   cleanupWren(wren);
   cleanupUV(&ctx);
-  cleanup_garbage(&ctx);
+  cleanupGarbage(&ctx);
 
   return 0;
 }

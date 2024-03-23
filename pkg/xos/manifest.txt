@@ -13,10 +13,9 @@ src/sha256sum.zig
 src/untar
 src/usage.txt
 src/windres
-src/wrenshbox
+src/xos_build.wren
 src/xos_build.zig
 src/xos_internal_build
-src/xos_internal_build2
 src/xos_internal_link_tools
 src/xos_internal_pkgid
 src/zigi

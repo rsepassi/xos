@@ -19,3 +19,30 @@ export fn wrenshEnvMap(vm: *wren.WrenVM) void {
         wren.wrenSetMapValue(vm, 0, 1, 2);
     }
 }
+
+export fn timerAlloc(vm: *wren.WrenVM) void {
+    const ptr = wren.wrenSetSlotNewForeign(vm, 0, 0, @sizeOf(std.time.Timer));
+    const timer: *std.time.Timer = @ptrCast(@alignCast(ptr));
+    timer.* = std.time.Timer.start() catch @panic("bad timer");
+}
+
+export fn timerFinal(data: *anyopaque) void {
+    _ = data;
+}
+
+export fn timerLap(vm: *wren.WrenVM) void {
+    const timer: *std.time.Timer = @ptrCast(@alignCast(wren.wrenGetSlotForeign(vm, 0)));
+    const t = timer.lap();
+    wren.wrenSetSlotDouble(vm, 0, @floatFromInt(t / std.time.ns_per_ms));
+}
+
+export fn timerReset(vm: *wren.WrenVM) void {
+    const timer: *std.time.Timer = @ptrCast(@alignCast(wren.wrenGetSlotForeign(vm, 0)));
+    timer.reset();
+}
+
+export fn timerRead(vm: *wren.WrenVM) void {
+    const timer: *std.time.Timer = @ptrCast(@alignCast(wren.wrenGetSlotForeign(vm, 0)));
+    const t = timer.read();
+    wren.wrenSetSlotDouble(vm, 0, @floatFromInt(t / std.time.ns_per_ms));
+}

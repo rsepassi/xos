@@ -4,7 +4,7 @@ need xglob
 need sds
 needtool cstrbake
 
-cstrbake="$BUILD_TOOLDEPS/cstrbake/bin/cstrbake"
+cstrbake="$BUILD_TOOLS/cstrbake/bin/cstrbake"
 
 if [ "$OPT_ZIG" = "Debug" ]
 then

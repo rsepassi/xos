@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 exec env \
   NEEDTARGET="$HOST" \
-  NEEDDEPS="$BUILD_TOOLDEPS" \
+  NEEDDEPS="$BUILD_TOOLS" \
   NEEDTXT="dyntooldeps.txt" \
   need "$@"

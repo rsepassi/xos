@@ -5,7 +5,7 @@
 #   2024/02/18 18:58:02 Serving . on HTTP port: 8100
 needtool golang
 
-PATH="$BUILD_TOOLDEPS/golang/bin:$PATH"
+PATH="$BUILD_TOOLS/golang/bin:$PATH"
 
 bin=$(zigi exe ssserve)
 

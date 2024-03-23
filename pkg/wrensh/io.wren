@@ -26,6 +26,13 @@ class AsyncValue {
   }
 }
 
+foreign class Timer {
+  construct new() {}
+  foreign lap()
+  foreign read()
+  foreign reset()
+}
+
 class X_ {
   construct new() {}
 
@@ -160,6 +167,10 @@ class IO {
 
   static Process(args) {
     return ProcessBuilder.new(args)
+  }
+
+  static Timer() {
+    return Timer.new()
   }
 
   static run(argv) {

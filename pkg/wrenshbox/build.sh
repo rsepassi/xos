@@ -3,7 +3,7 @@ needtool cstrbake
 
 # wrenshbox
 cat "$BUILD_PKG/wrenshbox.wren" | \
-  "$BUILD_TOOLDEPS/cstrbake/bin/cstrbake" wrensh_src_user \
+  "$BUILD_TOOLS/cstrbake/bin/cstrbake" wrensh_src_user \
   > wrenshbox.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
   wrenshbox.c \

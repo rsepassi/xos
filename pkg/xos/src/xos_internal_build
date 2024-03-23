@@ -391,7 +391,7 @@ EOF
       OPT_ZIG="$OPT_ZIG" \
       BUILD_OUT="$BUILD_OUT/out" \
       BUILD_DEPS="$BUILD_OUT/deps" \
-      BUILD_TOOLDEPS="$BUILD_OUT/tooldeps" \
+      BUILD_TOOLS="$BUILD_OUT/tooldeps" \
       BUILD_PKG="$BUILD_PKG" \
     sh -e $shflags "$script" "$@" || fail
   )

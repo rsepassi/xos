@@ -1,5 +1,5 @@
 needtool golang
-PATH="$BUILD_TOOLDEPS/golang/bin:$PATH"
+PATH="$BUILD_TOOLS/golang/bin:$PATH"
 
 url="https://github.com/tendermint/tendermint/archive/refs/tags/v0.34.24.tar.gz"
 hash="4b288b16e95a7a90fa8ce09eea596a2c3f7d75a2c5f78f235a9680028a63033b"
