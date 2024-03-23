@@ -68,8 +68,8 @@ typedef struct {
   int argc;
   char** argv;
   uv_loop_t* loop;
-  uv_pipe_t stdin_pipe;
-  uv_pipe_t stdout_pipe;
+  uv_stream_t* stdin_stream;
+  uv_stream_t* stdout_stream;
   WrenHandle* wren_tx_val;
   WrenHandle* wren_tx_err;
   WrenHandle* wren_tx;
@@ -163,6 +163,7 @@ void wrenshReadCb(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf) {
   readstate* state = (readstate*)uv_handle_get_data((uv_handle_t*)stream);
 
   if (nread < 0) {
+    DLOG("wrenshReadCb done");
     uv_read_stop(stream);
     uv_close((uv_handle_t*)stream, NULL);
     wrenshReadFinalize(state);
@@ -185,8 +186,8 @@ void wrenshRead(WrenVM* vm) {
   *state = s2;
 
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
-  uv_handle_set_data((uv_handle_t*)&ctx->stdin_pipe, state);
-  UV_CHECK(uv_read_start((uv_stream_t*)&ctx->stdin_pipe, wrenshReadAlloc, wrenshReadCb));
+  uv_handle_set_data((uv_handle_t*)ctx->stdin_stream, state);
+  UV_CHECK(uv_read_start(ctx->stdin_stream, wrenshReadAlloc, wrenshReadCb));
 }
 
 typedef struct {
@@ -239,7 +240,7 @@ void wrenshWrite(WrenVM* vm) {
 
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
   uv_req_set_data((uv_req_t*)&state->req, state);
-  UV_CHECK(uv_write(&state->req, (uv_stream_t*)&ctx->stdout_pipe, state->bufs, 1, wrenshWriteCb));
+  UV_CHECK(uv_write(&state->req, ctx->stdout_stream, state->bufs, 1, wrenshWriteCb));
 }
 
 typedef struct {
@@ -454,7 +455,7 @@ void wrenshRunFinalize(runstate* state) {
       QCHECK(wrenCall(state->vm, ctx->wren_tx) == WREN_RESULT_SUCCESS);
     }
   } else {
-    sprintf(wrenErrorStr, "process failed with code=%lld", state->exit_status);
+    sprintf(wrenErrorStr, "process failed with code=%ld", (int64_t)state->exit_status);
     wrenSetSlotString(state->vm, 1, wrenErrorStr);
     QCHECK(wrenCall(state->vm, ctx->wren_tx_err) == WREN_RESULT_SUCCESS);
   }
@@ -470,7 +471,7 @@ void wrenshRunFinalize(runstate* state) {
 
 void wrenshRunExitCb(uv_process_t* process, int64_t exit_status, int term_signal) {
   runstate* state = (runstate*)uv_handle_get_data((uv_handle_t*)process);
-  DLOG("wrenshRun exit code=%lld state=%p vm=%p", exit_status, state, state->vm);
+  DLOG("wrenshRun exit code=%ld state=%p vm=%p", exit_status, state, state->vm);
   state->process_done = true;
   state->exit_status = exit_status;
 
@@ -804,8 +805,8 @@ void uv_cleanup_cb(uv_handle_t *handle, void *arg) {
 
 void cleanupUV(Ctx* ctx) {
   DLOG("cleanupUV");
-  uv_close((uv_handle_t*)&ctx->stdout_pipe, NULL);
-  uv_close((uv_handle_t*)&ctx->stdin_pipe, NULL);
+  uv_close((uv_handle_t*)ctx->stdout_stream, NULL);
+  uv_close((uv_handle_t*)ctx->stdin_stream, NULL);
   uv_run(ctx->loop, UV_RUN_DEFAULT);
   uv_walk(ctx->loop, uv_cleanup_cb, 0);
   uv_run(ctx->loop, UV_RUN_DEFAULT);
@@ -816,6 +817,39 @@ void cleanupUV(Ctx* ctx) {
 void tickerCb(uv_timer_t* handle) {
   Ctx* ctx = (Ctx*)uv_handle_get_data((uv_handle_t*)handle);
   cleanup_garbage(ctx);
+}
+
+typedef union {
+  uv_pipe_t pipe;
+  uv_tty_t tty;
+} uv_stdio_stream_t;
+
+void intpipeAlloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t* buf) {
+  DLOG("intpipeAlloc");
+  static char readbuf[1 << 16];
+  *buf = uv_buf_init(readbuf, sizeof(readbuf));
+}
+
+typedef struct {
+  uv_loop_t* loop;
+  uv_fs_t req;
+  uv_file file;
+} intpipe_state;
+
+void dummyFsWriteCb(uv_fs_t *req) {}
+
+void intpipeRead(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf) {
+  DLOG("intpipeRead");
+  intpipe_state* state = (intpipe_state*)uv_handle_get_data((uv_handle_t*)stream);
+
+  if (nread < 0) {
+    DLOG("intpipeRead done");
+    uv_read_stop(stream);
+    uv_close((uv_handle_t*)stream, NULL);
+    return;
+  }
+
+  UV_CHECK(uv_fs_write(state->loop, &state->req, state->file, buf, 1, -1, dummyFsWriteCb));
 }
 
 int main(int argc, char** argv) {
@@ -864,10 +898,50 @@ int main(int argc, char** argv) {
   uv_handle_type stdout_type = uv_guess_handle(fileno(stdout));
   DLOG("uv stdin=%s stdout=%s", uv_handle_type_name(stdin_type), uv_handle_type_name(stdout_type));
 
-  UV_CHECK(uv_pipe_init(loop, &ctx.stdin_pipe, 0));
-  UV_CHECK(uv_pipe_init(loop, &ctx.stdout_pipe, 0));
-  UV_CHECK(uv_pipe_open(&ctx->stdin_pipe, fileno(stdin)));
-  UV_CHECK(uv_pipe_open(&ctx.stdout_pipe, fileno(stdout)));
+  uv_stdio_stream_t stdin_stream = {0};
+  uv_stdio_stream_t stdout_stream = {0};
+
+  if (stdin_type == UV_NAMED_PIPE) {
+    UV_CHECK(uv_pipe_init(loop, &stdin_stream.pipe, 0));
+    UV_CHECK(uv_pipe_open(&stdin_stream.pipe, fileno(stdin)));
+  } else if (stdin_type == UV_TTY) {
+    UV_CHECK(uv_tty_init(loop, &stdin_stream.tty, fileno(stdin), 0));
+  } else {
+    CHECK(false, "unsupported stdio type");
+  }
+  ctx.stdin_stream = (uv_stream_t*)&stdin_stream;
+
+  // Used only if stdout is a file
+  // we'll read from this pipe and on data we'll write to the actual file
+  uv_pipe_t intpipe_read = {0};
+  // this is the pipe that will stand in for stdout
+  uv_pipe_t intpipe_write = {0};
+  intpipe_state intpipe_state_ = {0};
+  if (stdout_type == UV_FILE) {
+    uv_file fds[2];
+    UV_CHECK(uv_pipe(fds, UV_NONBLOCK_PIPE, UV_NONBLOCK_PIPE));
+
+    UV_CHECK(uv_pipe_init(loop, &intpipe_read, 0));
+    UV_CHECK(uv_pipe_open(&intpipe_read, fds[0]));
+    intpipe_state_.loop = loop;
+    intpipe_state_.file = fileno(stdout);
+    uv_handle_set_data((uv_handle_t*)&intpipe_read, &intpipe_state_);
+    UV_CHECK(uv_read_start((uv_stream_t*)&intpipe_read, intpipeAlloc, intpipeRead));
+    uv_unref((uv_handle_t*)&intpipe_read);
+
+    UV_CHECK(uv_pipe_init(loop, &intpipe_write, 0));
+    UV_CHECK(uv_pipe_open(&intpipe_write, fds[1]));
+    ctx.stdout_stream = (uv_stream_t*)&intpipe_write;
+  } else if (stdout_type == UV_NAMED_PIPE) {
+    UV_CHECK(uv_pipe_init(loop, &stdout_stream.pipe, 0));
+    UV_CHECK(uv_pipe_open(&stdout_stream.pipe, fileno(stdout)));
+    ctx.stdout_stream = (uv_stream_t*)&stdout_stream;
+  } else if (stdout_type == UV_TTY) {
+    UV_CHECK(uv_tty_init(loop, &stdout_stream.tty, fileno(stdout), 0));
+    ctx.stdout_stream = (uv_stream_t*)&stdout_stream;
+  } else {
+    CHECK(false, "unsupported stdio type");
+  }
 
   DLOG("stdio setup");
 
@@ -887,7 +961,7 @@ int main(int argc, char** argv) {
   DLOG("uv loop start");
   int live = 1;
   while (live) {
-    DLOG("uv loop tick %lld", uv_now(loop));
+    DLOG("uv loop tick %ld", (int64_t)uv_now(loop));
     live = uv_run(loop, UV_RUN_ONCE);
   }
   uv_timer_stop(&ticker);
