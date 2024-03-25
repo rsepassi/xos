@@ -3,8 +3,8 @@ need zlib
 need mbedtls
 need llhttp
 
-url="https://github.com/openziti/tlsuv/archive/refs/tags/v0.28.3.tar.gz"
-hash="0c64755453a6f0c94851c90567b4ed0002212c8c7be453a9f5a3b713d147f88a"
+url="https://github.com/openziti/tlsuv/archive/refs/tags/v0.28.5.tar.gz"
+hash="eb0bb18f4b8cd12e4efccc973e5ae0d27d951db7ac61114c21da03b327d983f2"
 file="tlsuv.tar.gz"
 src=$(fetch_untar "$url" "$file" "$hash")
 cd $src
