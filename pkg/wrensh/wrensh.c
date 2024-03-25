@@ -798,7 +798,8 @@ void cleanupWren(WrenVM* vm) {
   wrenReleaseHandle(vm, ctx->wren_call);
   wrenReleaseHandle(vm, ctx->wren_call_val);
 
-  wrenFreeVM(vm);
+  // TODO: segfaults
+  // wrenFreeVM(vm);
 }
 
 char* readFile(char* path) {

@@ -184,20 +184,17 @@ fn runBuild(
     child.stdout_behavior = .Pipe;
     try child.spawn();
     const stdout_contents = try child.stdout.?.readToEndAlloc(alloc, 1024);
-    const out = child.wait();
+    const term = try child.wait();
 
-    if (out) |term| {
-        switch (term) {
-            .Exited => |code| {
-                if (code != 0) return error.NonZeroExitCode;
-                return std.mem.trimRight(u8, stdout_contents, "\n");
-            },
-            else => {
-                return error.NonZeroExitCode;
-            },
-        }
-    } else |err| {
-        return err;
+    switch (term) {
+        .Exited => |code| {
+            if (code != 0) std.process.exit(code);
+            return std.mem.trimRight(u8, stdout_contents, "\n");
+        },
+        else => {
+            log.err("{any}\n", .{term});
+            std.process.exit(1);
+        },
     }
 }
 
