@@ -1,0 +1,65 @@
+#!/usr/bin/env sh
+
+nimos() {
+  os=$1
+  if [ "$os" = "linux" ]
+  then
+    echo "Linux"
+  elif [ "$os" = "macos" ]
+  then
+    echo "MacOSX"
+  elif [ "$os" = "windows" ]
+  then
+    echo "Windows"
+  else
+    >&2 echo "unrecognized os for nim $os"
+    exit 1
+  fi
+}
+
+nimarch() {
+  arch=$1
+  if [ "$arch" = "x86_64" ]
+  then
+    echo "amd64"
+  elif [ "$arch" = "aarch64" ]
+  then
+    echo "arm64"
+  else
+    >&2 echo "unrecognized arch for nim $arch"
+    exit 1
+  fi
+}
+
+nimopt() {
+  opt=$1
+  case $opt in
+    Debug)
+      ;;
+    ReleaseSmall)
+      echo "-d:release --opt:size"
+      ;;
+    Release*)
+      echo "-d:release"
+      ;;
+    *)
+      >&2 echo "unrecognized nimi opt mode $opt"
+      ;;
+  esac
+}
+
+case $1 in
+  os)
+    nimos $2
+    ;;
+  arch)
+    nimarch $2
+    ;;
+  opt)
+    nimopt $2
+    ;;
+  *)
+    >&2 echo "unrecognized nimi command $1"
+    exit 1
+    ;;
+esac

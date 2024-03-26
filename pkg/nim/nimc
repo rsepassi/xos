@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+exec nim c \
+--cc:clang \
+--os:$(nimi os $TARGET_OS) \
+--cpu:$(nimi arch $TARGET_ARCH) \
+--clang.exe="nimcc" \
+--clang.linkerexe="nimcc" \
+--verbosity:0 \
+$(nimi opt $OPT_ZIG) \
+"$@"
