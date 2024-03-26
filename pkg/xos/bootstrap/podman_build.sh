@@ -10,3 +10,4 @@ podman run \
   -w /root/xos \
   alpine:3.19 \
   /root/xos/pkg/xos/bootstrap/build.sh
+./build/bootstrap/out/build xos

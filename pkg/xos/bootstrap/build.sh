@@ -67,7 +67,7 @@ pkg-config
 "
 for script in $scripts
 do
-  ln -s "$xosroot/pkg/xos/src/$script" "$tools"
+  cp "$xosroot/pkg/xos/src/$script" "$tools"
 done
 ln -s cc "$tools/ld"
 ln -s tools/xos_internal_build "$out/build"
