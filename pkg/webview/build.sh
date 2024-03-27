@@ -26,8 +26,8 @@ elif [ "$TARGET_OS" = "macos" ]
 then
   need macossdk
   sdk="$BUILD_DEPS/macossdk/sdk"
-  cflags="-F$sdk/System/Library/Frameworks -Wno-elaborated-enum-base"
-  ldflags="--sysroot=$sdk -F$sdk/System/Library/Frameworks -framework WebKit"
+  cflags="-Wno-elaborated-enum-base"
+  ldflags="-F$sdk/System/Library/Frameworks -L$sdk/usr/lib -framework WebKit -lobjc"
 elif [ "$TARGET_OS" = "windows" ]
 then
   need winsdk
