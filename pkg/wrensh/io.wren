@@ -101,11 +101,13 @@ class Data {
     class_str = class_str + "%(sets.join(""))"
     class_str = class_str + "  }\n"
 
-    // new from map
-    var mapgets = (fields.map { |x| "map[\"%(x)\"]" }).join(", ")
-    class_str = class_str + "  static newFromMap(map) {\n"
-    class_str = class_str + "return %(name).new(%(mapgets))\n"
-    class_str = class_str + "  }\n"
+    if (fields.count > 1) {
+      // new from map
+      var mapsets = fields.map { |x| "    _%(x) = map[\"%(x)\"]\n" }
+      class_str = class_str + "  construct new(map) {\n"
+      class_str = class_str + "%(mapsets.join(""))"
+      class_str = class_str + "  }\n"
+    }
 
     // getters
     var getters = fields.map { |x| "  %(x) { _%(x) }\n" }
