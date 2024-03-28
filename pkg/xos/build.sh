@@ -82,7 +82,7 @@ done
 cp "$BUILD_PKG/src/dist_readme.txt" "$out/readme.txt"
 
 # xos id
-zigid="0.12.0-dev.2341+92211135f"
+zigid="0.12.0-dev.3457+341857e5c"
 bbid="1.36.1 FRP-5236-g7dff7f376"
 xosid() {
   src="$PWD"

@@ -1,4 +1,4 @@
-version="0.12.0-dev.2341+92211135f"
+version="0.12.0-dev.3457+341857e5c"
 suffix="tar.xz"
 if [ "$TARGET_OS" = "windows" ]
 then
@@ -9,22 +9,22 @@ url="https://ziglang.org/builds/zig-$TARGET_OS-$TARGET_ARCH-$version.$suffix"
 
 case "$TARGET_OS-$TARGET_ARCH" in
   "linux-aarch64")
-    hash="0d0aa58c499bd35dd72edfbbe87b50981feba56cb30b3681deb9dbd4608090f9"
+    hash="81e30263b7eda5bf9ec88291d11193a37c0d7094ac44d2847041230e222a762f"
     ;;
   "linux-x86_64")
-    hash="8145e518decedc2e1dfe9f55d547e4103b0dd68a2f24527c4da9f8b31b3deaba"
+    hash="f8f13317a869ce1ae82868c20e032d204747d8fecd9da41b486324bf3ab52fab"
     ;;
   "macos-aarch64")
-    hash="77a948acb0048c57b66ef791039b09ea2f55663543bb7cef4b04c0b22a3696e6"
+    hash="10216c1b377c00ef17cfbf2163ea7f32c824d459081adda055d4c5d76d0c54ee"
     ;;
   "macos-x86_64")
-    hash="1ece29c81cc388ebc213c8e20f564127f5d8077d2d1a97404a141a6a49fcf8ad"
+    hash="68d9c4fbd5bf4a536f4bc004c3bd4d03f799c926758bbede09af86a4db287451"
     ;;
   "windows-x86_64")
-    hash="1f48cd851871e154895ef67b52aeaf2db8835725007bd3816b492216fde26af2"
+    hash="a9eee5616858961068822a8f5d9c5ba5797598394bde3df7c7d87805d4889514"
     ;;
   "windows-aarch64")
-    hash="fc0c527003c3d853899f3c93ed7e16474ac16cc9fa9962e285614cb928f0a1ee"
+    hash="4405cd2155ad1ff7685251300d197733c5cc173417bd6d9dad0be7951dfe8e14"
     ;;
   *)
     >&2 echo "unsupported zig target $TARGET_OS $TARGET_ARCH"

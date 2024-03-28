@@ -84,6 +84,7 @@ class BuildCheck {
     }
 
     if (_devmode && FS.exists("%(_pkgdir)/dev_volatile")) {
+      System.print("warn: %(_pkgdir) marked volatile, rebuilding")
       _build_reason = "volatile"
       return
     }
