@@ -45,7 +45,6 @@ leptonica
 
 missing xplatform:
 windows:
-* samurai
 * termbox2
 * bestline
 * entr
