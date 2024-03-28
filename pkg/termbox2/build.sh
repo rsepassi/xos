@@ -1,5 +1,5 @@
 fetch \
-  "https://raw.githubusercontent.com/termbox/termbox2/a8e2644/termbox2.h"
+  "https://raw.githubusercontent.com/termbox/termbox2/a8e2644/termbox2.h" \
   termbox2.h \
   "c11c247467585874d56d7426310e5a56295cd314b82260410615c166474b6f78"
 

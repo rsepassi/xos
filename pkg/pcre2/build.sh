@@ -61,3 +61,6 @@ mkdir "$BUILD_OUT/lib" "$BUILD_OUT/include" "$BUILD_OUT/bin"
 mv $lib "$BUILD_OUT/lib"
 mv pcre2.h pcre2posix.h "$BUILD_OUT/include"
 mv $(zigi exe pcre2grep) "$BUILD_OUT/bin"
+pkg-config --gendefault pcre2 \
+  --cflags "-DPCRE2_STATIC" \
+  --deps zlib/z

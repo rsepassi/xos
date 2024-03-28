@@ -77,9 +77,9 @@ $src/src/lauxlib.h
 "
 
 cd "$BUILD_OUT"
-mkdir -p lib include bin
+mkdir -p lib include/lua5.4 bin
 mv "$src/$(zigi lib lua)" lib
 mv "$src/$(zigi exe lua)" bin
 mv "$src/$(zigi exe luac)" bin
-cp $includes include
+cp $includes include/lua5.4
 pkg-config --gendefault lua
