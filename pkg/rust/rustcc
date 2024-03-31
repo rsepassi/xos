@@ -4,15 +4,21 @@ set -e
 if [ "$TARGET_OS" = "macos" ]
 then
   sdk="$BUILD_DEPS/macossdk/sdk"
-  cflags="--sysroot=$sdk -I$sdk/usr/include -L$sdk/usr/lib -F$sdk/System/Library/Frameworks"
+  cflags="--sysroot=$sdk -I$sdk/usr/include -L$sdk/usr/lib -F$sdk/System/Library/Frameworks -DTARGET_OS_OSX=1"
 fi
 
 filtered_args=""
 for arg in "$@"; do
   case $arg in
+    "--target="*)
+      ;;
     "-Wl,-exported_symbols_list"*)
       ;;
     "-Wl,-dylib")
+      ;;
+    "-Wl,-Bdynamic")
+      ;;
+    "-Wl,-O1")
       ;;
     "-Wl,--disable-auto-image-base")
       ;;
@@ -25,20 +31,31 @@ for arg in "$@"; do
       ;;
     *"/rcrt1.o")
       ;;
-    # linux ignores
-    "-lgcc_s")
+    # gcc ignores
+    "-lgcc"|"-lgcc_eh"|"-lgcc_s")
       ;;
     # windows ignores, for now
     "-lwinapi_"*)
       ;;
-    "-lgcc"|"-lmsvcrt"|"-lgcc_eh"|"-lwindows.0.48.5"|"-l:libpthread.a")
+    "-lmsvcrt"|"-l:libpthread.a")
       ;;
-    # zig windows bug: https://github.com/ziglang/zig/issues/15107
-    # lld-link: error: duplicate symbol: ___chkstk_ms
+    "-l"*".dll")
+      arg="${arg%.dll}"
+      filtered_args="$filtered_args \"$arg\""
+      ;;
+    *"/libcompiler_builtins-"*".rlib")
+      # zig windows bug: https://github.com/ziglang/zig/issues/15107
+      # lld-link: error: duplicate symbol: ___chkstk_ms
+      # on windows
+      # ar x libcompiler_builtins....
+      # rm 135 (the one with chkstk ms)
+      # ar rcs libcompiler_builtins.lib *.o
+      filtered_args="$filtered_args \"$arg\""
+      ;;
     *)
       filtered_args="$filtered_args \"$arg\""
       ;;
   esac
 done
 
-eval "exec zig cc -target $(rusti zigtarget) -O$OPT $filtered_args $cflags"
+eval "exec zig cc -target $(rusti zigtarget) -O$OPT $filtered_args $cflags -lunwind"

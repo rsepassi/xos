@@ -13,8 +13,13 @@ mkdir sdk-cpp
 cd sdk-cpp
 unzip "$BUILD_DEPS/cpp.zip"
 sed -i 's/DriverSpecs/driverspecs/' c/Include/10.0.22621.0/shared/kernelspecs.h
+sed -i 's|wrl\\|wrl/|' c/Include/10.0.22621.0/winrt/wrl/implements.h
+sed -i 's|wrl\\|wrl/|' c/Include/10.0.22621.0/winrt/wrl/client.h
 
 cd "$BUILD_OUT"
 mkdir WebView2
 cd WebView2
 unzip "$BUILD_DEPS/webview.zip"
+cp \
+  build/native/x64/WebView2Loader.dll.lib \
+  build/native/x64/WebView2Loader.lib
