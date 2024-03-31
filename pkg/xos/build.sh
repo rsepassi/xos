@@ -59,6 +59,8 @@ need
 needtool
 pkg-config
 rc
+system
+system_export
 untar
 windres
 xos_build.wren

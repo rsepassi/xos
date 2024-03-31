@@ -10,6 +10,8 @@ src/needtool
 src/pkg-config
 src/rc
 src/sha256sum.zig
+src/system
+src/system_export
 src/untar
 src/usage.txt
 src/windres

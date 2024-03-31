@@ -7,8 +7,8 @@ const str = []const u8;
 const EnvMap = std.process.EnvMap;
 const BuildId = str;
 
-pub const std_options = struct {
-    const logFn = xosLogFn;
+pub const std_options = .{
+    .logFn = xosLogFn,
 };
 const log = std.log.scoped(.xos_build);
 
@@ -46,7 +46,7 @@ pub fn main() !void {
     const tools_all_dir = try openMakeDir(cache_dir, "tools");
     const tools_dir = try openMakeDir(tools_all_dir, xos_id);
 
-    try linkInternalTools(alloc, xos_root, tools_dir, env);
+    try linkInternalTools(alloc, xos_root, tools_dir);
 
     const build_id = try runBuild(
         alloc,
@@ -163,6 +163,7 @@ fn runBuild(
     try setIfDifferent("XOS_PKG_ROOT", pkg_root_path, env);
     try env.put("HOST", getHostTriple());
     try env.put("PATH", path);
+    try env.put("XOS_SYSTEM_PATH", env.get("PATH") orelse "");
 
     const args = try alloc.alloc(str, oargs.len + 1);
     const exe = try std.fs.path.join(alloc, &.{
@@ -204,37 +205,8 @@ fn getXosRoot(
     env: EnvMap,
 ) !std.fs.Dir {
     if (env.get("XOS_ROOT")) |root| return try cwd.openDir(root, .{});
-    switch (builtin.os.tag) {
-        .macos => {
-            const path_max = std.os.PATH_MAX;
-            const buf = try alloc.allocSentinel(u8, path_max, 0);
-            var len: u32 = path_max;
-            const rc = std.os.darwin._NSGetExecutablePath(buf.ptr, &len);
-            if (rc != 0) return error.NotFound;
-            var buf2 = try alloc.alloc(u8, path_max);
-            const self = try std.os.realpathZ(buf, buf2[0..path_max]);
-            const dir = std.fs.path.dirname(self).?;
-            return try cwd.openDir(dir, .{});
-        },
-        .linux => {
-            const path_max = std.os.PATH_MAX;
-            const buf = try alloc.alloc(u8, path_max);
-            const self = try std.os.readlink("/proc/self/exe", buf);
-            const dir = std.fs.path.dirname(self).?;
-            return try cwd.openDir(dir, .{});
-        },
-        .windows => {
-            const path_max = std.os.windows.PATH_MAX_WIDE;
-            const buf = try alloc.alloc(u16, path_max);
-            const path = try std.os.windows.GetModuleFileNameW(null, buf.ptr, @intCast(buf.len));
-            const max_bytes = path_max * 3 + 1;
-            var buf2 = try alloc.alloc(u8, max_bytes);
-            const self = try std.os.realpathW(path, buf2[0..max_bytes]);
-            const dir = std.fs.path.dirname(self).?;
-            return try cwd.openDir(dir, .{});
-        },
-        else => return error.Unimplemented,
-    }
+    const dir = try std.fs.selfExeDirPathAlloc(alloc);
+    return try cwd.openDir(dir, .{});
 }
 
 fn getBuildRoot(cwd: std.fs.Dir, env: EnvMap) !std.fs.Dir {
@@ -254,7 +226,6 @@ fn linkInternalTools(
     alloc: std.mem.Allocator,
     xos_root: std.fs.Dir,
     tools_dir: std.fs.Dir,
-    env: EnvMap,
 ) !void {
     const exists = blk: {
         tools_dir.access(".ok", .{}) catch break :blk false;
@@ -263,32 +234,6 @@ fn linkInternalTools(
     if (exists) return;
 
     // Link all tools into tools_dir
-    const pathvar = env.get("PATH") orelse "";
-
-    // system
-    const system_string = try std.fmt.allocPrint(
-        alloc,
-        system_template,
-        .{pathvar},
-    );
-    try tools_dir.writeFile2(.{
-        .sub_path = exename("system"),
-        .data = system_string,
-        .flags = .{ .mode = exe_mode },
-    });
-
-    // system_export
-    const system_export_string = try std.fmt.allocPrint(
-        alloc,
-        system_export_template,
-        .{pathvar},
-    );
-    try tools_dir.writeFile2(.{
-        .sub_path = exename("system_export"),
-        .data = system_export_string,
-        .flags = .{ .mode = exe_mode },
-    });
-
     const xos_tools = try xos_root.openDir("tools", .{});
     const bb = try xos_tools.realpathAlloc(alloc, exename("busybox"));
     const wrenshbox = try xos_tools.realpathAlloc(alloc, exename("wrenshbox"));
@@ -342,20 +287,6 @@ const exe_mode = switch (builtin.os.tag) {
 fn exename(comptime name: str) str {
     return if (builtin.os.tag == .windows) name ++ ".exe" else name;
 }
-
-const system_template =
-    \\#!/usr/bin/env sh
-    \\set -e
-    \\cmd="$(PATH={s} which $1)"
-    \\shift
-    \\exec "$cmd" "$@"
-;
-
-const system_export_template =
-    \\#!/usr/bin/env sh
-    \\export PATH="{s}:$PATH"
-    \\exec "$@"
-;
 
 const wrenshbox_tools = [_]str{
     "echo",
@@ -416,11 +347,10 @@ pub fn xosLogFn(
     comptime format: []const u8,
     args: anytype,
 ) void {
-    const prefix = std.fmt.comptimePrint(
-        "[{s} {s}] ",
+    const prefix = std.fmt.comptimePrint("[{s} {s}] ", comptime .{
         level.asText(),
         @tagName(scope),
-    );
+    });
     const stderr = std.io.getStdErr().writer();
     stderr.print(prefix ++ format ++ "\n", args) catch return;
 }

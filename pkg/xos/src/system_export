@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+export PATH="$XOS_SYSTEM_PATH:$PATH"
+exec "$@"
