@@ -1,11 +1,14 @@
 need macossdk
 sdk="$BUILD_DEPS/macossdk/sdk"
 cc -target $TARGET -O$OPT \
-	-fobjc-arc \
+  -fobjc-arc \
   --sysroot=$sdk \
-	-F $sdk/System/Library/Frameworks \
-  -framework Cocoa -framework WebKit \
+  -DTARGET_OS_OSX=1 \
+  -I $sdk/usr/include \
+  -F $sdk/System/Library/Frameworks \
   -mmacosx-version-min=13.0 \
+  -framework Cocoa -framework WebKit \
+  -Wno-everything \
   -o hello "$BUILD_PKG"/hello.m
 
 root=Hello.app/Contents
