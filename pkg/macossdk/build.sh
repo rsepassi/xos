@@ -1,3 +1,10 @@
+genpkgconfig() {
+  mkdir -p "$BUILD_OUT/pkgconfig"
+  cat <<EOF > $BUILD_OUT/pkgconfig/macossdk.pc
+Cflags: --sysroot=\${rootdir}/sdk -I\${rootdir}/sdk/usr/include -L\${rootdir}/sdk/usr/lib -F\${rootdir}/sdk/System/Library/Frameworks -DTARGET_OS_OSX=1
+EOF
+}
+
 if [ "$1" != "local" ]
 then
   url="https://github.com/rsepassi/xos/releases/download/macos-sdk-14.2-v5/macossdk.tar.gz"
@@ -6,6 +13,7 @@ then
 
   fetch "$url" "$file" "$hash"
   untar "$BUILD_DEPS/$file" "$BUILD_OUT" 0
+  genpkgconfig
 
   exit 0
 fi
@@ -290,3 +298,4 @@ mv ./include "$out/usr"
 
 cd "$BUILD_OUT"
 tar czf macossdk.tar.gz sdk
+genpkgconfig
