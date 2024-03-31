@@ -2,10 +2,7 @@ need macossdk
 sdk="$BUILD_DEPS/macossdk/sdk"
 cc -target $TARGET -O$OPT \
   -fobjc-arc \
-  --sysroot=$sdk \
-  -DTARGET_OS_OSX=1 \
-  -I $sdk/usr/include \
-  -F $sdk/System/Library/Frameworks \
+  $(pkg-config --cflags macossdk) \
   -mmacosx-version-min=13.0 \
   -framework Cocoa -framework WebKit \
   -Wno-everything \
