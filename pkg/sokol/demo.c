@@ -14,6 +14,9 @@
 #include "sokol_glue.h"
 
 // include nuklear.h before the sokol_nuklear.h implementation
+#define NK_IMPLEMENTATION
+#define SOKOL_NUKLEAR_IMPL
+
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_DEFAULT_ALLOCATOR
 #define NK_INCLUDE_STANDARD_BOOL
@@ -25,7 +28,7 @@
 #define NK_INCLUDE_STANDARD_VARARGS
 #define NK_ZERO_COMMAND_MEMORY
 
-#include "nuklear/nuklear.h"
+#include "nuklear.h"
 #include "sokol_nuklear.h"
 
 static int draw_demo_ui(struct nk_context* ctx);
@@ -74,9 +77,7 @@ void input(const sapp_event* event) {
   snk_handle_event(event);
 }
 
-sapp_desc sokol_main(int argc, char* argv[]) {
-    (void)argc;
-    (void)argv;
+sapp_desc my_sokol_init() {
     return (sapp_desc) {
         .init_cb = init,
         .frame_cb = frame,
@@ -90,6 +91,12 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         .icon.sokol_default = true,
         .logger.func = slog_func,
     };
+}
+
+int main(int argc, char* argv[]) {
+  sapp_desc sapp = my_sokol_init();
+  sapp_run(&sapp);
+  return 0;
 }
 
 /* copied from: https://github.com/Immediate-Mode-UI/Nuklear/blob/master/demo/overview.c */
