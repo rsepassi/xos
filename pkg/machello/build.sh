@@ -1,6 +1,7 @@
 need macossdk
 sdk="$BUILD_DEPS/macossdk/sdk"
-cc -fobjc-arc \
+cc -target $TARGET -O$OPT \
+	-fobjc-arc \
   --sysroot=$sdk \
 	-F $sdk/System/Library/Frameworks \
   -framework Cocoa -framework WebKit \
