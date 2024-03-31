@@ -200,6 +200,8 @@ var Ctx = Data.Record("Ctx", [
   "opt",
   "PATH",
   "pkg_args",
+  "system_path",
+  "system_home",
 ])
 
 var getCtx = Fn.new { |args, env|
@@ -222,6 +224,8 @@ var getCtx = Fn.new { |args, env|
     "opt": getOpt.call(args["args"]["OPT"] || env["OPT"] || "s"),
     "PATH": env["PATH"],
     "pkg_args": args["pkg_args"],
+    "system_path": env["XOS_SYSTEM_PATH"],
+    "system_home": env["XOS_SYSTEM_HOME"],
   })
 }
 
@@ -327,6 +331,8 @@ xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
     "XOS_BUILD_OUT": pkg.outdir,
     "XOS_USER_DEV": ctx.dev_mode ? 1 : 0,
     "XOS_DRY": ctx.dry_mode ? 1 : 0,
+    "XOS_SYSTEM_PATH": ctx.system_path,
+    "XOS_SYSTEM_HOME": ctx.system_home,
     // for user use
     "HOST": ctx.target["host"],
     "HOST_OS": ctx.target["host_os"],

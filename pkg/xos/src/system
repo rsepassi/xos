@@ -1,5 +1,6 @@
-	#!/usr/bin/env sh
-	set -e
-	cmd="$(PATH=$XOS_SYSTEM_PATH which $1)"
-	shift
-	exec "$cmd" "$@"
+#!/usr/bin/env sh
+set -e
+cmd="$(PATH=$XOS_SYSTEM_PATH which $1)"
+shift
+PATH=$oldpath
+exec "$cmd" "$@"

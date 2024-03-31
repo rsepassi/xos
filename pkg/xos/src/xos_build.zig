@@ -161,9 +161,10 @@ fn runBuild(
     try setIfDifferent("XOS_ROOT", xos_root_path, env);
     try setIfDifferent("XOS_BUILD_ROOT", build_root_path, env);
     try setIfDifferent("XOS_PKG_ROOT", pkg_root_path, env);
+    try env.put("XOS_SYSTEM_PATH", env.get("XOS_SYSTEM_PATH") orelse env.get("PATH") orelse "");
+    try env.put("XOS_SYSTEM_HOME", env.get("XOS_SYSTEM_HOME") orelse env.get("HOME") orelse "");
     try env.put("HOST", getHostTriple());
     try env.put("PATH", path);
-    try env.put("XOS_SYSTEM_PATH", env.get("PATH") orelse "");
 
     const args = try alloc.alloc(str, oargs.len + 1);
     const exe = try std.fs.path.join(alloc, &.{
