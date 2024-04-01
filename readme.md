@@ -40,7 +40,6 @@ Args (or env vars):
 a5e44ec93d3d943929bc8611eef9cb7e7a0417a5511bbf775d645b38f178577d
 
 # tree build/out
-# tree build/out
 build/out
 ├── include
 │   ├── sqlite3.h
@@ -95,7 +94,7 @@ sha256sum sleep sort tail tar touch tr uniq unzip wc wget which xargs xz
 Given xos: `build xos`
 
 Bootstrap:
-* From Alpine Linux: `./pkg/xos/bootstrap/podman_build.sh`
+* From an Alpine Linux container: `./pkg/xos/bootstrap/podman_build.sh`
 * Direct: `./pkg/xos/bootstrap/build.sh`
 
 ## Todo
@@ -104,13 +103,16 @@ Bootstrap:
 * linux sandboxing (bwrap)
 * binary releases
 * docs
-* sccache for rust
+* rust
+	* sccache
+	* --locked
+	* Windows: https://github.com/ziglang/zig/issues/15107 
 
 ## Inspirations
 
-Zig, by Andrew Kelley
-Cosmopolitan, by Justine Tunney
-redo, by Daniel J. Bernstein
-Nix, by Eelco Dolstra
-Alpine Linux, by Natanael Copa
-Oasis Linux, by Michael Forney
+* Zig, by Andrew Kelley
+* Cosmopolitan, by Justine Tunney
+* redo, by Daniel J. Bernstein
+* Nix, by Eelco Dolstra
+* Alpine Linux, by Natanael Copa
+* Oasis Linux, by Michael Forney
