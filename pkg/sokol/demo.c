@@ -30,9 +30,13 @@
 #include "nuklear.h"
 #include "sokol_nuklear.h"
 
+#ifdef WIN32
 #ifndef WINDOWS_LEAN_AND_MEAN
 #define WINDOWS_LEAN_AND_MEAN
 #include <windows.h>
+#endif
+#else
+void FreeConsole() {}
 #endif
 
 static int draw_demo_ui(struct nk_context* ctx);

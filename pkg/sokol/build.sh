@@ -93,8 +93,6 @@ mv "$src/$(zigi lib sokol)" lib
 # demo app
 cd "$HOME"
 zig build-exe -target $TARGET -O $OPT_ZIG \
-  -o $(zigi exe demo) \
-  -Wno-everything \
   -I"$BUILD_OUT"/include \
   -I"$BUILD_DEPS/nuklear/include" \
   $cflags \
