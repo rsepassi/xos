@@ -55,12 +55,12 @@ then
 elif [ "$TARGET_OS" = "windows" ]
 then
   cflags="-DSOKOL_D3D11"
-  ldflags="-lkernel32 -luser32 -lshell32 -ldxgi -ld3d11 -lole32 -lgdi32"
+  ldflags="-lkernel32 -luser32 -ldxgi -ld3d11 -lole32 -lgdi32"
 fi
 
 cat <<EOF > $sokol_file
 #define SOKOL_IMPL
-#define SOKOL_NO_ENTRY
+#define SOKOL_WIN32_FORCE_MAIN
 #include "sokol_app.h"
 #include "sokol_gfx.h"
 #include "sokol_log.h"
@@ -93,6 +93,8 @@ mv "$src/$(zigi lib sokol)" lib
 # demo app
 cd "$HOME"
 zig build-exe -target $TARGET -O $OPT_ZIG \
+  -o $(zigi exe demo) \
+  -Wno-everything \
   -I"$BUILD_OUT"/include \
   -I"$BUILD_DEPS/nuklear/include" \
   $cflags \

@@ -7,7 +7,6 @@
 //  Nuklear UI on github: https://github.com/Immediate-Mode-UI/Nuklear
 //------------------------------------------------------------------------------
 #include <string.h>
-
 #include "sokol_app.h"
 #include "sokol_gfx.h"
 #include "sokol_log.h"
@@ -31,9 +30,16 @@
 #include "nuklear.h"
 #include "sokol_nuklear.h"
 
+#ifndef WINDOWS_LEAN_AND_MEAN
+#define WINDOWS_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 static int draw_demo_ui(struct nk_context* ctx);
 
 void init(void) {
+    FreeConsole();
+
     // setup sokol-gfx and sokol-nuklear
     sg_setup(&(sg_desc){
         .environment = sglue_environment(),
@@ -77,7 +83,7 @@ void input(const sapp_event* event) {
   snk_handle_event(event);
 }
 
-sapp_desc my_sokol_init() {
+sapp_desc sokol_main(int argc, char* argv[]) {
     return (sapp_desc) {
         .init_cb = init,
         .frame_cb = frame,
@@ -88,15 +94,8 @@ sapp_desc my_sokol_init() {
         .height = 768,
         .window_title = "nuklear (sokol-app)",
         .ios_keyboard_resizes_canvas = true,
-        .icon.sokol_default = true,
         .logger.func = slog_func,
     };
-}
-
-int main(int argc, char* argv[]) {
-  sapp_desc sapp = my_sokol_init();
-  sapp_run(&sapp);
-  return 0;
 }
 
 /* copied from: https://github.com/Immediate-Mode-UI/Nuklear/blob/master/demo/overview.c */
