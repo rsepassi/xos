@@ -95,41 +95,41 @@ class Data {
     var class_str = "class %(name) {\n"
 
     // new
-    var fields_init = fields.join(", ")
-    var sets = fields.map { |x| "    _%(x) = %(x)\n" }
-    class_str = class_str + "  construct new(%(fields_init)) {\n"
-    class_str = class_str + "%(sets.join(""))"
-    class_str = class_str + "  }\n"
+    if (fields.count <= 16) {
+      var fields_init = fields.join(", ")
+      var sets = fields.map { |x| "      \"%(x)\": %(x),\n" }
+      class_str = class_str + "  construct new(%(fields_init)) {\n"
+      class_str = class_str + "    _data = {\n"
+      class_str = class_str + "%(sets.join(""))"
+      class_str = class_str + "    }\n"
+      class_str = class_str + "  }\n"
+    }
 
     if (fields.count > 1) {
       // new from map
-      var mapsets = fields.map { |x| "    _%(x) = map[\"%(x)\"]\n" }
       class_str = class_str + "  construct new(map) {\n"
-      class_str = class_str + "%(mapsets.join(""))"
+      class_str = class_str + "    _data = map\n"
       class_str = class_str + "  }\n"
     }
 
     // getters
-    var getters = fields.map { |x| "  %(x) { _%(x) }\n" }
+    var getters = fields.map { |x| "  %(x) { _data[\"%(x)\"] }\n" }
     class_str = class_str + "%(getters.join(""))"
 
     // setters
-    var setters = fields.map { |x| "  %(x)=(val) { _%(x) = val }\n" }
+    var setters = fields.map { |x| "  %(x)=(val) { _data[\"%(x)\"] = val }\n" }
     class_str = class_str + "%(setters.join(""))"
 
     // equality
-    var eqstrs = fields.map { |x| "_%(x) == other.%(x)" }
+    var eqstrs = fields.map { |x| "_data[\"%(x)\"] == other.%(x)" }
     class_str = class_str + "  ==(other) {\n"
-    class_str = class_str + "  return other is %(name) && " + eqstrs.join(" && ") + "\n"
+    class_str = class_str + "    return other is %(name) && " + eqstrs.join(" && ") + "\n"
     class_str = class_str + "  }\n"
-    class_str = class_str + "  !=(other) {\n  return !(this == other)\n  }\n"
+    class_str = class_str + "  !=(other) {\n    return !(this == other)\n  }\n"
 
     // toString
-    var fieldstrs = fields.map { |x| "%(x)=\%(_%(x))" }
     class_str = class_str + "  toString {\n"
-    class_str = class_str + "    return \"%(name)("
-    class_str = class_str + fieldstrs.join(", ")
-    class_str = class_str + ")\"\n"
+    class_str = class_str + "    return \"%(name)(\%(_data))\"\n"
     class_str = class_str + "  }\n"
 
     class_str = class_str + "}\n"

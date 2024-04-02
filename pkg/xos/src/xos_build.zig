@@ -7,9 +7,9 @@ const str = []const u8;
 const EnvMap = std.process.EnvMap;
 const BuildId = str;
 
-pub const std_options = .{
-    .logFn = xosLogFn,
-};
+// pub const std_options = .{
+//     .logFn = xosLogFn,
+// };
 const log = std.log.scoped(.xos_build);
 
 pub fn main() !void {
@@ -293,6 +293,7 @@ const wrenshbox_tools = [_]str{
     "echo",
     "dirname",
     "basename",
+    "vlog",
 };
 
 const bb_tools = [_]str{

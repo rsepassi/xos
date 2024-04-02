@@ -107,8 +107,8 @@ class BuildCheck {
   stale_(dyndeps_f, target) {
     var checks = []
     for (line in IO.run(["cat", dyndeps_f]).split("\n")) {
-      if (line.isEmpty) continue
-      var check = Fn.new {
+      if (line.trim().isEmpty) continue
+      var issame = Fn.new {
         var fields = line.split("  ")
         var depid = fields[0]
         var depname = fields[1]
@@ -119,8 +119,7 @@ class BuildCheck {
         return depid == depid2
       }
 
-      var same = check.call()
-      if (!same) return true
+      if (!issame.call()) return true
     }
     return false
   }
@@ -180,9 +179,25 @@ var getDryMode = Fn.new { |args, env|
   return (env["XOS_DRY"] == "1" || args["args"]["DRY"] == "1")
 }
 
-var finalLog = Fn.new { |pkg, duration, built|
-  var cache_str = built ? "" : " (cached)"
-  System.print("%(pkg) built%(cache_str) in %(duration)ms")
+var getVerbosity = Fn.new { |args, env|
+  var v = env["V"] || args["args"]["V"]
+  if (v == null) return 0
+  return Num.fromString(v)
+}
+
+var finalLog = Fn.new { |v, pkg, duration, built|
+  if (v > 0) {
+    var cache_str = built ? "" : " (cached)"
+    var namepadding = 16 - pkg.name.count
+    var name = pkg.name + " " * namepadding
+
+    var durstr = "%(duration)ms%(cache_str)"
+    var dursz = "xxxxxms (cached)".count
+    var durpadding = dursz - durstr.count
+    durstr = durstr + " " * durpadding
+
+    System.print("%(name)\t%(durstr)\t%(pkg.id)")
+  }
 }
 
 var Ctx = Data.Record("Ctx", [
@@ -202,6 +217,7 @@ var Ctx = Data.Record("Ctx", [
   "pkg_args",
   "system_path",
   "system_home",
+  "v",
 ])
 
 var getCtx = Fn.new { |args, env|
@@ -226,10 +242,12 @@ var getCtx = Fn.new { |args, env|
     "pkg_args": args["pkg_args"],
     "system_path": env["XOS_SYSTEM_PATH"],
     "system_home": env["XOS_SYSTEM_HOME"],
+    "v": getVerbosity.call(args, env),
   })
 }
 
 var Pkg = Data.Record("Pkg", [
+  "name",
   "id",
   "id_text",
   "srcdir",
@@ -254,6 +272,7 @@ var getPkg = Fn.new { |ctx|
   var build_out = "%(ctx.cache_root)/pkg/%(pkgid[0...2])/%(pkgid)"
 
   return Pkg.new({
+    "name": ctx.pkg,
     "id": pkgid,
     "id_text": pkgid_text,
     "srcdir": ctx.pkg_srcdir,
@@ -322,6 +341,7 @@ xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
     "PATH": "%(pkg_tools_dir):%(ctx.PATH)",
     "HOME": "%(pkg.outdir)/tmp",
     "XDG_CACHE_HOME": "%(ctx.cache_root)/xdg",
+    "V": ctx.v,
     // xos internal use
     "XOS_ROOT": ctx.xos_root,
     "XOS_ID": ctx.xos_id,
@@ -380,7 +400,7 @@ var main = Fn.new {
   if (buildcheck.need_build) build.call(ctx, pkg)
   IO.writeln(pkg.id)
 
-  finalLog.call(ctx.pkg, timer.lap(), buildcheck.need_build)
+  finalLog.call(ctx.v, pkg, timer.lap(), buildcheck.need_build)
 }
 
 main.call()

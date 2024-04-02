@@ -91,8 +91,13 @@ xosid() {
   cd "$BUILD_PKG"
   echo "ZIG=$zigid"
   echo "BUSYBOX=$bbid"
-  files=$(find . -type f | sort)
-  sha256sum $files
+  if [ "$mode" = "release" ]
+  then
+    files=$(find . -type f | sort)
+    sha256sum $files
+  else
+    echo "dev"
+  fi
   cd "$src"
 }
 xosid | sha256sum | cut -d' ' -f1 > "$out/.xos_id"

@@ -24,10 +24,23 @@ var dirname = Fn.new {
   IO.writeln(IO.arg(1).split("/")[0...-1].join("/"))
 }
 
+var vlog = Fn.new {
+  var v = IO.env("V")
+  if (v == null) return
+  v = Num.fromString(v)
+  var args = IO.args()
+  if (Num.fromString(args[1]) >= v) {
+    for (arg in args[2...-1]) {
+      IO.writeln(arg)
+    }
+  }
+}
+
 var cmds = {
   "basename": basename,
   "dirname": dirname,
   "echo": echo,
+  "vlog": vlog,
 }
 
 var main = Fn.new {
