@@ -99,8 +99,10 @@ Bootstrap:
 
 ## Todo
 
-* generic caching utilities
+* Android support (https://github.com/MasterQ32/ZigAndroidTemplate)
+* wren build scripts (with samurai lib)
 * linux sandboxing (bwrap)
+* generic caching utilities
 * binary releases
 * docs
 * rust
