@@ -10,19 +10,20 @@ genlibctxt() {
 	cp "$BUILD_PKG"/libc.txt "$BUILD_OUT/share"
 }
 
-if [ "$1" != "local" ]
-then
-  url="https://github.com/rsepassi/xos/releases/download/ios-sdk-17.2-v0/iossdk.tar.gz"
-  hash="xx"
-  file="iossdk.tar.gz"
-
-  fetch "$url" "$file" "$hash"
-  untar "$BUILD_DEPS/$file" "$BUILD_OUT" 0
-  genpkgconfig
-	genlibctxt
-
-  exit 0
-fi
+# TODO: download
+# if [ "$1" != "local" ]
+# then
+#   url="https://github.com/rsepassi/xos/releases/download/ios-sdk-17.2-v0/iossdk.tar.gz"
+#   hash="xx"
+#   file="iossdk.tar.gz"
+# 
+#   fetch "$url" "$file" "$hash"
+#   untar "$BUILD_DEPS/$file" "$BUILD_OUT" 0
+#   genpkgconfig
+# 	genlibctxt
+# 
+#   exit 0
+# fi
 
 if [ "$HOST_OS" != "macos" ]
 then
@@ -31,6 +32,7 @@ then
 fi
 
 sdk='/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.2.sdk'
+sdk='/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator17.2.sdk'
 sdk_frameworks="$sdk/System/Library/Frameworks"
 sdk_includes="$sdk/usr/include"
 sdk_libs="$sdk/usr/lib"
@@ -77,7 +79,6 @@ CoreLocation.framework
 CoreLocationUI.framework
 CoreMIDI.framework
 CoreMedia.framework
-CoreMediaIO.framework
 CoreMotion.framework
 CoreNFC.framework
 CoreServices.framework
@@ -110,7 +111,6 @@ ImageCaptureCore.framework
 ImageIO.framework
 Intents.framework
 IntentsUI.framework
-JournalingSuggestions.framework
 LinkPresentation.framework
 LocalAuthentication.framework
 LocalAuthenticationEmbeddedUI.framework
@@ -121,7 +121,6 @@ Matter.framework
 MatterSupport.framework
 MediaAccessibility.framework
 MediaPlayer.framework
-MediaSetup.framework
 MediaToolbox.framework
 MessageUI.framework
 Messages.framework
@@ -150,7 +149,6 @@ StoreKit.framework
 Symbols.framework
 SystemConfiguration.framework
 TabularData.framework
-ThreadNetwork.framework
 UIKit.framework
 UniformTypeIdentifiers.framework
 UserNotifications.framework
