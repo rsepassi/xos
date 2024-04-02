@@ -268,6 +268,7 @@ var getPkg = Fn.new { |ctx|
     "ARGS": argsquote.call(ctx.pkg_args),
   })
   var pkgid = sha256.call(pkgid_text)
+  if (ctx.v > 1) System.print("building %(ctx.pkg) %(pkgid)")
 
   var build_out = "%(ctx.cache_root)/pkg/%(pkgid[0...2])/%(pkgid)"
 
