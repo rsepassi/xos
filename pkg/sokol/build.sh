@@ -56,7 +56,7 @@ elif [ "$TARGET_OS" = "ios" ]
 then
   zigsdk=iossdk
 	sokol_file=sokol.m
-  need iossdk -- local
+  need iossdk
   sdk="$BUILD_DEPS/iossdk/sdk"
   cflags="-DSOKOL_METAL $(pkg-config --cflags iossdk)"
   all_frameworks="
@@ -65,7 +65,6 @@ then
   Foundation
   AudioToolbox
   UIKit
-  AVFoundation
   "
   ldflags=""
   for f in $all_frameworks
