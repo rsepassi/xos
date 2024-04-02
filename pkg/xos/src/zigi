@@ -15,6 +15,13 @@ case $1 in
     [ "$TARGET_OS" = "windows" ] && name="$bin.exe"
     echo $name
     ;;
+  libc)
+    sdk=$2
+    [ -z "$sdk" ] && exit 0
+    sdkpath="$BUILD_DEPS/$sdk/sdk"
+    sed "s|@@SDK@@|$sdkpath|g" "$BUILD_DEPS/$sdk/share/libc.txt" > libc-$sdk.txt
+    echo "--libc $PWD/libc-$sdk.txt"
+    ;;
   *)
     >&2 echo "unrecognized zig command"
     exit 1

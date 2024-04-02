@@ -52,6 +52,26 @@ then
   do
     ldflags="$ldflags -framework $f"
   done
+elif [ "$TARGET_OS" = "ios" ]
+then
+  zigsdk=iossdk
+	sokol_file=sokol.m
+  need iossdk -- local
+  sdk="$BUILD_DEPS/iossdk/sdk"
+  cflags="-DSOKOL_METAL $(pkg-config --cflags iossdk)"
+  all_frameworks="
+  Metal
+  MetalKit
+  Foundation
+  AudioToolbox
+  UIKit
+  AVFoundation
+  "
+  ldflags=""
+  for f in $all_frameworks
+  do
+    ldflags="$ldflags -framework $f"
+  done
 elif [ "$TARGET_OS" = "windows" ]
 then
   cflags="-DSOKOL_D3D11"
@@ -93,6 +113,7 @@ mv "$src/$(zigi lib sokol)" lib
 # demo app
 cd "$HOME"
 zig build-exe -target $TARGET -O $OPT_ZIG \
+  $(zigi libc $zigsdk) \
   -I"$BUILD_OUT"/include \
   -I"$BUILD_DEPS/nuklear/include" \
   $cflags \
