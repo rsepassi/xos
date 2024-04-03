@@ -1,2 +1,0 @@
-https://api.github.com/repos/hexops/harfbuzz/tarball/e3f204b
-80f785ba2cb61befea1b1f3975a58c866ebeca9b21af7c367bb4c0779ae7b35b

@@ -1,11 +1,24 @@
-fetch \
-  "https://api.github.com/repos/hexops/brotli/tarball/62ab0d6" \
+src=$(fetch_untar \
+  "https://github.com/google/brotli/archive/refs/tags/v1.1.0.tar.gz" \
   brotli.tar.gz \
-  "b16f3ce6de16e3608048511f190179d316f52f72639654c8007ac0e65ad6ad4a"
-src=$(mktemp -d)
-untar $BUILD_DEPS/brotli.tar.gz $src
+  "e720a6ca29428b803f4ad165371771f5398faba397edf6778837a18599ea13ff")
 cd $src
-zig build -Dtarget=$TARGET -Doptimize=$OPT_ZIG
 
-mv $PWD/zig-out/include $BUILD_OUT
-mv $PWD/zig-out/lib $BUILD_OUT
+srcs="
+$(find c/common -type f -name '*.c')
+$(find c/enc -type f -name '*.c')
+$(find c/dec -type f -name '*.c')
+"
+
+touch brotli.c
+zig build-lib -target $TARGET -O $OPT_ZIG \
+	-I c/include \
+	brotli.c \
+	$srcs \
+	-lc++
+
+cd "$BUILD_OUT"
+mkdir include lib
+mv "$src/c/include/brotli" include
+mv "$src/$(zigi lib brotli)" lib
+pkg-config --gendefault brotli
