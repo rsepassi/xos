@@ -1,3 +1,4 @@
+cembed
 quic
 http3
 dropbear ssh
