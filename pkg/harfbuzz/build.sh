@@ -27,4 +27,4 @@ mkdir bin lib
 mv "$src/include" .
 mv "$src/$(zigi exe demo)" bin
 mv "$src/$(zigi lib harfbuzz)" lib
-pkg-config --gendefault harfbuzz
+pkg-config --gendefault harfbuzz --ldflags "-lc++"

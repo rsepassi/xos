@@ -108,6 +108,7 @@ mv \
   "$src/util/sokol_nuklear.h" \
   include
 mv "$src/$(zigi lib sokol)" lib
+pkg-config --gendefault sokol --cflags "$cflags" --ldflags "$ldflags"
 
 # demo app
 cd "$HOME"
