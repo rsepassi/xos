@@ -20,6 +20,7 @@ cflags="
 -DU_SHOW_DRAFT_API
 -DU_SHOW_INTERNAL_API
 -DU_STATIC_IMPLEMENTATION
+-DU_DISABLE_RENAMING=1
 $cflags
 "
 
@@ -73,3 +74,4 @@ cp \
   "$src/i18n/unicode/"*.h \
   "$src/io/unicode/"*.h \
   include/unicode
+pkg-config --gendefault icuuc
