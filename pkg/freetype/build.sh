@@ -64,9 +64,16 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
 	$srcs \
 	-lc
 
+zig build-exe -target $TARGET -O $OPT_ZIG \
+  "$BUILD_PKG"/demo.c \
+  -I include \
+  $(zigi lib freetype) \
+  $(pkg-config --libs brotli zlib/z) \
+  -lc
+
 cd "$BUILD_OUT"
-mkdir lib share
+mkdir bin lib
 mv "$src/include" .
 mv "$src/$(zigi lib freetype)" lib
+mv "$src/$(zigi exe demo)" bin
 pkg-config --gendefault freetype --deps brotli,zlib/z
-ln -s "$BUILD_PKG/CourierPrime-Regular.ttf" share

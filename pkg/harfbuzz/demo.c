@@ -16,6 +16,9 @@
 // * Caching renders
 
 int main(int argc, char** argv) {
+  char* filename = argv[1];
+  char* text = argv[2];
+
   // Initialize the FreeType library
   FT_Library library;
   if (FT_Init_FreeType(&library)) {
@@ -25,7 +28,6 @@ int main(int argc, char** argv) {
 
   // Load the font face from the font file
   FT_Face face;
-  char* filename = "/tmp/CourierPrime-Regular.ttf";
   if (FT_New_Face(
         library,
         filename,
@@ -53,62 +55,12 @@ int main(int argc, char** argv) {
       return 1;
   }
 
-  int num_glyphs = face->num_glyphs;
-  printf("num_glyphs=%d\n", num_glyphs);
+  // HarfBuzz setup
+  hb_face_t* hb_face = hb_ft_face_create_referenced(face);
+  hb_font_t *font = hb_font_create(hb_face);
+  if (!font) exit(1);
 
-
-  // Affine transform to be applied on glyph load
-  // Coefficients of the matrix are otherwise in 16.16 fixed-point units
-  // The vector coordinates are expressed in 1/64 of a pixel (also known as
-  // 26.6 fixed-point numbers)
-  FT_Set_Transform( face , /* 2x2 matrix */ NULL , /* 2d vector delta */ NULL );
-
-  for (int glyph_ind = 0 ; glyph_ind < num_glyphs; glyph_ind++ ) {
-    if ( FT_Load_Glyph( face, glyph_ind, FT_LOAD_DEFAULT ) )
-      exit( 1 );
-    FT_Glyph glyph;
-    if ( FT_Get_Glyph( face->glyph, &glyph ) )
-      exit( 1 );
-
-    // If it is not already a bitmap, render it to one
-    FT_Vector  pen;
-    pen.x = 0;
-    pen.y = 0;
-    if ( glyph->format != FT_GLYPH_FORMAT_BITMAP )
-      if ( FT_Glyph_To_Bitmap( &glyph, FT_RENDER_MODE_NORMAL, &pen, 0 ) )
-        exit( 1 );
-
-    char char_name[256];
-    if ( FT_Get_Glyph_Name( face, glyph_ind, char_name, 16 ) )
-      exit( 1 );
-
-    FT_BitmapGlyph  bit = (FT_BitmapGlyph)glyph;
-    FT_Bitmap* bitmap = &bit->bitmap;
-    FT_Glyph_Metrics* glyph_metrics = &face->glyph->metrics;
-
-    // This function should perform linear blending with gamma correction,
-    // using the bitmap as an alpha channel
-    // my_draw_bitmap(
-    //     bitmap,
-    //     pen.x + bit->bitmap_left,
-    //     pen.y - bit->bitmap_top);
-    // The advance vector is expressed in 1/64 of pixels, and is truncated to
-    // integer pixels on each iteration
-    // pen.x += bit->advance.x >> 6;
-    // pen.y += bit->advance.y >> 6;
-
-    printf( "Glyph %d  name %s %ld %ld %ld %d %d\n",
-            glyph_ind,
-            char_name,
-            glyph_metrics->horiBearingX / 64,
-            glyph_metrics->horiBearingY / 64,
-            glyph_metrics->horiAdvance / 64,
-            bitmap->width , bitmap->rows );
-
-    FT_Done_Glyph( glyph );
-  }
-
-  char* text = "hello world";
+  // Add text to buffer
   hb_buffer_t *buf = hb_buffer_create();
   if (!buf) exit(1);
   hb_buffer_add_utf8(buf, text, -1, 0, -1);
@@ -116,10 +68,7 @@ int main(int argc, char** argv) {
   hb_buffer_set_script(buf, HB_SCRIPT_LATIN);
   hb_buffer_set_language(buf, hb_language_from_string("en", -1));
 
-  hb_face_t* hb_face = hb_ft_face_create_referenced(face);
-  hb_font_t *font = hb_font_create(hb_face);
-  if (!font) exit(1);
-
+  // Shape!
   hb_shape(font, buf, NULL, 0);
 
   unsigned int glyph_count;
@@ -134,7 +83,10 @@ int main(int argc, char** argv) {
     hb_position_t y_offset  = glyph_pos[i].y_offset;
     hb_position_t x_advance = glyph_pos[i].x_advance;
     hb_position_t y_advance = glyph_pos[i].y_advance;
-    printf("%d %d %d %d %d\n", glyphid, x_offset, y_offset, x_advance, y_advance);
+    char char_name[256];
+    if ( FT_Get_Glyph_Name( face, glyphid, char_name, 16 ) )
+      exit( 1 );
+    printf("%s id=%d (x,y)=(%d,%d) advance=(%d,%d)\n", char_name, glyphid, x_offset, y_offset, x_advance, y_advance);
     /* draw_glyph(glyphid, cursor_x + x_offset, cursor_y + y_offset); */
     cursor_x += x_advance;
     cursor_y += y_advance;
