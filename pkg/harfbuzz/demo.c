@@ -39,30 +39,33 @@ int main(int argc, char** argv) {
   }
 
   // Set the font size
-  // widths and heights are specified in 1/64 of points
-  // 1 pt == 1/72 of an inch
-  // xy res are expressed in dots-per-inch, or dpi
-  // Value of 0 for the {width, x res} means same as other dim
-  if (FT_Set_Char_Size(
-        face,
-        /* char_width */ 0,
-        /* char_height */ 16 * 64,
-        /* x res */ 0,
-        /* y res */ 300)) {
-      fprintf(stderr, "Could not set font size.\n");
-      FT_Done_Face(face);
-      FT_Done_FreeType(library);
-      return 1;
+  if (FT_HAS_FIXED_SIZES(face)){
+      FT_Select_Size(face, 0);  // use first fixed size
+  } else {
+    if (FT_Set_Char_Size(
+          face,
+          /* char_width */ 0,
+          /* char_height */ 16 * 64,
+          /* x res */ 0,
+          /* y res */ 300)) {
+        fprintf(stderr, "warn: Could not set font size.\n");
+    }
   }
 
   // HarfBuzz setup
   hb_face_t* hb_face = hb_ft_face_create_referenced(face);
   hb_font_t *font = hb_font_create(hb_face);
-  if (!font) exit(1);
+  if (!font) {
+    fprintf(stderr, "Could not create HarfBuzz font face");
+    exit(1);
+  }
 
   // Add text to buffer
   hb_buffer_t *buf = hb_buffer_create();
-  if (!buf) exit(1);
+  if (!buf) {
+    fprintf(stderr, "Could not create HarfBuzz buffer");
+    exit(1);
+  }
   hb_buffer_add_utf8(buf, text, -1, 0, -1);
   hb_buffer_set_direction(buf, HB_DIRECTION_LTR);
   hb_buffer_set_script(buf, HB_SCRIPT_LATIN);
@@ -83,9 +86,11 @@ int main(int argc, char** argv) {
     hb_position_t y_offset  = glyph_pos[i].y_offset;
     hb_position_t x_advance = glyph_pos[i].x_advance;
     hb_position_t y_advance = glyph_pos[i].y_advance;
+
     char char_name[256];
-    if ( FT_Get_Glyph_Name( face, glyphid, char_name, 16 ) )
-      exit( 1 );
+    if ( FT_Get_Glyph_Name( face, glyphid, char_name, 16 ) ) {
+      sprintf(char_name, "noname");
+    }
     printf("%s id=%d (x,y)=(%d,%d) advance=(%d,%d)\n", char_name, glyphid, x_offset, y_offset, x_advance, y_advance);
     /* draw_glyph(glyphid, cursor_x + x_offset, cursor_y + y_offset); */
     cursor_x += x_advance;

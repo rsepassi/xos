@@ -32,17 +32,21 @@ int main(int argc, char** argv) {
   // 1 pt == 1/72 of an inch
   // xy res are expressed in dots-per-inch, or dpi
   // Value of 0 for the {width, x res} means same as other dim
-  if (FT_Set_Char_Size(
-        face,
-        /* char_width */ 0,
-        /* char_height */ 16 * 64,
-        /* x res */ 0,
-        /* y res */ 300)) {
-      fprintf(stderr, "Could not set font size.\n");
-      FT_Done_Face(face);
-      FT_Done_FreeType(library);
-      return 1;
+  if (FT_HAS_FIXED_SIZES(face)){
+      FT_Select_Size(face, 0);  // use first fixed size
+  } else {
+    if (FT_Set_Char_Size(
+          face,
+          /* char_width */ 0,
+          /* char_height */ 16 * 64,
+          /* x res */ 0,
+          /* y res */ 300)) {
+        fprintf(stderr, "warn: Could not set font size.\n");
+    }
   }
+
+  int load_flags = FT_LOAD_DEFAULT;
+  if(FT_HAS_COLOR(face)) load_flags |= FT_LOAD_COLOR;
 
   int num_glyphs = face->num_glyphs;
   printf("num_glyphs=%d\n", num_glyphs);
@@ -55,23 +59,29 @@ int main(int argc, char** argv) {
 
   // Print glpyh info and ascii render
   for (int glyph_ind = 0 ; glyph_ind < num_glyphs; glyph_ind++ ) {
-    if ( FT_Load_Glyph( face, glyph_ind, FT_LOAD_DEFAULT ) )
-      exit( 1 );
+    if ( FT_Load_Glyph( face, glyph_ind, load_flags ) ) {
+      fprintf(stderr, "Could not load glyph %d\n", glyph_ind);
+      continue;
+    }
     FT_Glyph glyph;
-    if ( FT_Get_Glyph( face->glyph, &glyph ) )
+    if ( FT_Get_Glyph( face->glyph, &glyph ) ) {
+      fprintf(stderr, "Could not get glyph %d\n", glyph_ind);
       exit( 1 );
+    }
 
     // If it is not already a bitmap, render it to one
     FT_Vector  pen;
     pen.x = 0;
     pen.y = 0;
     if ( glyph->format != FT_GLYPH_FORMAT_BITMAP )
-      if ( FT_Glyph_To_Bitmap( &glyph, FT_RENDER_MODE_NORMAL, &pen, 0 ) )
+      if ( FT_Glyph_To_Bitmap( &glyph, FT_RENDER_MODE_NORMAL, &pen, 0 ) ) {
+        fprintf(stderr, "Could not get bitmap");
         exit( 1 );
+      }
 
     char char_name[256];
     if ( FT_Get_Glyph_Name( face, glyph_ind, char_name, 16 ) )
-      exit( 1 );
+      sprintf(char_name, "noname");
 
     FT_BitmapGlyph  bit = (FT_BitmapGlyph)glyph;
     FT_Bitmap* bitmap = &bit->bitmap;
@@ -107,4 +117,10 @@ int main(int argc, char** argv) {
 
     FT_Done_Glyph( glyph );
   }
+
+  printf("ok");
 }
+
+// TODO:
+// * Glyph lifetimes (glyph vs bitmap, destroy arg, FT_Done_Glyph)
+// * Emoji (bw + color)
