@@ -16,5 +16,5 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
 
 cd "$BUILD_OUT"
 mkdir -p bin/resources
-mv "$HOME"/$(zigi exe texthello) bin
-ln -s "$BUILD_DEPS/freetype/share/CourierPrime-Regular.ttf" bin/resources
+mv "$HOME"/$(zigi exe texthello) bin/demo
+ln -s "$BUILD_PKG/CourierPrime-Regular.ttf" bin/resources
