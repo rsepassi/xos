@@ -59,7 +59,10 @@ const Ctx = struct {
 
         // Text
         self.ft = try text.FreeType.init();
-        self.font = try self.ft.font(.{ .path = @ptrCast(font_path) });
+        self.font = try self.ft.font(.{
+            .path = @ptrCast(font_path),
+            .pxheight = 64,
+        });
         self.textbuf = try text.Buffer.init();
         self.textbuf.addText("hello world");
 
@@ -197,6 +200,15 @@ const Ctx = struct {
         };
         pipeline_desc.layout.attrs[shaderlib.ATTR_vs_texuv] = .{
             .format = sokol.c.SG_VERTEXFORMAT_FLOAT2,
+        };
+        pipeline_desc.colors[0].blend = .{
+            .enabled = true,
+            .src_factor_rgb = sokol.c.SG_BLENDFACTOR_SRC_ALPHA,
+            .dst_factor_rgb = sokol.c.SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+            .op_rgb = sokol.c.SG_BLENDOP_ADD,
+            .src_factor_alpha = sokol.c.SG_BLENDFACTOR_ONE,
+            .dst_factor_alpha = sokol.c.SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+            .op_alpha = sokol.c.SG_BLENDOP_ADD,
         };
         const pipeline = sokol.c.sg_make_pipeline(&pipeline_desc);
 

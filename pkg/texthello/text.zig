@@ -39,6 +39,7 @@ pub const Font = struct {
     const InitArgs = struct {
         path: [:0]const u8,
         face_index: u8 = 0,
+        pxheight: c_uint = 32,
     };
     pub fn init(lib: *const FreeType, args: InitArgs) !Self {
         var self: Self = undefined;
@@ -50,7 +51,11 @@ pub const Font = struct {
         ) != 0) return error.FTFontLoadFail;
 
         if (c.FT_HAS_COLOR(self.face)) self.has_color = true;
-        if (c.FT_Set_Char_Size(self.face, 0, 32 * 64, 0, 300) != 0) return error.FTFontSizeFail;
+        if (c.FT_HAS_FIXED_SIZES(self.face)) {
+            if (c.FT_Select_Size(self.face, 0) != 0) return error.FTFontSizeFail;
+        } else {
+            if (c.FT_Set_Pixel_Sizes(self.face, 0, args.pxheight) != 0) return error.FTFontSizeFail;
+        }
 
         self.hb_face = c.hb_ft_face_create_referenced(self.face) orelse return error.HBFontFail;
         self.hb_font = c.hb_font_create(self.hb_face) orelse return error.HBFontFail;
