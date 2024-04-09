@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const twod = @import("twod.zig");
+
 pub const c = @cImport({
     @cInclude("freetype/freetype.h");
     @cInclude("freetype/ftmodapi.h");
@@ -7,6 +9,8 @@ pub const c = @cImport({
     @cInclude("harfbuzz/hb.h");
     @cInclude("harfbuzz/hb-ft.h");
 });
+
+pub const GlyphIndex = u32;
 
 pub const FreeType = struct {
     const Self = @This();
@@ -32,12 +36,14 @@ pub const Font = struct {
     const Self = @This();
 
     face: c.FT_Face,
+    has_color: bool,
     hb_face: *c.hb_face_t,
     hb_font: *c.hb_font_t,
 
     const InitArgs = struct {
         path: [:0]const u8,
         face_index: u8 = 0,
+        pxsize: usize = 12,
     };
     pub fn init(lib: *const FreeType, args: InitArgs) !Self {
         var self: Self = undefined;
@@ -48,8 +54,24 @@ pub const Font = struct {
             &self.face,
         ) != 0) return error.FTFontLoadFail;
 
+        if (c.FT_HAS_COLOR(self.face)) self.has_color = true;
+        if (c.FT_HAS_FIXED_SIZES(self.face)) {
+            if (c.FT_Select_Size(self.face, 0) != 0) return error.FTFontSizeFail;
+        } else {
+            if (c.FT_Set_Char_Size(self.face, 0, @intCast(args.pxsize << 6), 0, 0) != 0)
+                return error.FTFontSizeFail;
+        }
+
+        // Identity transform
+        c.FT_Set_Transform(self.face, 0, 0);
+
         self.hb_face = c.hb_ft_face_create_referenced(self.face) orelse return error.HBFontFail;
         self.hb_font = c.hb_font_create(self.hb_face) orelse return error.HBFontFail;
+        c.hb_font_set_scale(
+            self.hb_font,
+            @intCast(args.pxsize << 6),
+            @intCast(args.pxsize << 6),
+        );
 
         return self;
     }
@@ -60,9 +82,19 @@ pub const Font = struct {
         _ = c.FT_Done_Face(self.face);
     }
 
-    fn glyph(self: Self, id: u32) !Glyph {
-        if (c.FT_Load_Glyph(self.face, id, c.FT_LOAD_DEFAULT) != 0)
+    pub fn glyphIdx(self: Self, char: usize) GlyphIndex {
+        return c.FT_Get_Char_Index(self.face, char);
+    }
+
+    pub fn loadGlyph(self: Self, id: GlyphIndex) !void {
+        var load_flags = c.FT_LOAD_DEFAULT;
+        if (self.has_color) load_flags |= @intCast(c.FT_LOAD_COLOR);
+        if (c.FT_Load_Glyph(self.face, id, load_flags) != 0)
             return error.FTLoadGlyph;
+    }
+
+    pub fn glyph(self: Self, id: u32) !Glyph {
+        try self.loadGlyph(id);
         var g: Glyph = .{
             .id = id,
             .font = &self,
@@ -73,38 +105,30 @@ pub const Font = struct {
         return g;
     }
 
-    pub const CGlyphInfo = extern struct {
-        info: c.hb_glyph_info_t,
+    pub const ShapedChar = struct {
+        info: *const c.hb_glyph_info_t,
+        pos: *const c.hb_glyph_position_t,
         fn flags(self: @This()) c.hb_glyph_flags_t {
             c.hb_glyph_info_get_glyph_flags(&self.info);
         }
     };
 
-    pub const ShapedGlyph = struct {
-        glyph: Glyph,
-        info: *const CGlyphInfo,
-        pos: *const c.hb_glyph_position_t,
-    };
-
-    pub const Shaped = struct {
+    pub const ShapedText = struct {
         font: *Font,
-        info: []const CGlyphInfo,
+        info: []const c.hb_glyph_info_t,
         pos: []const c.hb_glyph_position_t,
 
         const Iterator = struct {
-            shaped: *const Shaped,
+            shaped: *const ShapedText,
             i: usize = 0,
 
-            pub fn next(self: *@This()) !?ShapedGlyph {
+            pub fn next(self: *@This()) ?ShapedChar {
                 if (self.i >= self.shaped.pos.len) return null;
                 defer self.i += 1;
-                const i = self.i;
-                const g = ShapedGlyph{
-                    .glyph = try self.shaped.font.glyph(self.shaped.info[i].info.codepoint),
-                    .info = &self.shaped.info[i],
-                    .pos = &self.shaped.pos[i],
+                return .{
+                    .info = &self.shaped.info[self.i],
+                    .pos = &self.shaped.pos[self.i],
                 };
-                return g;
             }
         };
 
@@ -113,10 +137,10 @@ pub const Font = struct {
         }
     };
 
-    pub fn shape(self: *Self, buf: Buffer) Shaped {
+    pub fn shape(self: *Self, buf: Buffer) ShapedText {
         c.hb_shape(self.hb_font, buf.buf, null, 0);
         var glyph_count: u32 = 0;
-        const glyph_infos: [*]CGlyphInfo = @ptrCast(c.hb_buffer_get_glyph_infos(buf.buf, &glyph_count));
+        const glyph_infos = c.hb_buffer_get_glyph_infos(buf.buf, &glyph_count);
         const glyph_poss = c.hb_buffer_get_glyph_positions(buf.buf, &glyph_count);
         return .{
             .font = self,
@@ -136,6 +160,7 @@ pub const Buffer = struct {
             .buf = c.hb_buffer_create() orelse return error.HFBufFail,
         };
         if (c.hb_buffer_allocation_successful(self.buf) == 0) return error.HFBufFail;
+
         c.hb_buffer_set_direction(self.buf, c.HB_DIRECTION_LTR);
         c.hb_buffer_set_script(self.buf, c.HB_SCRIPT_LATIN);
         c.hb_buffer_set_language(self.buf, c.hb_language_from_string("en", -1));
@@ -151,8 +176,15 @@ pub const Buffer = struct {
         c.hb_buffer_add_utf8(self.buf, text.ptr, @intCast(text.len), 0, @intCast(text.len));
     }
 
-    pub fn clear(self: Self) void {
-        c.hb_buffer_clear_contents(self.buf);
+    pub fn reset(self: Self) void {
+        c.hb_buffer_reset(self.buf);
+        c.hb_buffer_set_direction(self.buf, c.HB_DIRECTION_LTR);
+        c.hb_buffer_set_script(self.buf, c.HB_SCRIPT_LATIN);
+        c.hb_buffer_set_language(self.buf, c.hb_language_from_string("en", -1));
+    }
+
+    pub fn len(self: Self) c_uint {
+        return c.hb_buffer_get_length(self.buf);
     }
 };
 
@@ -161,7 +193,7 @@ pub const Glyph = struct {
     glyph: c.FT_Glyph,
     id: u32,
 
-    pub fn deinit(self: *@This()) void {
+    pub fn deinit(self: @This()) void {
         c.FT_Done_Glyph(self.glyph);
     }
 
@@ -171,15 +203,36 @@ pub const Glyph = struct {
         return buf[0..std.mem.len(buf.ptr)];
     }
 
-    const Bitmap = struct {
+    pub const Bitmap = struct {
+        glyph: *const Glyph,
         buf: []u8,
-        rows: u32,
-        cols: u32,
+        nrows: u32,
+        ncols: u32,
+        pitch: i32,
+
+        const Iterator = struct {
+            bitmap: *const Bitmap,
+            i: i32 = 0,
+
+            pub fn next(self: *@This()) ?[]u8 {
+                if (self.i >= self.bitmap.nrows) return null;
+                const rowstart = self.i * self.bitmap.pitch;
+                const rowend = rowstart + @as(i32, @intCast(self.bitmap.ncols));
+                const out = self.bitmap.buf[@intCast(rowstart)..@intCast(rowend)];
+                self.i += 1;
+                return out;
+            }
+        };
+
+        pub fn rows(self: *const @This()) Iterator {
+            return .{ .bitmap = self };
+        }
 
         pub fn ascii(self: @This(), writer: anytype) !void {
-            for (0..self.rows) |i| {
-                for (0..self.cols) |j| {
-                    const s = if (self.buf[i * self.cols + j] == 0) "_" else "X";
+            var rows_ = self.rows();
+            while (rows_.next()) |row| {
+                for (row) |val| {
+                    const s = if (val == 0) "_" else "X";
                     _ = try writer.write(s);
                 }
                 _ = try writer.write("\n");
@@ -188,15 +241,156 @@ pub const Glyph = struct {
     };
 
     pub fn render(self: *@This()) !Bitmap {
-        if (self.glyph.*.format != c.FT_GLYPH_FORMAT_BITMAP)
-            if (c.FT_Glyph_To_Bitmap(@constCast(&self.glyph), c.FT_RENDER_MODE_NORMAL, null, 0) != 0)
+        if (self.glyph.*.format != c.FT_GLYPH_FORMAT_BITMAP) {
+            // replaces self.glyph
+            if (c.FT_Glyph_To_Bitmap(&self.glyph, c.FT_RENDER_MODE_NORMAL, null, 1) != 0)
                 return error.FTRender;
+        }
         const bit: *const c.FT_BitmapGlyph = @ptrCast(@alignCast(&self.glyph));
         const bm = bit.*.*.bitmap;
         return .{
+            .glyph = self,
             .buf = bm.buffer[0 .. bm.rows * bm.width],
-            .rows = bm.rows,
-            .cols = bm.width,
+            .nrows = bm.rows,
+            .ncols = bm.width,
+            .pitch = bm.pitch,
         };
     }
 };
+
+pub const FontAtlas = struct {
+    const RenderInfo = struct {
+        horiBearingX: c_long,
+        horiBearingY: c_long,
+    };
+    const AtlasInfo = struct {
+        quad: twod.Rect,
+        info: RenderInfo,
+    };
+    const InfoMap = std.hash_map.AutoHashMap(GlyphIndex, AtlasInfo);
+
+    data: []u8,
+    size: twod.Size,
+    info: InfoMap,
+    padpx: usize,
+    needs_update: bool = true,
+    col_offset: usize = 0,
+
+    pub fn init(alloc: std.mem.Allocator, size: twod.Size, padpx: usize) !@This() {
+        const info = FontAtlas.InfoMap.init(alloc);
+        const data = try alloc.alloc(u8, size.area());
+        return .{
+            .data = data,
+            .size = size,
+            .info = info,
+            .padpx = padpx,
+        };
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.info.allocator.free(self.data);
+        self.info.deinit();
+    }
+
+    pub fn addGlyph(
+        self: *@This(),
+        glyph: GlyphIndex,
+        bitmap: Glyph.Bitmap,
+        info: RenderInfo,
+    ) !void {
+        const data_width = self.size.width;
+        const data_height = self.size.height;
+        if (bitmap.nrows > data_height) return error.CharTooTall;
+        if (self.col_offset + bitmap.ncols > data_width) return error.CharTooWide;
+
+        const start = data_width * (data_height - bitmap.nrows);
+
+        var i: usize = 0;
+        var rows = bitmap.rows();
+        while (rows.next()) |row| : (i += 1) {
+            const row_start = start + self.col_offset + i * data_width;
+            std.mem.copyForwards(u8, self.data[row_start .. row_start + bitmap.ncols], row);
+        }
+
+        try self.info.put(glyph, .{
+            .info = info,
+            .quad = .{
+                .tl = .{ .x = @floatFromInt(start + self.col_offset), .y = @floatFromInt(bitmap.nrows) },
+                .br = .{ .x = @floatFromInt(start + self.col_offset + bitmap.ncols), .y = 0 },
+            },
+        });
+
+        // To render to ascii on stderr, uncomment this line
+        // try bitmap.ascii(std.io.getStdErr().writer());
+
+        self.col_offset += bitmap.ncols + self.padpx;
+    }
+
+    pub fn ascii(self: @This(), quad: twod.Rect, writer: anytype) !void {
+        const offset: usize = @intFromFloat(quad.tl.x);
+        const width: usize = @intFromFloat(quad.width());
+        const height: usize = @intFromFloat(quad.height());
+
+        for (0..height) |i| {
+            const row_start = i * self.width + offset;
+            for (0..width) |j| {
+                const val = self.data[row_start + j];
+                const s = if (val == 0) "_" else "X";
+                _ = try writer.write(s);
+            }
+            _ = try writer.write("\n");
+        }
+    }
+};
+
+const ascii_chars = blk: {
+    @setEvalBranchQuota(9999);
+    var n = 0;
+    for (0..256) |i| {
+        if (std.ascii.isPrint(i)) n += 1;
+    }
+    var chars: [n]u8 = undefined;
+    var i = 0;
+    for (0..256) |x| {
+        if (std.ascii.isPrint(x)) {
+            chars[i] = x;
+            i += 1;
+        }
+    }
+    break :blk chars;
+};
+
+pub fn buildAsciiAtlas(alloc: std.mem.Allocator, font: Font) !FontAtlas {
+    const padpx = 2;
+
+    var max_height: c_long = 0;
+    var total_width: c_long = 0;
+    for (ascii_chars) |char| {
+        try font.loadGlyph(font.glyphIdx(char));
+        const metrics = font.face.*.glyph.*.metrics;
+        max_height = @max(max_height, metrics.height);
+        total_width += metrics.width + (padpx << 6);
+    }
+
+    const data_height: usize = @intCast((max_height + 1) >> 6);
+    const data_width: usize = @intCast((total_width + 1) >> 6);
+
+    var atlas = try FontAtlas.init(
+        alloc,
+        .{ .width = data_width, .height = data_height },
+        padpx,
+    );
+
+    for (ascii_chars) |char| {
+        const idx = font.glyphIdx(char);
+        var glyph = try font.glyph(idx);
+        defer glyph.deinit();
+        const bitmap = try glyph.render();
+        try atlas.addGlyph(idx, bitmap, .{
+            .horiBearingX = font.face.*.glyph.*.metrics.horiBearingX,
+            .horiBearingY = font.face.*.glyph.*.metrics.horiBearingY,
+        });
+    }
+
+    return atlas;
+}

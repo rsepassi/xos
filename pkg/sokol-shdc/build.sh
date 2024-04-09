@@ -3,8 +3,8 @@ version="5b8d524"
 macos_aarch64="https://github.com/floooh/sokol-tools-bin/raw/$version/bin/osx_arm64/sokol-shdc"
 macos_aarch64_hash="ae4064824ea079d10cdc5e0aef8e3a11308ef4acc0b64add651194620f5f7037"
 
-linux_x86_64="https://github.com/floooh/sokol-tools-bin/blob/$version/bin/linux/sokol-shdc"
-linux_x86_64_hash="ec6589cf7bec6aec1c7511a1e2905b54ef17d3c082c7f6253f717ca603636879"
+linux_x86_64="https://github.com/floooh/sokol-tools-bin/raw/$version/bin/linux/sokol-shdc"
+linux_x86_64_hash="fffc93a057ae27fbdf98822a87a7419cdcda3163a3842b65da2a14b886cc15a5"
 
 
 url=$(eval "echo \$${TARGET_OS}_${TARGET_ARCH}")

@@ -2,19 +2,21 @@
 
 const std = @import("std");
 
-const sokol = @cImport({
+const twod = @import("twod.zig");
+
+pub const c = @cImport({
     @cInclude("sokol_app.h");
     @cInclude("sokol_gfx.h");
+    @cInclude("sokol_gp.h");
+    @cInclude("spritealpha_shader.h");
 });
-
-pub const c = sokol;
 
 pub fn App(comptime AppT: type) type {
     const CCtx = struct {
         const Self = @This();
 
         fn sokolGetCtx() *AppT {
-            return @ptrCast(@alignCast(sokol.sapp_userdata()));
+            return @ptrCast(@alignCast(c.sapp_userdata()));
         }
 
         fn sokolOnInit() callconv(.C) void {
@@ -33,7 +35,7 @@ pub fn App(comptime AppT: type) type {
             std.heap.c_allocator.destroy(app);
         }
 
-        fn sokolOnEvent(cevent: [*c]const sokol.sapp_event) callconv(.C) void {
+        fn sokolOnEvent(cevent: [*c]const c.sapp_event) callconv(.C) void {
             const app: *AppT = Self.sokolGetCtx();
             const event: *const Event = @ptrCast(cevent);
             app.onEvent(event.*);
@@ -53,11 +55,14 @@ pub fn App(comptime AppT: type) type {
     };
 
     const Main = struct {
-        fn sokol_main(argc: c_int, argv: [*][*:0]u8) callconv(.C) sokol.sapp_desc {
+        fn sokol_main(argc: c_int, argv: [*][*:0]u8) callconv(.C) c.sapp_desc {
             _ = argc;
             _ = argv;
             const ctx = std.heap.c_allocator.create(AppT) catch @panic("alloc failed");
-            ctx.init() catch @panic("init failed");
+            ctx.init() catch |err| {
+                std.io.getStdErr().writer().print("error: {any}\n", .{err}) catch {};
+                @panic("init failed");
+            };
 
             return .{
                 .init_cb = CCtx.sokolOnInit,
@@ -100,6 +105,31 @@ pub const Log = struct {
     message: ?[*c]const u8,
     line_nr: u32,
     filename: ?[*c]const u8,
+
+    pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        var filename: [:0]const u8 = "";
+        if (self.filename) |cfilename| {
+            filename = cfilename[0..std.mem.len(cfilename) :0];
+        }
+        var message: [:0]const u8 = "";
+        if (self.message) |cmessage| {
+            message = cmessage[0..std.mem.len(cmessage) :0];
+        }
+        _ = try writer.print(
+            "[{s} {s}:{d}] tag={s} id={d} {s}",
+            .{
+                @tagName(self.level),
+                filename,
+                self.line_nr,
+                self.tag,
+                self.item_id,
+                message,
+            },
+        );
+    }
 };
 
 pub const EventType = enum(i32) {
@@ -395,56 +425,58 @@ fn cFree(alloc: std.mem.Allocator, ptr_or_null: ?*anyopaque) void {
     alloc.free(head[0..true_size.*]);
 }
 
-pub fn appEnv() sokol.sg_environment {
+pub fn appEnv() c.sg_environment {
     return .{
         .defaults = .{
-            .color_format = @intCast(sokol.sapp_color_format()),
-            .depth_format = @intCast(sokol.sapp_depth_format()),
-            .sample_count = @intCast(sokol.sapp_sample_count()),
+            .color_format = @intCast(c.sapp_color_format()),
+            .depth_format = @intCast(c.sapp_depth_format()),
+            .sample_count = @intCast(c.sapp_sample_count()),
         },
         .metal = .{
-            .device = sokol.sapp_metal_get_device(),
+            .device = c.sapp_metal_get_device(),
         },
         .d3d11 = .{
-            .device = sokol.sapp_d3d11_get_device(),
-            .device_context = sokol.sapp_d3d11_get_device_context(),
+            .device = c.sapp_d3d11_get_device(),
+            .device_context = c.sapp_d3d11_get_device_context(),
         },
         .wgpu = .{
-            .device = sokol.sapp_wgpu_get_device(),
+            .device = c.sapp_wgpu_get_device(),
         },
     };
 }
 
-pub fn screenSize() ScreenSize {
+pub fn screen_rect() twod.Rect {
+    const width: f32 = @floatFromInt(c.sapp_width());
+    const height: f32 = @floatFromInt(c.sapp_height());
     return .{
-        .width = sokol.sapp_width(),
-        .height = sokol.sapp_height(),
+        .tl = .{ .x = 0, .y = height },
+        .br = .{ .x = width, .y = 0 },
     };
 }
 
-pub fn swapchain() sokol.sg_swapchain {
+pub fn swapchain() c.sg_swapchain {
     return .{
-        .width = sokol.sapp_width(),
-        .height = sokol.sapp_height(),
-        .sample_count = sokol.sapp_sample_count(),
-        .color_format = sokol.sapp_color_format(),
-        .depth_format = sokol.sapp_depth_format(),
+        .width = c.sapp_width(),
+        .height = c.sapp_height(),
+        .sample_count = c.sapp_sample_count(),
+        .color_format = @intCast(c.sapp_color_format()),
+        .depth_format = @intCast(c.sapp_depth_format()),
         .metal = .{
-            .current_drawable = sokol.sapp_metal_get_current_drawable(),
-            .depth_stencil_texture = sokol.sapp_metal_get_depth_stencil_texture(),
-            .msaa_color_texture = sokol.sapp_metal_get_msaa_color_texture(),
+            .current_drawable = c.sapp_metal_get_current_drawable(),
+            .depth_stencil_texture = c.sapp_metal_get_depth_stencil_texture(),
+            .msaa_color_texture = c.sapp_metal_get_msaa_color_texture(),
         },
         .d3d11 = .{
-            .render_view = sokol.sapp_d3d11_get_render_view(),
-            .resolve_view = sokol.sapp_d3d11_get_resolve_view(),
-            .depth_stencil_view = sokol.sapp_d3d11_get_depth_stencil_view(),
+            .render_view = c.sapp_d3d11_get_render_view(),
+            .resolve_view = c.sapp_d3d11_get_resolve_view(),
+            .depth_stencil_view = c.sapp_d3d11_get_depth_stencil_view(),
         },
         .wgpu = .{
-            .render_view = sokol.sapp_wgpu_get_render_view(),
-            .resolve_view = sokol.sapp_wgpu_get_resolve_view(),
-            .depth_stencil_view = sokol.sapp_wgpu_get_depth_stencil_view(),
+            .render_view = c.sapp_wgpu_get_render_view(),
+            .resolve_view = c.sapp_wgpu_get_resolve_view(),
+            .depth_stencil_view = c.sapp_wgpu_get_depth_stencil_view(),
         },
-        .gl = .{ .framebuffer = sokol.sapp_gl_get_framebuffer() },
+        .gl = .{ .framebuffer = c.sapp_gl_get_framebuffer() },
     };
 }
 
@@ -484,5 +516,275 @@ pub fn loggerInternal(app: anytype, comptime T: type) T {
     return .{
         .func = X.sokolLogC,
         .user_data = @ptrCast(@constCast(app)),
+    };
+}
+
+pub fn color(r: u8, g: u8, b: u8, a: f32) c.sg_color {
+    return .{
+        .r = @as(f32, @floatFromInt(r)) / 255.0,
+        .g = @as(f32, @floatFromInt(g)) / 255.0,
+        .b = @as(f32, @floatFromInt(b)) / 255.0,
+        .a = a,
+    };
+}
+
+pub fn colorVec(r: u8, g: u8, b: u8) [3]f32 {
+    return .{
+        @as(f32, @floatFromInt(r)) / 255.0,
+        @as(f32, @floatFromInt(g)) / 255.0,
+        @as(f32, @floatFromInt(b)) / 255.0,
+    };
+}
+
+pub fn getRectVertices(xy: twod.Rect, uv: twod.Rect) [24]f32 {
+    const origin = xy.tl.down(xy.height());
+    const tex_bl = uv.tl.down(uv.height());
+    const tex_tr = uv.tl.right(uv.width());
+    return .{
+        // Bottom triangle
+        origin.x,              origin.y, tex_bl.x, tex_bl.y,
+        xy.tl.x,               xy.tl.y,  uv.tl.x,  uv.tl.y,
+        origin.x + xy.width(), origin.y, uv.br.x,  uv.br.y,
+        // Top triangle
+        xy.tl.x,               xy.tl.y,  uv.tl.x,  uv.tl.y,
+        xy.tl.x + xy.width(),  xy.tl.y,  tex_tr.x, tex_tr.y,
+        origin.x + xy.width(), origin.y, uv.br.x,  uv.br.y,
+    };
+}
+
+pub const RenderPass = struct {
+    pub fn begin(action: c.sg_pass_action, swapchain_: ?c.sg_swapchain) @This() {
+        var pass = c.sg_pass{
+            .action = action,
+            .swapchain = if (swapchain_) |s| s else swapchain(),
+        };
+        c.sg_begin_pass(&pass);
+        return .{};
+    }
+
+    pub fn endAndCommit(self: @This()) void {
+        _ = self;
+        c.sg_end_pass();
+        c.sg_commit();
+    }
+};
+
+// Each texture is many images
+pub const SpriteTexturePipeline = TexturePipeline(.{
+    .alpha_only = false,
+    .max_quads = 1 << 16,
+});
+
+// Each texture is many (alpha) images
+pub const AlphaTexturePipeline = TexturePipeline(.{
+    .alpha_only = true,
+    .max_quads = 1 << 16,
+});
+
+// Each texture is just 1 image
+pub const ImageTexturePipeline = TexturePipeline(.{
+    .alpha_only = false,
+    .max_quads = 6,
+});
+
+const TexturePipelineConfig = struct {
+    alpha_only: bool,
+    max_quads: usize,
+};
+
+fn TexturePipeline(comptime config: TexturePipelineConfig) type {
+    return struct {
+        const Texture = struct {
+            image: c.sg_image,
+            vertex_buf: c.sg_buffer,
+            nvertices: usize,
+            size: twod.Size,
+        };
+        const TextureId = usize;
+
+        pipeline: c.sg_pipeline,
+        shader: c.sg_shader,
+        sampler: c.sg_sampler,
+        vs_args: c.vs_params_t,
+        fs_args: c.fs_params_t,
+        textures: std.ArrayList(Texture),
+        texture_id: ?TextureId = null,
+
+        pub fn init(alloc: std.mem.Allocator) !@This() {
+            const shader = c.sg_make_shader(c.spritealpha_shader_desc(
+                c.sg_query_backend(),
+            ));
+            var pipeline_desc = c.sg_pipeline_desc{
+                .shader = shader,
+                .primitive_type = c.SG_PRIMITIVETYPE_TRIANGLES,
+                .label = "pipeline",
+            };
+            pipeline_desc.layout.attrs[c.ATTR_vs_pos] = .{
+                .format = c.SG_VERTEXFORMAT_FLOAT2,
+            };
+            pipeline_desc.layout.attrs[c.ATTR_vs_texuv] = .{
+                .format = c.SG_VERTEXFORMAT_FLOAT2,
+            };
+            pipeline_desc.colors[0].blend = .{
+                .enabled = true,
+                .src_factor_rgb = c.SG_BLENDFACTOR_SRC_ALPHA,
+                .dst_factor_rgb = c.SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .op_rgb = c.SG_BLENDOP_ADD,
+                .src_factor_alpha = c.SG_BLENDFACTOR_ONE,
+                .dst_factor_alpha = c.SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .op_alpha = c.SG_BLENDOP_ADD,
+            };
+            const pipeline = c.sg_make_pipeline(&pipeline_desc);
+
+            var sampler_desc = c.sg_sampler_desc{
+                .label = "sampler",
+            };
+            const sampler = c.sg_make_sampler(&sampler_desc);
+
+            const screen = screen_rect();
+            const vs_args = c.vs_params_t{
+                .proj = .{
+                    2.0 / screen.width(), 0,                     0, 0,
+                    0,                    2.0 / screen.height(), 0, 0,
+                    0,                    0,                     1, 0,
+                    0,                    0,                     0, 1,
+                },
+            };
+            const fs_args = c.fs_params_t{
+                .alpha_only = if (config.alpha_only) 1 else 0,
+                .color = colorVec(0, 0, 0),
+                .tex_size = .{ 0, 0 },
+            };
+
+            return .{
+                .shader = shader,
+                .pipeline = pipeline,
+                .textures = std.ArrayList(Texture).init(alloc),
+                .sampler = sampler,
+                .vs_args = vs_args,
+                .fs_args = fs_args,
+            };
+        }
+
+        pub fn deinit(self: @This()) void {
+            for (self.textures.items) |t| {
+                c.sg_destroy_buffer(t.vertex_buf);
+                c.sg_destroy_image(t.image);
+            }
+            self.textures.deinit();
+            c.sg_destroy_sampler(self.sampler);
+            c.sg_destroy_shader(self.shader);
+            c.sg_destroy_pipeline(self.pipeline);
+        }
+
+        pub fn addTexture(self: *@This(), size: twod.Size) !TextureId {
+            var image_desc = c.sg_image_desc{
+                .width = @intCast(size.width),
+                .height = @intCast(size.height),
+                .usage = c.SG_USAGE_DYNAMIC,
+                .pixel_format = if (config.alpha_only) c.SG_PIXELFORMAT_R8UI else c.SG_PIXELFORMAT_RGBA8UI,
+            };
+            const image = c.sg_make_image(&image_desc);
+
+            const max_quads = config.max_quads;
+            const vertices_per_quad = 6;
+            const vertex_vals = 4;
+            var vertex_buf_desc = c.sg_buffer_desc{
+                .usage = c.SG_USAGE_DYNAMIC,
+                .size = @sizeOf(f32) * max_quads * vertices_per_quad * vertex_vals,
+            };
+            const vertex_buf = c.sg_make_buffer(&vertex_buf_desc);
+
+            try self.textures.append(.{
+                .image = image,
+                .size = size,
+                .vertex_buf = vertex_buf,
+                .nvertices = 0,
+            });
+            return self.textures.items.len - 1;
+        }
+
+        const UpdateArgs = struct {
+            texture: ?(struct {
+                id: TextureId,
+                vertices: ?[]const f32 = null,
+                data: ?[]const u8 = null,
+            }) = null,
+            color: ?[3]f32 = null,
+            screen_size: ?twod.Size = null,
+        };
+        pub fn update(self: *@This(), args: UpdateArgs) void {
+            if (args.texture) |tex| {
+                self.texture_id = tex.id;
+                var tex_ = &self.textures.items[tex.id];
+                self.fs_args.tex_size = .{
+                    @floatFromInt(tex_.size.width),
+                    @floatFromInt(tex_.size.height),
+                };
+
+                if (tex.data) |tex_data| {
+                    const data = c.sg_range{
+                        .ptr = tex_data.ptr,
+                        .size = tex_data.len * @sizeOf(u8),
+                    };
+                    c.sg_update_image(tex_.image, @ptrCast(&data));
+                }
+
+                if (tex.vertices) |v| {
+                    const vertex_data = c.sg_range{
+                        .ptr = v.ptr,
+                        .size = v.len * @sizeOf(f32),
+                    };
+                    c.sg_update_buffer(tex_.vertex_buf, &vertex_data);
+                    tex_.nvertices = v.len / 4;
+                }
+            }
+
+            if (args.screen_size) |size| {
+                const width: f32 = @floatFromInt(size.width);
+                const height: f32 = @floatFromInt(size.height);
+                self.vs_args.proj = .{
+                    2.0 / width, 0,            0, 0,
+                    0,           2.0 / height, 0, 0,
+                    0,           0,            1, 0,
+                    0,           0,            0, 1,
+                };
+            }
+
+            if (args.color) |color_| {
+                self.fs_args.color = color_;
+            }
+        }
+
+        pub fn apply(self: *const @This()) void {
+            c.sg_apply_pipeline(self.pipeline);
+            const tex = self.textures.items[self.texture_id.?];
+
+            // Bindings
+            var bindings = c.sg_bindings{};
+            bindings.vertex_buffers[0] = tex.vertex_buf;
+            bindings.fs.images[0] = tex.image;
+            bindings.fs.samplers[0] = self.sampler;
+            c.sg_apply_bindings(&bindings);
+
+            // Uniforms
+            const vs_data = c.sg_range{
+                .ptr = &self.vs_args,
+                .size = @sizeOf(c.vs_params_t),
+            };
+            c.sg_apply_uniforms(c.SG_SHADERSTAGE_VS, c.SLOT_vs_params, &vs_data);
+            const fs_data = c.sg_range{
+                .ptr = &self.fs_args,
+                .size = @sizeOf(c.fs_params_t),
+            };
+            c.sg_apply_uniforms(c.SG_SHADERSTAGE_FS, c.SLOT_fs_params, &fs_data);
+
+            // Draw
+            c.sg_draw(
+                0, // base_element
+                @intCast(tex.nvertices), // num_elements
+                1, // num_instances
+            );
+        }
     };
 }
