@@ -169,14 +169,10 @@ const Ctx = struct {
         var shaped = self.font.shape(self.textbuf);
         var iter = shaped.iterator();
 
-        var char_name: [256:0]u8 = undefined;
         var bitmap: text.Glyph.Bitmap = undefined;
         while (iter.next() catch @panic("bad shaped glyph")) |*sglyph| {
             var glyph = sglyph.glyph;
             bitmap = glyph.render() catch @panic("bad render");
-            const name = glyph.name(&char_name) catch @panic("bad name");
-            log.info("{s} ({d}, {d})\n", .{ name, bitmap.rows, bitmap.cols });
-            bitmap.ascii(std.io.getStdErr().writer()) catch @panic("bad write");
             break;
         }
 
