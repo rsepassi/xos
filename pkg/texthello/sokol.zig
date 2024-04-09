@@ -444,6 +444,19 @@ pub fn appEnv() sokol.sg_environment {
 pub const Point2D = struct {
     x: f32,
     y: f32,
+
+    pub fn down(self: @This(), delta: f32) Point2D {
+        return .{ .x = self.x, .y = self.y - delta };
+    }
+    pub fn up(self: @This(), delta: f32) Point2D {
+        return .{ .x = self.x, .y = self.y + delta };
+    }
+    pub fn left(self: @This(), delta: f32) Point2D {
+        return .{ .x = self.x - delta, .y = self.y };
+    }
+    pub fn right(self: @This(), delta: f32) Point2D {
+        return .{ .x = self.x + delta, .y = self.y };
+    }
 };
 
 pub const Coords2D = struct {

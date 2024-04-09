@@ -22,6 +22,7 @@ uniform texture2D tex;
 uniform sampler smp;
 uniform fs_params {
     vec3 color;
+    vec2 tex_size;
 };
 
 in vec2 uv;
@@ -29,7 +30,8 @@ in vec2 uv;
 out vec4 pix;
 
 void main() {
-    float alpha = texture(sampler2D(tex, smp), vec2(uv.x, 1.0 - uv.y)).r;
+    vec2 nuv = vec2(uv.x / tex_size.x, 1.0 - uv.y / tex_size.y);
+    float alpha = texture(sampler2D(tex, smp), nuv).r;
     if (alpha > 0) {
       pix = vec4(color, alpha);
     } else {

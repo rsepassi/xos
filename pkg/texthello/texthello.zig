@@ -215,11 +215,24 @@ const Ctx = struct {
 
         const screen = sokol.screen();
 
+        const char_height: f32 = @floatFromInt(bitmap.rows);
+        const char_width: f32 = @floatFromInt(bitmap.cols);
+
+        const tl = screen.tl;
+        const bl = tl.down(char_height);
+        const br = bl.right(char_width);
+        const tr = tl.right(char_width);
+
+        const tex_tl = sokol.Point2D{ .x = 0, .y = char_height };
+        const tex_bl = tex_tl.down(char_height);
+        const tex_br = tex_bl.right(char_width);
+        const tex_tr = tex_tl.right(char_width);
+
         const vertices: []const f32 = &[_]f32{
-            screen.bl.x, screen.bl.y, 0, 0,
-            screen.tl.x, screen.tl.y, 0, 1,
-            screen.br.x, screen.br.y, 1, 0,
-            screen.tr.x, screen.tr.y, 1, 1,
+            bl.x, bl.y, tex_bl.x, tex_bl.y,
+            tl.x, tl.y, tex_tl.x, tex_tl.y,
+            br.x, br.y, tex_br.x, tex_br.y,
+            tr.x, tr.y, tex_tr.x, tex_tr.y,
         };
         const num_vertices = vertices.len / 4;
         const vertex_data = sokol.c.sg_range{
@@ -235,6 +248,8 @@ const Ctx = struct {
         const vertex_buf = sokol.c.sg_make_buffer(&vertex_buf_desc);
 
         var sampler_desc = sokol.c.sg_sampler_desc{
+            .min_filter = sokol.c.SG_FILTER_NEAREST,
+            .mag_filter = sokol.c.SG_FILTER_NEAREST,
             .label = "sampler",
         };
         const sampler = sokol.c.sg_make_sampler(&sampler_desc);
@@ -249,6 +264,7 @@ const Ctx = struct {
         };
         const fs_args = shaderlib.fs_params_t{
             .color = sokol.colorVec(0, 0, 0),
+            .tex_size = .{ char_width, char_height },
         };
         var image_desc = sokol.c.sg_image_desc{
             .width = @intCast(bitmap.cols),
