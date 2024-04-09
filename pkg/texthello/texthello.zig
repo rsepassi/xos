@@ -2,6 +2,8 @@ const std = @import("std");
 const sokol = @import("sokol.zig");
 const text = @import("text.zig");
 
+const shaderlib = sokol.c;
+
 const log = std.log.scoped(.texthello);
 pub const std_options = .{
     .log_level = .info,
@@ -11,34 +13,40 @@ const Resources = struct {
     const font = "CourierPrime-Regular.ttf";
 };
 
+comptime {
+    sokol.App(Ctx).declare();
+}
+
 const Ctx = struct {
     const Self = @This();
 
     pub const window_title = "texthello";
     const sokol_log = std.log.scoped(.sokol_app);
 
+    // System
     timer: std.time.Timer,
     alloc: std.heap.GeneralPurposeAllocator(.{}),
     exepath: []const u8,
     resource_dir: std.fs.Dir,
 
-    sg_initialized: bool = false,
-
+    // Text
     ft: text.FreeType,
     font: text.Font,
     textbuf: text.Buffer,
 
+    // State
     charbuf: std.ArrayList(u8),
     charbuf_pos: usize = 0,
+
+    // Graphics
+    sg_initialized: bool = false,
     frame_count: u64 = 0,
 
     pub fn init(self: *Self) !void {
         self.timer = try std.time.Timer.start();
 
-        // Allocators
         self.alloc = .{};
 
-        // Resources
         self.exepath = try std.fs.selfExePathAlloc(self.alloc.allocator());
         const exedir = std.fs.path.dirname(self.exepath) orelse return error.NoResourceDir;
         const alloc = self.alloc.allocator();
@@ -48,8 +56,6 @@ const Ctx = struct {
         var font_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
         const font_path = try self.resource_dir.realpath(Resources.font, &font_path_buf);
         font_path_buf[font_path.len] = 0;
-
-        self.sg_initialized = false;
 
         // Text
         self.ft = try text.FreeType.init();
@@ -71,12 +77,12 @@ const Ctx = struct {
     }
 
     pub fn onInit(self: *Self) void {
-        self.sg_initialized = true;
-        const sg_desc = sokol.c.sg_desc{
+        var sg_desc = sokol.c.sg_desc{
             .environment = sokol.appEnv(),
             .logger = sokol.sgLogger(self),
         };
         sokol.c.sg_setup(&sg_desc);
+        self.sg_initialized = true;
     }
 
     pub fn onEvent(self: *Self, event: sokol.Event) void {
@@ -157,107 +163,110 @@ const Ctx = struct {
         defer self.frame_count += 1;
         if (self.frame_count > 0) return;
 
-        log.info("first frame", .{});
         var shaped = self.font.shape(self.textbuf);
         var iter = shaped.iterator();
 
         var char_name: [256:0]u8 = undefined;
+        var bitmap: text.Glyph.Bitmap = undefined;
         while (iter.next() catch @panic("bad shaped glyph")) |*sglyph| {
             var glyph = sglyph.glyph;
-            const bitmap = glyph.render() catch @panic("bad render");
+            bitmap = glyph.render() catch @panic("bad render");
             const name = glyph.name(&char_name) catch @panic("bad name");
             log.info("{s} ({d}, {d})\n", .{ name, bitmap.rows, bitmap.cols });
             bitmap.ascii(std.io.getStdErr().writer()) catch @panic("bad write");
+            break;
         }
 
-        // // Make an image the size of the screen
-        // const frame_size = sokol.screenSize();
-        // const bitmap = [_]u8{ 0, 0, 0, 0 };
-        // var img_desc = sokol.c.sg_image_desc{
-        //     .type = sokol.c.SG_IMAGETYPE_2D,
-        //     .render_target = false,
-        //     .width = frame_size.width,
-        //     .height = frame_size.height,
-        //     .num_slices = 1,
-        //     .num_mipmaps = 1,
-        //     .usage = sokol.c.SG_USAGE_DYNAMIC,
-        //     .pixel_format = sokol.c.SG_PIXELFORMAT_RGBA8,
-        //     .sample_count = 1,
-        //     .data = std.mem.zeroes(sokol.c.sg_image_data),
-        //     .label = "screen",
-        // };
-        // img_desc.data.subimage[0][0] = .{
-        //     .ptr = &bitmap,
-        //     .size = bitmap.len,
-        // };
-        // const img = sokol.c.sg_make_image(&img_desc);
-        // _ = img;
+        const bitmap_float = self.alloc.allocator().alloc(f32, bitmap.rows * bitmap.cols) catch @panic("no mem");
+        for (0..bitmap.rows) |i| {
+            for (0..bitmap.cols) |j| {
+                const idx = i * bitmap.cols + j;
+                const src = bitmap.buf[idx];
+                const alpha = @as(f32, @floatFromInt(src)) / 255.0;
+                bitmap_float[idx] = alpha;
+            }
+        }
 
-        // // Pipeline
-        // var pipe_desc = std.mem.zeroes(sokol.c.sg_pipeline_desc);
-        // pipe_desc.primitive_type = sokol.c.SG_PRIMITIVETYPE_TRIANGLE_STRIP;
-        // pipe_desc.label = "pipeline";
-        // // sg_shader shader;
-        // // sg_vertex_layout_state layout;
-        // // sg_depth_state depth;
-        // // sg_stencil_state stencil;
-        // // int color_count;
-        // // sg_color_target_state colors[SG_MAX_COLOR_ATTACHMENTS];
-        // // sg_index_type index_type;
-        // // int sample_count;
-        // // sg_color blend_color;
-        // // bool alpha_to_coverage_enabled;
-        // // Defaults
-        // // .cull_mode = sokol.SG_CULLMODE_NONE,
-        // // .face_winding = sokol.SG_FACEWINDING_CW,
-        // const pipeline = sokol.c.sg_make_pipeline(&pipe_desc);
-        // _ = pipeline;
+        // For this single bitmap,
+        // render it to screen
 
-        // //        const bitmap: []const u8 = undefined;
-        // //
-        // //        createPipeline();
-        // //
-        // //const img_desc = sokol.sg_image_desc{
-        // //            .width = 256,
-        // //            .height = 256,
-        // //            .pixel_format = SG_PIXELFORMAT_RGBA8,
-        // //            .sample_count = 2,
-        // //        };
-        // //const img = sokol.sg_make_image(&img_desc);
-        // //
-        // //        const pass: sokol.sg_pass = .{
-        // //            .action = .{
-        // //            },
-        // //            .swapchain = self.sokolSwapchain(),
-        // //        };
-        // //        sokol.sg_begin_pass(&pass);
-        // //sokol.sg_apply_pipeline(pipe);
-        // //
-        // //// This represents the vertex data, where each quad has 4 vertices, and each vertex has a position (xy) and tex coord (uv)
-        // //const vertices = [_]const f32{
-        // //    // positions   // tex coords
-        // //    -1.0f,  1.0f,   0.0f, 1.0f,
-        // //     1.0f,  1.0f,   1.0f, 1.0f,
-        // //    -1.0f, -1.0f,   0.0f, 0.0f,
-        // //     1.0f, -1.0f,   1.0f, 0.0f,
-        // //};
-        // //
-        // //const buf_desc = sokol.sg_buffer_desc{
-        // //    .size = @sizeOf(vertices),
-        // //    .content = vertices,
-        // //};
-        // //const vertex_buffer = sokol.sg_make_buffer(&buf_desc);
-        // //
-        // //
-        // //        const bindings: sokol.sg_bindings = .{
-        // //.vertex_buffers = &.{vertex_buffer},
-        // //            .fs_images = &.{img},
-        // //        };
-        // //        sg_apply_bindings(&bindings);
-        // //        sokol.sg_draw(0, 4, 1);
-        // //        sokol.sg_end_pass();
-        // //        sokol.sg_commit();
-        // log.info("first frame done", .{});
+        var action = sokol.c.sg_pass_action{};
+        action.colors[0] = .{
+            .load_action = sokol.c.SG_LOADACTION_CLEAR,
+            .clear_value = sokol.color(255, 255, 255, 1.0),
+        };
+        const swapchain = sokol.swapchain();
+
+        const shader = sokol.c.sg_make_shader(shaderlib.loadchar_shader_desc(
+            sokol.c.sg_query_backend(),
+        ));
+        var pipeline_desc = sokol.c.sg_pipeline_desc{
+            .shader = shader,
+            .primitive_type = sokol.c.SG_PRIMITIVETYPE_TRIANGLE_STRIP,
+            .label = "pipeline",
+        };
+        pipeline_desc.layout.attrs[shaderlib.ATTR_vs_pos] = .{
+            .format = sokol.c.SG_VERTEXFORMAT_FLOAT2,
+        };
+        pipeline_desc.layout.attrs[shaderlib.ATTR_vs_texuv] = .{
+            .format = sokol.c.SG_VERTEXFORMAT_FLOAT2,
+        };
+        const pipeline = sokol.c.sg_make_pipeline(&pipeline_desc);
+
+        const vertices: []const f32 = &[_]f32{
+            -1, -1, 0, 0,
+            -1, 1,  0, 1,
+            1,  -1, 1, 0,
+            1,  1,  1, 1,
+        };
+        const num_vertices = vertices.len / 4;
+        const vertex_data = sokol.c.sg_range{
+            .ptr = vertices.ptr,
+            .size = vertices.len * @sizeOf(f32),
+        };
+        var vertex_buf_desc = sokol.c.sg_buffer_desc{
+            .usage = sokol.c.SG_USAGE_IMMUTABLE,
+            .size = vertex_data.size,
+            .data = vertex_data,
+            .label = "vertices",
+        };
+        const vertex_buf = sokol.c.sg_make_buffer(&vertex_buf_desc);
+
+        var sampler_desc = sokol.c.sg_sampler_desc{
+            .label = "sampler",
+        };
+        const sampler = sokol.c.sg_make_sampler(&sampler_desc);
+
+        const fs_args = shaderlib.fs_params_t{
+            .color = sokol.colorVec(0, 0, 0),
+        };
+        var image_desc = sokol.c.sg_image_desc{
+            .width = @intCast(bitmap.cols),
+            .height = @intCast(bitmap.rows),
+            .pixel_format = sokol.c.SG_PIXELFORMAT_R32F,
+        };
+        image_desc.data.subimage[0][0] = sokol.c.sg_range{
+            .ptr = bitmap_float.ptr,
+            .size = bitmap_float.len * @sizeOf(f32),
+        };
+        const image = sokol.c.sg_make_image(&image_desc);
+
+        // TODO: On a pass, the only thing that should update is updating the
+        // vertex buffer
+
+        doPass(.{
+            .action = action,
+            .swapchain = swapchain,
+            .pipeline = pipeline,
+            .vertex_buf = vertex_buf,
+            .num_vertices = num_vertices,
+            .sampler = sampler,
+            .fs_args = &fs_args,
+            .image = image,
+        });
+
+        // TODO: Cleanup? On shutdown only?
+        // sokol.c.sg_destroy_*
     }
 
     pub fn onLog(self: Self, slog: sokol.Log) void {
@@ -266,8 +275,40 @@ const Ctx = struct {
     }
 };
 
-comptime {
-    sokol.App(Ctx).declare();
-}
-
 const unknown_char = "\xEF\xBF\xBD";
+
+const PassArgs = struct {
+    action: sokol.c.sg_pass_action,
+    swapchain: sokol.c.sg_swapchain,
+    pipeline: sokol.c.sg_pipeline,
+    vertex_buf: sokol.c.sg_buffer,
+    num_vertices: c_int,
+    image: sokol.c.sg_image,
+    sampler: sokol.c.sg_sampler,
+    fs_args: *const shaderlib.fs_params_t,
+};
+fn doPass(args: PassArgs) void {
+    var pass = sokol.c.sg_pass{
+        .action = args.action,
+        .swapchain = args.swapchain,
+    };
+    sokol.c.sg_begin_pass(&pass);
+    sokol.c.sg_apply_pipeline(args.pipeline);
+    var bindings = sokol.c.sg_bindings{};
+    bindings.vertex_buffers[0] = args.vertex_buf;
+    bindings.fs.images[0] = args.image;
+    bindings.fs.samplers[0] = args.sampler;
+    sokol.c.sg_apply_bindings(&bindings);
+    const fs_data = sokol.c.sg_range{
+        .ptr = args.fs_args,
+        .size = @sizeOf(shaderlib.fs_params_t),
+    };
+    sokol.c.sg_apply_uniforms(sokol.c.SG_SHADERSTAGE_FS, shaderlib.SLOT_fs_params, &fs_data);
+    sokol.c.sg_draw(
+        0, // base_element
+        args.num_vertices, // num_elements
+        1, // num_instances
+    );
+    sokol.c.sg_end_pass();
+    sokol.c.sg_commit();
+}

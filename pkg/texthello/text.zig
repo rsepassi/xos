@@ -32,6 +32,7 @@ pub const Font = struct {
     const Self = @This();
 
     face: c.FT_Face,
+    has_color: bool,
     hb_face: *c.hb_face_t,
     hb_font: *c.hb_font_t,
 
@@ -48,6 +49,9 @@ pub const Font = struct {
             &self.face,
         ) != 0) return error.FTFontLoadFail;
 
+        if (c.FT_HAS_COLOR(self.face)) self.has_color = true;
+        if (c.FT_Set_Char_Size(self.face, 0, 32 * 64, 0, 300) != 0) return error.FTFontSizeFail;
+
         self.hb_face = c.hb_ft_face_create_referenced(self.face) orelse return error.HBFontFail;
         self.hb_font = c.hb_font_create(self.hb_face) orelse return error.HBFontFail;
 
@@ -61,7 +65,9 @@ pub const Font = struct {
     }
 
     fn glyph(self: Self, id: u32) !Glyph {
-        if (c.FT_Load_Glyph(self.face, id, c.FT_LOAD_DEFAULT) != 0)
+        var load_flags = c.FT_LOAD_DEFAULT;
+        if (self.has_color) load_flags |= @intCast(c.FT_LOAD_COLOR);
+        if (c.FT_Load_Glyph(self.face, id, load_flags) != 0)
             return error.FTLoadGlyph;
         var g: Glyph = .{
             .id = id,
@@ -171,7 +177,7 @@ pub const Glyph = struct {
         return buf[0..std.mem.len(buf.ptr)];
     }
 
-    const Bitmap = struct {
+    pub const Bitmap = struct {
         buf: []u8,
         rows: u32,
         cols: u32,
@@ -179,7 +185,8 @@ pub const Glyph = struct {
         pub fn ascii(self: @This(), writer: anytype) !void {
             for (0..self.rows) |i| {
                 for (0..self.cols) |j| {
-                    const s = if (self.buf[i * self.cols + j] == 0) "_" else "X";
+                    const val = self.buf[i * self.cols + j];
+                    const s = if (val == 0) "_" else "X";
                     _ = try writer.write(s);
                 }
                 _ = try writer.write("\n");

@@ -5,6 +5,7 @@ const std = @import("std");
 const sokol = @cImport({
     @cInclude("sokol_app.h");
     @cInclude("sokol_gfx.h");
+    @cInclude("loadchar_shader.h");
 });
 
 pub const c = sokol;
@@ -100,6 +101,31 @@ pub const Log = struct {
     message: ?[*c]const u8,
     line_nr: u32,
     filename: ?[*c]const u8,
+
+    pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        var filename: [:0]const u8 = "";
+        if (self.filename) |cfilename| {
+            filename = cfilename[0..std.mem.len(cfilename) :0];
+        }
+        var message: [:0]const u8 = "";
+        if (self.message) |cmessage| {
+            message = cmessage[0..std.mem.len(cmessage) :0];
+        }
+        _ = try writer.print(
+            "[{s} {s}:{d}] tag={s} id={d} {s}",
+            .{
+                @tagName(self.level),
+                filename,
+                self.line_nr,
+                self.tag,
+                self.item_id,
+                message,
+            },
+        );
+    }
 };
 
 pub const EventType = enum(i32) {
@@ -427,8 +453,8 @@ pub fn swapchain() sokol.sg_swapchain {
         .width = sokol.sapp_width(),
         .height = sokol.sapp_height(),
         .sample_count = sokol.sapp_sample_count(),
-        .color_format = sokol.sapp_color_format(),
-        .depth_format = sokol.sapp_depth_format(),
+        .color_format = @intCast(sokol.sapp_color_format()),
+        .depth_format = @intCast(sokol.sapp_depth_format()),
         .metal = .{
             .current_drawable = sokol.sapp_metal_get_current_drawable(),
             .depth_stencil_texture = sokol.sapp_metal_get_depth_stencil_texture(),
@@ -484,5 +510,22 @@ pub fn loggerInternal(app: anytype, comptime T: type) T {
     return .{
         .func = X.sokolLogC,
         .user_data = @ptrCast(@constCast(app)),
+    };
+}
+
+pub fn color(r: u8, g: u8, b: u8, a: f32) c.sg_color {
+    return .{
+        .r = @as(f32, @floatFromInt(r)) / 255.0,
+        .g = @as(f32, @floatFromInt(g)) / 255.0,
+        .b = @as(f32, @floatFromInt(b)) / 255.0,
+        .a = a,
+    };
+}
+
+pub fn colorVec(r: u8, g: u8, b: u8) [3]f32 {
+    return .{
+        @as(f32, @floatFromInt(r)) / 255.0,
+        @as(f32, @floatFromInt(g)) / 255.0,
+        @as(f32, @floatFromInt(b)) / 255.0,
     };
 }

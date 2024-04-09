@@ -79,6 +79,7 @@ fi
 
 cat <<EOF > $sokol_file
 #define SOKOL_IMPL
+#define SOKOL_DEBUG
 #define SOKOL_WIN32_FORCE_MAIN
 #include "sokol_app.h"
 #include "sokol_gfx.h"
