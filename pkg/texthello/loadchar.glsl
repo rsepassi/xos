@@ -18,7 +18,8 @@ void main() {
 
 @fs fs
 
-uniform texture2D tex;
+uniform utexture2D tex;
+@sampler_type smp nonfiltering
 uniform sampler smp;
 uniform fs_params {
     vec3 color;
@@ -31,7 +32,7 @@ out vec4 pix;
 
 void main() {
     vec2 nuv = vec2(uv.x / tex_size.x, 1.0 - uv.y / tex_size.y);
-    float alpha = texture(sampler2D(tex, smp), nuv).r;
+    float alpha = texture(usampler2D(tex, smp), nuv).r / 255.0;
     if (alpha > 0) {
       pix = vec4(color, alpha);
     } else {

@@ -177,19 +177,6 @@ const Ctx = struct {
             break;
         }
 
-        const bitmap_float = self.alloc.allocator().alloc(f32, bitmap.rows * bitmap.cols) catch @panic("no mem");
-        for (0..bitmap.rows) |i| {
-            for (0..bitmap.cols) |j| {
-                const idx = i * bitmap.cols + j;
-                const src = bitmap.buf[idx];
-                const alpha = @as(f32, @floatFromInt(src)) / 255.0;
-                bitmap_float[idx] = alpha;
-            }
-        }
-
-        // For this single bitmap,
-        // render it to screen
-
         var action = sokol.c.sg_pass_action{};
         action.colors[0] = .{
             .load_action = sokol.c.SG_LOADACTION_CLEAR,
@@ -248,8 +235,6 @@ const Ctx = struct {
         const vertex_buf = sokol.c.sg_make_buffer(&vertex_buf_desc);
 
         var sampler_desc = sokol.c.sg_sampler_desc{
-            .min_filter = sokol.c.SG_FILTER_NEAREST,
-            .mag_filter = sokol.c.SG_FILTER_NEAREST,
             .label = "sampler",
         };
         const sampler = sokol.c.sg_make_sampler(&sampler_desc);
@@ -269,11 +254,11 @@ const Ctx = struct {
         var image_desc = sokol.c.sg_image_desc{
             .width = @intCast(bitmap.cols),
             .height = @intCast(bitmap.rows),
-            .pixel_format = sokol.c.SG_PIXELFORMAT_R32F,
+            .pixel_format = sokol.c.SG_PIXELFORMAT_R8UI,
         };
         image_desc.data.subimage[0][0] = sokol.c.sg_range{
-            .ptr = bitmap_float.ptr,
-            .size = bitmap_float.len * @sizeOf(f32),
+            .ptr = bitmap.buf.ptr,
+            .size = bitmap.buf.len * @sizeOf(u8),
         };
         const image = sokol.c.sg_make_image(&image_desc);
 
