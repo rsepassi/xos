@@ -1,12 +1,16 @@
 @vs vs
 
+uniform vs_params {
+    mat4 proj;
+};
+
 in vec2 pos;
 in vec2 texuv;
 
 out vec2 uv;
 
 void main() {
-    gl_Position = vec4(pos, 0.0, 1.0);
+    gl_Position = proj * vec4(pos, 0.0, 1.0) - vec4(1.0, 1.0, 0.0, 0.0);
     uv = texuv;
 }
 

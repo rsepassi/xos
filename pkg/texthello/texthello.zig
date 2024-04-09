@@ -213,11 +213,13 @@ const Ctx = struct {
         };
         const pipeline = sokol.c.sg_make_pipeline(&pipeline_desc);
 
+        const screen = sokol.screen();
+
         const vertices: []const f32 = &[_]f32{
-            -1, -1, 0, 0,
-            -1, 1,  0, 1,
-            1,  -1, 1, 0,
-            1,  1,  1, 1,
+            screen.bl.x, screen.bl.y, 0, 0,
+            screen.tl.x, screen.tl.y, 0, 1,
+            screen.br.x, screen.br.y, 1, 0,
+            screen.tr.x, screen.tr.y, 1, 1,
         };
         const num_vertices = vertices.len / 4;
         const vertex_data = sokol.c.sg_range{
@@ -237,6 +239,14 @@ const Ctx = struct {
         };
         const sampler = sokol.c.sg_make_sampler(&sampler_desc);
 
+        const vs_args = shaderlib.vs_params_t{
+            .proj = .{
+                2.0 / screen.width, 0,                   0, 0,
+                0,                  2.0 / screen.height, 0, 0,
+                0,                  0,                   1, 0,
+                0,                  0,                   0, 1,
+            },
+        };
         const fs_args = shaderlib.fs_params_t{
             .color = sokol.colorVec(0, 0, 0),
         };
@@ -259,8 +269,9 @@ const Ctx = struct {
             .swapchain = swapchain,
             .pipeline = pipeline,
             .vertex_buf = vertex_buf,
-            .num_vertices = num_vertices,
+            .num_vertices = @intCast(num_vertices),
             .sampler = sampler,
+            .vs_args = &vs_args,
             .fs_args = &fs_args,
             .image = image,
         });
@@ -285,6 +296,7 @@ const PassArgs = struct {
     num_vertices: c_int,
     image: sokol.c.sg_image,
     sampler: sokol.c.sg_sampler,
+    vs_args: *const shaderlib.vs_params_t,
     fs_args: *const shaderlib.fs_params_t,
 };
 fn doPass(args: PassArgs) void {
@@ -299,6 +311,11 @@ fn doPass(args: PassArgs) void {
     bindings.fs.images[0] = args.image;
     bindings.fs.samplers[0] = args.sampler;
     sokol.c.sg_apply_bindings(&bindings);
+    const vs_data = sokol.c.sg_range{
+        .ptr = args.vs_args,
+        .size = @sizeOf(shaderlib.vs_params_t),
+    };
+    sokol.c.sg_apply_uniforms(sokol.c.SG_SHADERSTAGE_VS, shaderlib.SLOT_vs_params, &vs_data);
     const fs_data = sokol.c.sg_range{
         .ptr = args.fs_args,
         .size = @sizeOf(shaderlib.fs_params_t),

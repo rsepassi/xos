@@ -441,10 +441,30 @@ pub fn appEnv() sokol.sg_environment {
     };
 }
 
-pub fn screenSize() ScreenSize {
+pub const Point2D = struct {
+    x: f32,
+    y: f32,
+};
+
+pub const Coords2D = struct {
+    width: f32,
+    height: f32,
+    bl: Point2D,
+    br: Point2D,
+    tl: Point2D,
+    tr: Point2D,
+};
+
+pub fn screen() Coords2D {
+    const width: f32 = @floatFromInt(sokol.sapp_width());
+    const height: f32 = @floatFromInt(sokol.sapp_height());
     return .{
-        .width = sokol.sapp_width(),
-        .height = sokol.sapp_height(),
+        .width = width,
+        .height = height,
+        .bl = .{ .x = 0, .y = 0 },
+        .br = .{ .x = width, .y = 0 },
+        .tl = .{ .x = 0, .y = height },
+        .tr = .{ .x = width, .y = height },
     };
 }
 
