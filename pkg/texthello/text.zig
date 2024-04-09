@@ -97,21 +97,22 @@ pub const Font = struct {
         pos: *const c.hb_glyph_position_t,
     };
 
-    pub const Shaped = struct {
+    pub const ShapedText = struct {
         font: *Font,
         info: []const CGlyphInfo,
         pos: []const c.hb_glyph_position_t,
 
         const Iterator = struct {
-            shaped: *const Shaped,
+            shaped: *const ShapedText,
             i: usize = 0,
 
             pub fn next(self: *@This()) !?ShapedGlyph {
                 if (self.i >= self.shaped.pos.len) return null;
                 defer self.i += 1;
                 const i = self.i;
+                const codepoint = self.shaped.info[i].info.codepoint;
                 const g = ShapedGlyph{
-                    .glyph = try self.shaped.font.glyph(self.shaped.info[i].info.codepoint),
+                    .glyph = try self.shaped.font.glyph(codepoint),
                     .info = &self.shaped.info[i],
                     .pos = &self.shaped.pos[i],
                 };
@@ -124,7 +125,7 @@ pub const Font = struct {
         }
     };
 
-    pub fn shape(self: *Self, buf: Buffer) Shaped {
+    pub fn shape(self: *Self, buf: Buffer) ShapedText {
         c.hb_shape(self.hb_font, buf.buf, null, 0);
         var glyph_count: u32 = 0;
         const glyph_infos: [*]CGlyphInfo = @ptrCast(c.hb_buffer_get_glyph_infos(buf.buf, &glyph_count));
@@ -147,6 +148,7 @@ pub const Buffer = struct {
             .buf = c.hb_buffer_create() orelse return error.HFBufFail,
         };
         if (c.hb_buffer_allocation_successful(self.buf) == 0) return error.HFBufFail;
+
         c.hb_buffer_set_direction(self.buf, c.HB_DIRECTION_LTR);
         c.hb_buffer_set_script(self.buf, c.HB_SCRIPT_LATIN);
         c.hb_buffer_set_language(self.buf, c.hb_language_from_string("en", -1));
@@ -162,8 +164,15 @@ pub const Buffer = struct {
         c.hb_buffer_add_utf8(self.buf, text.ptr, @intCast(text.len), 0, @intCast(text.len));
     }
 
-    pub fn clear(self: Self) void {
-        c.hb_buffer_clear_contents(self.buf);
+    pub fn reset(self: Self) void {
+        c.hb_buffer_reset(self.buf);
+        c.hb_buffer_set_direction(self.buf, c.HB_DIRECTION_LTR);
+        c.hb_buffer_set_script(self.buf, c.HB_SCRIPT_LATIN);
+        c.hb_buffer_set_language(self.buf, c.hb_language_from_string("en", -1));
+    }
+
+    pub fn len(self: Self) c_uint {
+        return c.hb_buffer_get_length(self.buf);
     }
 };
 
