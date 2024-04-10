@@ -42,4 +42,4 @@ void main() {
 
 @end
 
-@program loadchar vs fs
+@program spritealpha vs fs

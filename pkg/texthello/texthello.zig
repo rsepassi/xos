@@ -40,7 +40,7 @@ const Ctx = struct {
     // Graphics
     need_render: bool,
     sg_initialized: bool,
-    pipeline_state: PipelineState = undefined,
+    gfx: GfxPipeline = undefined,
     frame_count: u64 = 0,
 
     pub fn init(self: *Self) !void {
@@ -75,7 +75,7 @@ const Ctx = struct {
 
         self.need_render = true;
         self.sg_initialized = false;
-        self.pipeline_state = undefined;
+        self.gfx = undefined;
         self.frame_count = 0;
     }
 
@@ -86,7 +86,7 @@ const Ctx = struct {
         self.resource_dir.close();
         self.alloc.allocator().free(self.exepath);
         if (self.sg_initialized) {
-            self.pipeline_state.deinit();
+            self.gfx.deinit();
             sokol.c.sg_shutdown();
         }
     }
@@ -97,7 +97,7 @@ const Ctx = struct {
             .logger = sokol.sgLogger(self),
         };
         sokol.c.sg_setup(&sg_desc);
-        self.pipeline_state = PipelineState.init(
+        self.gfx = GfxPipeline.init(
             self.alloc.allocator(),
             .{ .width = 100, .height = 100 },
         ) catch @panic("pipe init");
@@ -132,7 +132,7 @@ const Ctx = struct {
             },
             .RESIZED => {
                 log.info("{s} ({d}, {d})", .{ @tagName(event.type), event.framebuffer_width, event.framebuffer_height });
-                self.pipeline_state.updateScreenSize(.{
+                self.gfx.updateScreenSize(.{
                     .width = @intCast(event.framebuffer_width),
                     .height = @intCast(event.framebuffer_height),
                 });
@@ -198,6 +198,7 @@ const Ctx = struct {
             bitmap = glyph.render() catch @panic("bad render");
             break;
         }
+        defer bitmap.glyph.deinit();
 
         const char_height: f32 = @floatFromInt(bitmap.rows);
         const char_width: f32 = @floatFromInt(bitmap.cols);
@@ -210,7 +211,7 @@ const Ctx = struct {
         const tr = tl.right(char_width);
 
         // Texture coordinates
-        const tex_tl = sokol.Point2D{ .x = 0, .y = @floatFromInt(self.pipeline_state.image_size.height) };
+        const tex_tl = sokol.Point2D{ .x = 0, .y = @floatFromInt(self.gfx.texture_size.height) };
         const tex_bl = tex_tl.down(char_height);
         const tex_br = tex_bl.right(char_width);
         const tex_tr = tex_tl.right(char_width);
@@ -221,21 +222,18 @@ const Ctx = struct {
             br.x, br.y, tex_br.x, tex_br.y,
             tr.x, tr.y, tex_tr.x, tex_tr.y,
         };
-        const num_vertices = vertices.len / 4;
 
-        const tex_width = self.pipeline_state.image_size.width;
+        const tex_width = self.gfx.texture_size.width;
         for (0..bitmap.rows) |i| {
             for (0..bitmap.cols) |j| {
                 const src = bitmap.buf[i * bitmap.cols + j];
-                self.pipeline_state.image_data[i * tex_width + j] = src;
+                self.gfx.texture_data[i * tex_width + j] = src;
             }
         }
 
-        doGfxPass(.{
-            .state = &self.pipeline_state,
-            .num_vertices = @intCast(num_vertices),
+        self.gfx.doPass(.{
             .vertices = vertices,
-            .update_image = true,
+            .update_texture = true,
         });
     }
 
@@ -255,27 +253,27 @@ const Size2D = struct {
     }
 };
 
-const PipelineState = struct {
+const GfxPipeline = struct {
     action: sokol.c.sg_pass_action,
     pipeline: sokol.c.sg_pipeline,
     shader: sokol.c.sg_shader,
     vertex_buf: sokol.c.sg_buffer,
-    image: sokol.c.sg_image,
+    texture: sokol.c.sg_image,
     sampler: sokol.c.sg_sampler,
     vs_args: shaderlib.vs_params_t,
     fs_args: shaderlib.fs_params_t,
-    image_size: Size2D,
-    image_data: []u8,
+    texture_size: Size2D,
+    texture_data: []u8,
     alloc: std.mem.Allocator,
 
-    fn init(alloc: std.mem.Allocator, image_size: Size2D) !@This() {
+    fn init(alloc: std.mem.Allocator, texture_size: Size2D) !@This() {
         var action = sokol.c.sg_pass_action{};
         action.colors[0] = .{
             .load_action = sokol.c.SG_LOADACTION_CLEAR,
             .clear_value = sokol.color(255, 255, 255, 1.0),
         };
 
-        const shader = sokol.c.sg_make_shader(shaderlib.loadchar_shader_desc(
+        const shader = sokol.c.sg_make_shader(shaderlib.spritealpha_shader_desc(
             sokol.c.sg_query_backend(),
         ));
         var pipeline_desc = sokol.c.sg_pipeline_desc{
@@ -325,19 +323,19 @@ const PipelineState = struct {
         const fs_args = shaderlib.fs_params_t{
             .color = sokol.colorVec(0, 0, 0),
             .tex_size = .{
-                @floatFromInt(image_size.width),
-                @floatFromInt(image_size.height),
+                @floatFromInt(texture_size.width),
+                @floatFromInt(texture_size.height),
             },
         };
         var image_desc = sokol.c.sg_image_desc{
-            .width = @intCast(image_size.width),
-            .height = @intCast(image_size.height),
+            .width = @intCast(texture_size.width),
+            .height = @intCast(texture_size.height),
             .usage = sokol.c.SG_USAGE_DYNAMIC,
             .pixel_format = sokol.c.SG_PIXELFORMAT_R8UI,
         };
-        const image = sokol.c.sg_make_image(&image_desc);
-        const image_data = try alloc.alloc(u8, image_size.area());
-        for (0..image_data.len) |i| image_data[i] = 0;
+        const texture = sokol.c.sg_make_image(&image_desc);
+        const texture_data = try alloc.alloc(u8, texture_size.area());
+        for (0..texture_data.len) |i| texture_data[i] = 0;
 
         return .{
             .shader = shader,
@@ -345,30 +343,30 @@ const PipelineState = struct {
             .action = action,
             .pipeline = pipeline,
             .vertex_buf = vertex_buf,
-            .image = image,
+            .texture = texture,
             .sampler = sampler,
             .vs_args = vs_args,
             .fs_args = fs_args,
-            .image_data = image_data,
-            .image_size = image_size,
+            .texture_data = texture_data,
+            .texture_size = texture_size,
         };
     }
 
     fn deinit(self: @This()) void {
-        self.alloc.free(self.image_data);
+        self.alloc.free(self.texture_data);
         sokol.c.sg_destroy_buffer(self.vertex_buf);
-        sokol.c.sg_destroy_image(self.image);
+        sokol.c.sg_destroy_image(self.texture);
         sokol.c.sg_destroy_sampler(self.sampler);
         sokol.c.sg_destroy_shader(self.shader);
         sokol.c.sg_destroy_pipeline(self.pipeline);
     }
 
-    fn updateImage(self: *const @This()) void {
+    fn updatetexture(self: *const @This()) void {
         const data = sokol.c.sg_range{
-            .ptr = self.image_data.ptr,
-            .size = self.image_data.len * @sizeOf(u8),
+            .ptr = self.texture_data.ptr,
+            .size = self.texture_data.len * @sizeOf(u8),
         };
-        sokol.c.sg_update_image(self.image, @ptrCast(&data));
+        sokol.c.sg_update_image(self.texture, @ptrCast(&data));
     }
 
     fn updateScreenSize(self: *@This(), size: Size2D) void {
@@ -381,55 +379,54 @@ const PipelineState = struct {
             0,           0,            0, 1,
         };
     }
+
+    const PassArgs = struct {
+        vertices: []const f32,
+        update_texture: bool = false,
+    };
+    fn doPass(self: *const @This(), args: PassArgs) void {
+        var pass = sokol.c.sg_pass{
+            .action = self.action,
+            .swapchain = sokol.swapchain(),
+        };
+        sokol.c.sg_begin_pass(&pass);
+        sokol.c.sg_apply_pipeline(self.pipeline);
+
+        // Buffers
+        const vertex_data = sokol.c.sg_range{
+            .ptr = args.vertices.ptr,
+            .size = args.vertices.len * @sizeOf(f32),
+        };
+        sokol.c.sg_update_buffer(self.vertex_buf, &vertex_data);
+        if (args.update_texture) self.updatetexture();
+
+        // Bindings
+        var bindings = sokol.c.sg_bindings{};
+        bindings.vertex_buffers[0] = self.vertex_buf;
+        bindings.fs.images[0] = self.texture;
+        bindings.fs.samplers[0] = self.sampler;
+        sokol.c.sg_apply_bindings(&bindings);
+
+        // Uniforms
+        const vs_data = sokol.c.sg_range{
+            .ptr = &self.vs_args,
+            .size = @sizeOf(shaderlib.vs_params_t),
+        };
+        sokol.c.sg_apply_uniforms(sokol.c.SG_SHADERSTAGE_VS, shaderlib.SLOT_vs_params, &vs_data);
+        const fs_data = sokol.c.sg_range{
+            .ptr = &self.fs_args,
+            .size = @sizeOf(shaderlib.fs_params_t),
+        };
+        sokol.c.sg_apply_uniforms(sokol.c.SG_SHADERSTAGE_FS, shaderlib.SLOT_fs_params, &fs_data);
+
+        // Draw
+        sokol.c.sg_draw(
+            0, // base_element
+            @intCast(args.vertices.len / 4), // num_elements
+            1, // num_instances
+        );
+
+        sokol.c.sg_end_pass();
+        sokol.c.sg_commit();
+    }
 };
-
-const PassArgs = struct {
-    state: *const PipelineState,
-    vertices: []const f32,
-    num_vertices: c_int,
-    update_image: bool = false,
-};
-fn doGfxPass(args: PassArgs) void {
-    var pass = sokol.c.sg_pass{
-        .action = args.state.action,
-        .swapchain = sokol.swapchain(),
-    };
-    sokol.c.sg_begin_pass(&pass);
-    sokol.c.sg_apply_pipeline(args.state.pipeline);
-
-    // Buffer updates
-    const vertex_data = sokol.c.sg_range{
-        .ptr = args.vertices.ptr,
-        .size = args.vertices.len * @sizeOf(f32),
-    };
-    sokol.c.sg_update_buffer(args.state.vertex_buf, &vertex_data);
-    if (args.update_image) args.state.updateImage();
-
-    // Bindings
-    var bindings = sokol.c.sg_bindings{};
-    bindings.vertex_buffers[0] = args.state.vertex_buf;
-    bindings.fs.images[0] = args.state.image;
-    bindings.fs.samplers[0] = args.state.sampler;
-    sokol.c.sg_apply_bindings(&bindings);
-
-    // Uniforms
-    const vs_data = sokol.c.sg_range{
-        .ptr = &args.state.vs_args,
-        .size = @sizeOf(shaderlib.vs_params_t),
-    };
-    sokol.c.sg_apply_uniforms(sokol.c.SG_SHADERSTAGE_VS, shaderlib.SLOT_vs_params, &vs_data);
-    const fs_data = sokol.c.sg_range{
-        .ptr = &args.state.fs_args,
-        .size = @sizeOf(shaderlib.fs_params_t),
-    };
-    sokol.c.sg_apply_uniforms(sokol.c.SG_SHADERSTAGE_FS, shaderlib.SLOT_fs_params, &fs_data);
-
-    // Draw
-    sokol.c.sg_draw(
-        0, // base_element
-        args.num_vertices, // num_elements
-        1, // num_instances
-    );
-    sokol.c.sg_end_pass();
-    sokol.c.sg_commit();
-}

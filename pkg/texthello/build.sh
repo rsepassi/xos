@@ -3,10 +3,21 @@ need harfbuzz
 need sokol
 needtool sokol-shdc
 
+slang=$(wrensh -c "$(cat <<EOF
+var slangs = {
+  "macos": "metal_macos",
+  "linux": "glsl300es",
+  "windows": "hlsl5",
+  "ios": "metal_ios",
+}
+IO.write(slangs[IO.env("TARGET_OS")])
+EOF
+)")
+
 "$BUILD_TOOLS/sokol-shdc/bin/sokol-shdc" \
-  --input "$BUILD_PKG/loadchar.glsl" \
-  --output "loadchar_shader.h" \
-  --slang metal_macos
+  --input "$BUILD_PKG/spritealpha.glsl" \
+  --output "spritealpha_shader.h" \
+  --slang $slang
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -I. \

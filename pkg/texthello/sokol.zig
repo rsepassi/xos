@@ -5,7 +5,7 @@ const std = @import("std");
 const sokol = @cImport({
     @cInclude("sokol_app.h");
     @cInclude("sokol_gfx.h");
-    @cInclude("loadchar_shader.h");
+    @cInclude("spritealpha_shader.h");
 });
 
 pub const c = sokol;

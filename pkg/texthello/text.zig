@@ -95,6 +95,10 @@ pub const Font = struct {
         glyph: Glyph,
         info: *const CGlyphInfo,
         pos: *const c.hb_glyph_position_t,
+
+        pub fn deinit(self: *@This()) void {
+            self.glyph.deinit();
+        }
     };
 
     pub const ShapedText = struct {
@@ -111,12 +115,11 @@ pub const Font = struct {
                 defer self.i += 1;
                 const i = self.i;
                 const codepoint = self.shaped.info[i].info.codepoint;
-                const g = ShapedGlyph{
+                return .{
                     .glyph = try self.shaped.font.glyph(codepoint),
                     .info = &self.shaped.info[i],
                     .pos = &self.shaped.pos[i],
                 };
-                return g;
             }
         };
 
@@ -181,7 +184,7 @@ pub const Glyph = struct {
     glyph: c.FT_Glyph,
     id: u32,
 
-    pub fn deinit(self: *@This()) void {
+    pub fn deinit(self: @This()) void {
         c.FT_Done_Glyph(self.glyph);
     }
 
@@ -192,6 +195,7 @@ pub const Glyph = struct {
     }
 
     pub const Bitmap = struct {
+        glyph: *const Glyph,
         buf: []u8,
         rows: u32,
         cols: u32,
@@ -209,12 +213,15 @@ pub const Glyph = struct {
     };
 
     pub fn render(self: *@This()) !Bitmap {
-        if (self.glyph.*.format != c.FT_GLYPH_FORMAT_BITMAP)
-            if (c.FT_Glyph_To_Bitmap(@constCast(&self.glyph), c.FT_RENDER_MODE_NORMAL, null, 0) != 0)
+        if (self.glyph.*.format != c.FT_GLYPH_FORMAT_BITMAP) {
+            // replaces self.glyph
+            if (c.FT_Glyph_To_Bitmap(@constCast(&self.glyph), c.FT_RENDER_MODE_NORMAL, null, 1) != 0)
                 return error.FTRender;
+        }
         const bit: *const c.FT_BitmapGlyph = @ptrCast(@alignCast(&self.glyph));
         const bm = bit.*.*.bitmap;
         return .{
+            .glyph = self,
             .buf = bm.buffer[0 .. bm.rows * bm.width],
             .rows = bm.rows,
             .cols = bm.width,
