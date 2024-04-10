@@ -34,12 +34,9 @@ const Ctx = struct {
     font: text.Font,
     textbuf: text.Buffer,
 
-    // State
-    charbuf: std.ArrayList(u8),
-
     // Graphics
-    need_render: bool = false,
-    sg_initialized: bool = false,
+    need_render: bool,
+    sg_initialized: bool,
     pipeline_state: PipelineState = undefined,
     frame_count: u64 = 0,
 
@@ -65,7 +62,12 @@ const Ctx = struct {
             .pxheight = 64,
         });
         self.textbuf = try text.Buffer.init();
-        self.textbuf.addText("h");
+        self.textbuf.addText("a");
+
+        self.need_render = true;
+        self.sg_initialized = false;
+        self.pipeline_state = undefined;
+        self.frame_count = 0;
     }
 
     pub fn deinit(self: *Self) void {
