@@ -13,7 +13,7 @@ const Resources = struct {
     const font = "CourierPrime-Regular.ttf";
 };
 
-const debug_font_path: ?[:0]const u8 = null;
+const font_override: ?[:0]const u8 = null;
 // "fonts/notofonts.github.io-noto-monthly-release-24.4.1/fonts/NotoSerif/googlefonts/ttf/NotoSerif-Regular.ttf";
 
 comptime {
@@ -56,7 +56,7 @@ const Ctx = struct {
         self.resource_dir = try std.fs.cwd().openDir(resource_dir_path, .{});
         var font_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
         var font_path: []const u8 = undefined;
-        if (debug_font_path) |p| {
+        if (font_override) |p| {
             std.mem.copyForwards(u8, &font_path_buf, p);
             font_path = @ptrCast(font_path_buf[0..p.len]);
         } else {
