@@ -20,6 +20,107 @@ comptime {
     sokol.App(Ctx).declare();
 }
 
+const ascii_chars = blk: {
+    @setEvalBranchQuota(9999);
+    var n = 0;
+    for (0..256) |i| {
+        if (std.ascii.isPrint(i)) n += 1;
+    }
+    var chars: [n]u8 = undefined;
+    var i = 0;
+    for (0..256) |x| {
+        if (std.ascii.isPrint(x)) {
+            chars[i] = x;
+            i += 1;
+        }
+    }
+    break :blk chars;
+};
+
+const FontAtlas = struct {
+    data: []u8,
+    width: usize,
+    height: usize,
+    info: std.hash_map.AutoHashMap(text.GlyphIndex, sokol.Quad),
+    needs_update: bool = true,
+
+    fn deinit(self: *@This()) void {
+        self.info.allocator.free(self.data);
+        self.info.deinit();
+    }
+
+    fn ascii(self: @This(), quad: sokol.Quad, writer: anytype) !void {
+        const offset: usize = @intFromFloat(quad.tl.x);
+        const width: usize = @intFromFloat(quad.width());
+        const height: usize = @intFromFloat(quad.height());
+
+        for (0..height) |i| {
+            const row_start = i * self.width + offset;
+            for (0..width) |j| {
+                const val = self.data[row_start + j];
+                const s = if (val == 0) "_" else "X";
+                _ = try writer.write(s);
+            }
+            _ = try writer.write("\n");
+        }
+    }
+};
+
+fn buildAsciiAtlas(alloc: std.mem.Allocator, font: text.Font) !FontAtlas {
+    const pad = 2;
+
+    var max_height: usize = 0;
+    var total_width: usize = 0;
+    for (ascii_chars) |char| {
+        const idx = font.glyphIdx(char);
+        try font.loadGlyph(idx);
+        const metrics = font.face.*.glyph.*.metrics;
+        const pheight: f32 = @floatFromInt(metrics.height);
+        const pwidth: f32 = @floatFromInt(metrics.width);
+        const h: usize = @intFromFloat(pheight / 64.0 + 0.5);
+        const w: usize = @intFromFloat(pwidth / 64.0 + 0.5);
+
+        max_height = @max(max_height, h);
+        total_width += w + pad;
+    }
+
+    const data_height = max_height;
+    const data_width = total_width;
+    const data = try alloc.alloc(u8, data_height * data_width);
+
+    var info = std.hash_map.AutoHashMap(text.GlyphIndex, sokol.Quad).init(alloc);
+
+    var offset: usize = 0;
+    for (ascii_chars) |char| {
+        const idx = font.glyphIdx(char);
+        var glyph = try font.glyph(idx);
+        defer glyph.deinit();
+        const bitmap = try glyph.render();
+        const start = data_width * (data_height - bitmap.rows);
+        for (0..bitmap.rows) |i| {
+            const row_start = start + offset + i * data_width;
+            for (0..bitmap.cols) |j| {
+                const src = bitmap.buf[i * bitmap.cols + j];
+                data[row_start + j] = src;
+            }
+        }
+
+        try info.put(idx, .{
+            .tl = .{ .x = @floatFromInt(start + offset), .y = @floatFromInt(bitmap.rows) },
+            .br = .{ .x = @floatFromInt(start + offset + bitmap.cols), .y = 0 },
+        });
+
+        offset += bitmap.cols + pad;
+    }
+
+    return .{
+        .data = data,
+        .width = data_width,
+        .height = data_height,
+        .info = info,
+    };
+}
+
 const Ctx = struct {
     const Self = @This();
 
@@ -40,6 +141,7 @@ const Ctx = struct {
     // Graphics
     need_render: bool,
     sg_initialized: bool,
+    atlas: FontAtlas,
     gfx: GfxPipeline = undefined,
     frame_count: u64 = 0,
 
@@ -71,15 +173,17 @@ const Ctx = struct {
             .pxheight = 64,
         });
         self.textbuf = try text.Buffer.init();
-        self.textbuf.addText("a");
+        self.textbuf.addText("hello");
 
         self.need_render = true;
         self.sg_initialized = false;
+        self.atlas = try buildAsciiAtlas(self.alloc.allocator(), self.font);
         self.gfx = undefined;
         self.frame_count = 0;
     }
 
     pub fn deinit(self: *Self) void {
+        self.atlas.deinit();
         self.textbuf.deinit();
         self.font.deinit();
         self.ft.deinit();
@@ -99,7 +203,7 @@ const Ctx = struct {
         sokol.c.sg_setup(&sg_desc);
         self.gfx = GfxPipeline.init(
             self.alloc.allocator(),
-            .{ .width = 100, .height = 100 },
+            self.atlas,
         ) catch @panic("pipe init");
         self.sg_initialized = true;
     }
@@ -192,29 +296,26 @@ const Ctx = struct {
 
         var shaped = self.font.shape(self.textbuf);
         var iter = shaped.iterator();
-        var bitmap: text.Glyph.Bitmap = undefined;
-        while (iter.next() catch @panic("bad shaped glyph")) |*sglyph| {
-            var glyph = sglyph.glyph;
-            bitmap = glyph.render() catch @panic("bad render");
+
+        var quad: sokol.Quad = undefined;
+        while (iter.next()) |char| {
+            const idx = char.info.info.codepoint;
+            quad = self.atlas.info.get(idx).?;
             break;
         }
-        defer bitmap.glyph.deinit();
-
-        const char_height: f32 = @floatFromInt(bitmap.rows);
-        const char_width: f32 = @floatFromInt(bitmap.cols);
 
         // Screen coordinates
         const screen = sokol.screen();
         const tl = screen.tl;
-        const bl = tl.down(char_height);
-        const br = bl.right(char_width);
-        const tr = tl.right(char_width);
+        const bl = tl.down(quad.height());
+        const br = bl.right(quad.width());
+        const tr = tl.right(quad.width());
 
         // Texture coordinates
-        const tex_tl = sokol.Point2D{ .x = 0, .y = @floatFromInt(self.gfx.texture_size.height) };
-        const tex_bl = tex_tl.down(char_height);
-        const tex_br = tex_bl.right(char_width);
-        const tex_tr = tex_tl.right(char_width);
+        const tex_tl = quad.tl;
+        const tex_bl = tex_tl.down(quad.height());
+        const tex_br = quad.br;
+        const tex_tr = tex_tl.right(quad.width());
 
         const vertices: []const f32 = &[_]f32{
             bl.x, bl.y, tex_bl.x, tex_bl.y,
@@ -223,18 +324,11 @@ const Ctx = struct {
             tr.x, tr.y, tex_tr.x, tex_tr.y,
         };
 
-        const tex_width = self.gfx.texture_size.width;
-        for (0..bitmap.rows) |i| {
-            for (0..bitmap.cols) |j| {
-                const src = bitmap.buf[i * bitmap.cols + j];
-                self.gfx.texture_data[i * tex_width + j] = src;
-            }
-        }
-
         self.gfx.doPass(.{
             .vertices = vertices,
-            .update_texture = true,
+            .update_texture = self.atlas.needs_update,
         });
+        self.atlas.needs_update = false;
     }
 
     pub fn onLog(self: Self, slog: sokol.Log) void {
@@ -262,11 +356,10 @@ const GfxPipeline = struct {
     sampler: sokol.c.sg_sampler,
     vs_args: shaderlib.vs_params_t,
     fs_args: shaderlib.fs_params_t,
-    texture_size: Size2D,
-    texture_data: []u8,
+    atlas: FontAtlas,
     alloc: std.mem.Allocator,
 
-    fn init(alloc: std.mem.Allocator, texture_size: Size2D) !@This() {
+    fn init(alloc: std.mem.Allocator, atlas: FontAtlas) !@This() {
         var action = sokol.c.sg_pass_action{};
         action.colors[0] = .{
             .load_action = sokol.c.SG_LOADACTION_CLEAR,
@@ -314,28 +407,26 @@ const GfxPipeline = struct {
         const screen = sokol.screen();
         const vs_args = shaderlib.vs_params_t{
             .proj = .{
-                2.0 / screen.width, 0,                   0, 0,
-                0,                  2.0 / screen.height, 0, 0,
-                0,                  0,                   1, 0,
-                0,                  0,                   0, 1,
+                2.0 / screen.width(), 0,                     0, 0,
+                0,                    2.0 / screen.height(), 0, 0,
+                0,                    0,                     1, 0,
+                0,                    0,                     0, 1,
             },
         };
         const fs_args = shaderlib.fs_params_t{
             .color = sokol.colorVec(0, 0, 0),
             .tex_size = .{
-                @floatFromInt(texture_size.width),
-                @floatFromInt(texture_size.height),
+                @floatFromInt(atlas.width),
+                @floatFromInt(atlas.height),
             },
         };
         var image_desc = sokol.c.sg_image_desc{
-            .width = @intCast(texture_size.width),
-            .height = @intCast(texture_size.height),
+            .width = @intCast(atlas.width),
+            .height = @intCast(atlas.height),
             .usage = sokol.c.SG_USAGE_DYNAMIC,
             .pixel_format = sokol.c.SG_PIXELFORMAT_R8UI,
         };
-        const texture = sokol.c.sg_make_image(&image_desc);
-        const texture_data = try alloc.alloc(u8, texture_size.area());
-        for (0..texture_data.len) |i| texture_data[i] = 0;
+        const image = sokol.c.sg_make_image(&image_desc);
 
         return .{
             .shader = shader,
@@ -343,17 +434,15 @@ const GfxPipeline = struct {
             .action = action,
             .pipeline = pipeline,
             .vertex_buf = vertex_buf,
-            .texture = texture,
+            .texture = image,
             .sampler = sampler,
             .vs_args = vs_args,
             .fs_args = fs_args,
-            .texture_data = texture_data,
-            .texture_size = texture_size,
+            .atlas = atlas,
         };
     }
 
     fn deinit(self: @This()) void {
-        self.alloc.free(self.texture_data);
         sokol.c.sg_destroy_buffer(self.vertex_buf);
         sokol.c.sg_destroy_image(self.texture);
         sokol.c.sg_destroy_sampler(self.sampler);
@@ -361,10 +450,10 @@ const GfxPipeline = struct {
         sokol.c.sg_destroy_pipeline(self.pipeline);
     }
 
-    fn updatetexture(self: *const @This()) void {
+    fn updateTexture(self: *const @This()) void {
         const data = sokol.c.sg_range{
-            .ptr = self.texture_data.ptr,
-            .size = self.texture_data.len * @sizeOf(u8),
+            .ptr = self.atlas.data.ptr,
+            .size = self.atlas.data.len * @sizeOf(u8),
         };
         sokol.c.sg_update_image(self.texture, @ptrCast(&data));
     }
@@ -398,7 +487,7 @@ const GfxPipeline = struct {
             .size = args.vertices.len * @sizeOf(f32),
         };
         sokol.c.sg_update_buffer(self.vertex_buf, &vertex_data);
-        if (args.update_texture) self.updatetexture();
+        if (args.update_texture) self.updateTexture();
 
         // Bindings
         var bindings = sokol.c.sg_bindings{};

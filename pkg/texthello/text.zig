@@ -8,6 +8,8 @@ pub const c = @cImport({
     @cInclude("harfbuzz/hb-ft.h");
 });
 
+pub const GlyphIndex = u32;
+
 pub const FreeType = struct {
     const Self = @This();
 
@@ -69,11 +71,19 @@ pub const Font = struct {
         _ = c.FT_Done_Face(self.face);
     }
 
-    fn glyph(self: Self, id: u32) !Glyph {
+    pub fn glyphIdx(self: Self, char: usize) GlyphIndex {
+        return c.FT_Get_Char_Index(self.face, char);
+    }
+
+    pub fn loadGlyph(self: Self, id: GlyphIndex) !void {
         var load_flags = c.FT_LOAD_DEFAULT;
         if (self.has_color) load_flags |= @intCast(c.FT_LOAD_COLOR);
         if (c.FT_Load_Glyph(self.face, id, load_flags) != 0)
             return error.FTLoadGlyph;
+    }
+
+    pub fn glyph(self: Self, id: u32) !Glyph {
+        try self.loadGlyph(id);
         var g: Glyph = .{
             .id = id,
             .font = &self,
@@ -91,14 +101,9 @@ pub const Font = struct {
         }
     };
 
-    pub const ShapedGlyph = struct {
-        glyph: Glyph,
+    pub const ShapedChar = struct {
         info: *const CGlyphInfo,
         pos: *const c.hb_glyph_position_t,
-
-        pub fn deinit(self: *@This()) void {
-            self.glyph.deinit();
-        }
     };
 
     pub const ShapedText = struct {
@@ -110,15 +115,12 @@ pub const Font = struct {
             shaped: *const ShapedText,
             i: usize = 0,
 
-            pub fn next(self: *@This()) !?ShapedGlyph {
+            pub fn next(self: *@This()) ?ShapedChar {
                 if (self.i >= self.shaped.pos.len) return null;
                 defer self.i += 1;
-                const i = self.i;
-                const codepoint = self.shaped.info[i].info.codepoint;
                 return .{
-                    .glyph = try self.shaped.font.glyph(codepoint),
-                    .info = &self.shaped.info[i],
-                    .pos = &self.shaped.pos[i],
+                    .info = &self.shaped.info[self.i],
+                    .pos = &self.shaped.pos[self.i],
                 };
             }
         };
@@ -215,7 +217,7 @@ pub const Glyph = struct {
     pub fn render(self: *@This()) !Bitmap {
         if (self.glyph.*.format != c.FT_GLYPH_FORMAT_BITMAP) {
             // replaces self.glyph
-            if (c.FT_Glyph_To_Bitmap(@constCast(&self.glyph), c.FT_RENDER_MODE_NORMAL, null, 1) != 0)
+            if (c.FT_Glyph_To_Bitmap(&self.glyph, c.FT_RENDER_MODE_NORMAL, null, 1) != 0)
                 return error.FTRender;
         }
         const bit: *const c.FT_BitmapGlyph = @ptrCast(@alignCast(&self.glyph));
