@@ -180,7 +180,7 @@ const Ctx = struct {
     sg_initialized: bool,
     atlas: FontAtlas,
     vertex_list: std.ArrayList(f32),
-    gfx: GfxPipeline = undefined,
+    gfx: AlphaTexturePipeline = undefined,
     frame_count: u64 = 0,
     render_count: u64 = 0,
 
@@ -253,7 +253,7 @@ const Ctx = struct {
         const sgp_desc: sokol.c.sgp_desc = .{};
         sokol.c.sgp_setup(&sgp_desc);
         if (!sokol.c.sgp_is_valid()) @panic("sokol gp init");
-        self.gfx = GfxPipeline.init(
+        self.gfx = AlphaTexturePipeline.init(
             .{ .height = self.atlas.size.height, .width = self.atlas.size.width },
         ) catch @panic("pipe init");
         self.sg_initialized = true;
@@ -470,7 +470,7 @@ const Size2D = struct {
     }
 };
 
-const GfxPipeline = struct {
+const AlphaTexturePipeline = struct {
     pipeline: sokol.c.sg_pipeline,
     shader: sokol.c.sg_shader,
     vertex_buf: sokol.c.sg_buffer,
