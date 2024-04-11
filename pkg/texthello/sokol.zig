@@ -578,3 +578,20 @@ pub fn getRectVertices(xy: Rect, uv: Rect) [24]f32 {
         origin.x + xy.width(), origin.y, uv.br.x,  uv.br.y,
     };
 }
+
+pub const RenderPass = struct {
+    pub fn begin(action: c.sg_pass_action, swapchain_: ?c.sg_swapchain) @This() {
+        var pass = c.sg_pass{
+            .action = action,
+            .swapchain = if (swapchain_) |s| s else swapchain(),
+        };
+        c.sg_begin_pass(&pass);
+        return .{};
+    }
+
+    pub fn endAndCommit(self: @This()) void {
+        _ = self;
+        c.sg_end_pass();
+        c.sg_commit();
+    }
+};

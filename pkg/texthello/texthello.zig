@@ -216,8 +216,7 @@ const Ctx = struct {
         };
         sokol.c.sg_setup(&sg_desc);
         self.gfx = GfxPipeline.init(
-            self.alloc.allocator(),
-            self.atlas,
+            .{ .height = self.atlas.height, .width = self.atlas.width },
         ) catch @panic("pipe init");
         self.sg_initialized = true;
     }
@@ -362,9 +361,17 @@ const Ctx = struct {
             }
         }
 
-        self.gfx.doPass(.{
+        var action = sokol.c.sg_pass_action{};
+        action.colors[0] = .{
+            .load_action = sokol.c.SG_LOADACTION_CLEAR,
+            .clear_value = sokol.color(255, 255, 255, 1.0),
+        };
+        const pass = sokol.RenderPass.begin(action, null);
+        defer pass.endAndCommit();
+
+        self.gfx.apply(.{
             .vertices = vertices.items,
-            .update_texture = self.atlas.needs_update,
+            .texture = if (self.atlas.needs_update) self.atlas.data else null,
         });
     }
 
@@ -385,7 +392,6 @@ const Size2D = struct {
 };
 
 const GfxPipeline = struct {
-    action: sokol.c.sg_pass_action,
     pipeline: sokol.c.sg_pipeline,
     shader: sokol.c.sg_shader,
     vertex_buf: sokol.c.sg_buffer,
@@ -393,16 +399,8 @@ const GfxPipeline = struct {
     sampler: sokol.c.sg_sampler,
     vs_args: shaderlib.vs_params_t,
     fs_args: shaderlib.fs_params_t,
-    atlas: FontAtlas,
-    alloc: std.mem.Allocator,
 
-    fn init(alloc: std.mem.Allocator, atlas: FontAtlas) !@This() {
-        var action = sokol.c.sg_pass_action{};
-        action.colors[0] = .{
-            .load_action = sokol.c.SG_LOADACTION_CLEAR,
-            .clear_value = sokol.color(255, 255, 255, 1.0),
-        };
-
+    fn init(texture_size: Size2D) !@This() {
         const shader = sokol.c.sg_make_shader(shaderlib.spritealpha_shader_desc(
             sokol.c.sg_query_backend(),
         ));
@@ -455,13 +453,13 @@ const GfxPipeline = struct {
         const fs_args = shaderlib.fs_params_t{
             .color = sokol.colorVec(0, 0, 0),
             .tex_size = .{
-                @floatFromInt(atlas.width),
-                @floatFromInt(atlas.height),
+                @floatFromInt(texture_size.width),
+                @floatFromInt(texture_size.height),
             },
         };
         var image_desc = sokol.c.sg_image_desc{
-            .width = @intCast(atlas.width),
-            .height = @intCast(atlas.height),
+            .width = @intCast(texture_size.width),
+            .height = @intCast(texture_size.height),
             .usage = sokol.c.SG_USAGE_DYNAMIC,
             .pixel_format = sokol.c.SG_PIXELFORMAT_R8UI,
         };
@@ -469,15 +467,12 @@ const GfxPipeline = struct {
 
         return .{
             .shader = shader,
-            .alloc = alloc,
-            .action = action,
             .pipeline = pipeline,
             .vertex_buf = vertex_buf,
             .texture = image,
             .sampler = sampler,
             .vs_args = vs_args,
             .fs_args = fs_args,
-            .atlas = atlas,
         };
     }
 
@@ -489,10 +484,10 @@ const GfxPipeline = struct {
         sokol.c.sg_destroy_pipeline(self.pipeline);
     }
 
-    fn updateTexture(self: *const @This()) void {
+    fn updateTexture(self: *const @This(), tex_data: []const u8) void {
         const data = sokol.c.sg_range{
-            .ptr = self.atlas.data.ptr,
-            .size = self.atlas.data.len * @sizeOf(u8),
+            .ptr = tex_data.ptr,
+            .size = tex_data.len * @sizeOf(u8),
         };
         sokol.c.sg_update_image(self.texture, @ptrCast(&data));
     }
@@ -510,14 +505,9 @@ const GfxPipeline = struct {
 
     const PassArgs = struct {
         vertices: []const f32,
-        update_texture: bool = false,
+        texture: ?[]const u8 = null,
     };
-    fn doPass(self: *const @This(), args: PassArgs) void {
-        var pass = sokol.c.sg_pass{
-            .action = self.action,
-            .swapchain = sokol.swapchain(),
-        };
-        sokol.c.sg_begin_pass(&pass);
+    fn apply(self: *const @This(), args: PassArgs) void {
         sokol.c.sg_apply_pipeline(self.pipeline);
 
         // Buffers
@@ -526,7 +516,7 @@ const GfxPipeline = struct {
             .size = args.vertices.len * @sizeOf(f32),
         };
         sokol.c.sg_update_buffer(self.vertex_buf, &vertex_data);
-        if (args.update_texture) self.updateTexture();
+        if (args.texture) |tex| self.updateTexture(tex);
 
         // Bindings
         var bindings = sokol.c.sg_bindings{};
@@ -553,9 +543,6 @@ const GfxPipeline = struct {
             @intCast(args.vertices.len / 4), // num_elements
             1, // num_instances
         );
-
-        sokol.c.sg_end_pass();
-        sokol.c.sg_commit();
     }
 };
 
