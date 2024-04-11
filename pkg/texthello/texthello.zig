@@ -288,10 +288,10 @@ const Ctx = struct {
             },
             .RESIZED => {
                 log.info("{s} ({d}, {d})", .{ @tagName(event.type), event.framebuffer_width, event.framebuffer_height });
-                self.gfx.updateScreenSize(.{
+                self.gfx.update(.{ .screen_size = .{
                     .width = @intCast(event.framebuffer_width),
                     .height = @intCast(event.framebuffer_height),
-                });
+                } });
                 self.need_render = true;
             },
             .FILES_DROPPED => {
@@ -442,6 +442,7 @@ const Ctx = struct {
             self.gfx.update(.{
                 .vertices = self.vertex_list.items,
                 .texture = if (self.atlas.needs_update) self.atlas.data else null,
+                .color = sokol.colorVec(0, 128, 0),
             });
             self.gfx.apply();
 
@@ -564,38 +565,44 @@ const AlphaTexturePipeline = struct {
         sokol.c.sg_destroy_pipeline(self.pipeline);
     }
 
-    fn updateTexture(self: *const @This(), tex_data: []const u8) void {
-        const data = sokol.c.sg_range{
-            .ptr = tex_data.ptr,
-            .size = tex_data.len * @sizeOf(u8),
-        };
-        sokol.c.sg_update_image(self.texture, @ptrCast(&data));
-    }
-
-    fn updateScreenSize(self: *@This(), size: Size2D) void {
-        const width: f32 = @floatFromInt(size.width);
-        const height: f32 = @floatFromInt(size.height);
-        self.vs_args.proj = .{
-            2.0 / width, 0,            0, 0,
-            0,           2.0 / height, 0, 0,
-            0,           0,            1, 0,
-            0,           0,            0, 1,
-        };
-    }
-
     const UpdateArgs = struct {
-        vertices: []const f32,
+        vertices: ?[]const f32 = null,
         texture: ?[]const u8 = null,
+        color: ?[3]f32 = null,
+        screen_size: ?Size2D = null,
     };
     fn update(self: *@This(), args: UpdateArgs) void {
-        // Buffers
-        const vertex_data = sokol.c.sg_range{
-            .ptr = args.vertices.ptr,
-            .size = args.vertices.len * @sizeOf(f32),
-        };
-        sokol.c.sg_update_buffer(self.vertex_buf, &vertex_data);
-        if (args.texture) |tex| self.updateTexture(tex);
-        self.nvertices = args.vertices.len / 4;
+        if (args.vertices) |v| {
+            const vertex_data = sokol.c.sg_range{
+                .ptr = v.ptr,
+                .size = v.len * @sizeOf(f32),
+            };
+            sokol.c.sg_update_buffer(self.vertex_buf, &vertex_data);
+            self.nvertices = v.len / 4;
+        }
+
+        if (args.texture) |tex| {
+            const data = sokol.c.sg_range{
+                .ptr = tex.ptr,
+                .size = tex.len * @sizeOf(u8),
+            };
+            sokol.c.sg_update_image(self.texture, @ptrCast(&data));
+        }
+
+        if (args.screen_size) |size| {
+            const width: f32 = @floatFromInt(size.width);
+            const height: f32 = @floatFromInt(size.height);
+            self.vs_args.proj = .{
+                2.0 / width, 0,            0, 0,
+                0,           2.0 / height, 0, 0,
+                0,           0,            1, 0,
+                0,           0,            0, 1,
+            };
+        }
+
+        if (args.color) |color| {
+            self.fs_args.color = color;
+        }
     }
 
     fn apply(self: *const @This()) void {
