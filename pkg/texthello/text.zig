@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const twod = @import("twod.zig");
+
 pub const c = @cImport({
     @cInclude("freetype/freetype.h");
     @cInclude("freetype/ftmodapi.h");
@@ -255,3 +257,140 @@ pub const Glyph = struct {
         };
     }
 };
+
+pub const FontAtlas = struct {
+    const RenderInfo = struct {
+        horiBearingX: c_long,
+        horiBearingY: c_long,
+    };
+    const AtlasInfo = struct {
+        quad: twod.Rect,
+        info: RenderInfo,
+    };
+    const InfoMap = std.hash_map.AutoHashMap(GlyphIndex, AtlasInfo);
+
+    data: []u8,
+    size: twod.Size,
+    info: InfoMap,
+    padpx: usize,
+    needs_update: bool = true,
+    col_offset: usize = 0,
+
+    pub fn init(alloc: std.mem.Allocator, size: twod.Size, padpx: usize) !@This() {
+        const info = FontAtlas.InfoMap.init(alloc);
+        const data = try alloc.alloc(u8, size.area());
+        return .{
+            .data = data,
+            .size = size,
+            .info = info,
+            .padpx = padpx,
+        };
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.info.allocator.free(self.data);
+        self.info.deinit();
+    }
+
+    pub fn addGlyph(
+        self: *@This(),
+        glyph: GlyphIndex,
+        bitmap: Glyph.Bitmap,
+        info: RenderInfo,
+    ) !void {
+        const data_width = self.size.width;
+        const data_height = self.size.height;
+        if (bitmap.nrows > data_height) return error.CharTooTall;
+        if (self.col_offset + bitmap.ncols > data_width) return error.CharTooWide;
+
+        const start = data_width * (data_height - bitmap.nrows);
+
+        var i: usize = 0;
+        var rows = bitmap.rows();
+        while (rows.next()) |row| : (i += 1) {
+            const row_start = start + self.col_offset + i * data_width;
+            std.mem.copyForwards(u8, self.data[row_start .. row_start + bitmap.ncols], row);
+        }
+
+        try self.info.put(glyph, .{
+            .info = info,
+            .quad = .{
+                .tl = .{ .x = @floatFromInt(start + self.col_offset), .y = @floatFromInt(bitmap.nrows) },
+                .br = .{ .x = @floatFromInt(start + self.col_offset + bitmap.ncols), .y = 0 },
+            },
+        });
+
+        // To render to ascii on stderr, uncomment this line
+        // try bitmap.ascii(std.io.getStdErr().writer());
+
+        self.col_offset += bitmap.ncols + self.padpx;
+    }
+
+    pub fn ascii(self: @This(), quad: twod.Rect, writer: anytype) !void {
+        const offset: usize = @intFromFloat(quad.tl.x);
+        const width: usize = @intFromFloat(quad.width());
+        const height: usize = @intFromFloat(quad.height());
+
+        for (0..height) |i| {
+            const row_start = i * self.width + offset;
+            for (0..width) |j| {
+                const val = self.data[row_start + j];
+                const s = if (val == 0) "_" else "X";
+                _ = try writer.write(s);
+            }
+            _ = try writer.write("\n");
+        }
+    }
+};
+
+const ascii_chars = blk: {
+    @setEvalBranchQuota(9999);
+    var n = 0;
+    for (0..256) |i| {
+        if (std.ascii.isPrint(i)) n += 1;
+    }
+    var chars: [n]u8 = undefined;
+    var i = 0;
+    for (0..256) |x| {
+        if (std.ascii.isPrint(x)) {
+            chars[i] = x;
+            i += 1;
+        }
+    }
+    break :blk chars;
+};
+
+pub fn buildAsciiAtlas(alloc: std.mem.Allocator, font: Font) !FontAtlas {
+    const padpx = 2;
+
+    var max_height: c_long = 0;
+    var total_width: c_long = 0;
+    for (ascii_chars) |char| {
+        try font.loadGlyph(font.glyphIdx(char));
+        const metrics = font.face.*.glyph.*.metrics;
+        max_height = @max(max_height, metrics.height);
+        total_width += metrics.width + (padpx << 6);
+    }
+
+    const data_height: usize = @intCast((max_height + 1) >> 6);
+    const data_width: usize = @intCast((total_width + 1) >> 6);
+
+    var atlas = try FontAtlas.init(
+        alloc,
+        .{ .width = data_width, .height = data_height },
+        padpx,
+    );
+
+    for (ascii_chars) |char| {
+        const idx = font.glyphIdx(char);
+        var glyph = try font.glyph(idx);
+        defer glyph.deinit();
+        const bitmap = try glyph.render();
+        try atlas.addGlyph(idx, bitmap, .{
+            .horiBearingX = font.face.*.glyph.*.metrics.horiBearingX,
+            .horiBearingY = font.face.*.glyph.*.metrics.horiBearingY,
+        });
+    }
+
+    return atlas;
+}

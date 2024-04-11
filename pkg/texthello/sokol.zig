@@ -2,6 +2,8 @@
 
 const std = @import("std");
 
+const twod = @import("twod.zig");
+
 pub const c = @cImport({
     @cInclude("sokol_app.h");
     @cInclude("sokol_gfx.h");
@@ -440,38 +442,7 @@ pub fn appEnv() c.sg_environment {
     };
 }
 
-pub const Rect = struct {
-    tl: Point2D,
-    br: Point2D,
-
-    pub fn height(self: @This()) f32 {
-        return self.tl.y - self.br.y;
-    }
-
-    pub fn width(self: @This()) f32 {
-        return self.br.x - self.tl.x;
-    }
-};
-
-pub const Point2D = struct {
-    x: f32,
-    y: f32,
-
-    pub fn down(self: @This(), delta: f32) Point2D {
-        return .{ .x = self.x, .y = self.y - delta };
-    }
-    pub fn up(self: @This(), delta: f32) Point2D {
-        return .{ .x = self.x, .y = self.y + delta };
-    }
-    pub fn left(self: @This(), delta: f32) Point2D {
-        return .{ .x = self.x - delta, .y = self.y };
-    }
-    pub fn right(self: @This(), delta: f32) Point2D {
-        return .{ .x = self.x + delta, .y = self.y };
-    }
-};
-
-pub fn screen() Rect {
+pub fn screen_rect() twod.Rect {
     const width: f32 = @floatFromInt(c.sapp_width());
     const height: f32 = @floatFromInt(c.sapp_height());
     return .{
@@ -562,7 +533,7 @@ pub fn colorVec(r: u8, g: u8, b: u8) [3]f32 {
     };
 }
 
-pub fn getRectVertices(xy: Rect, uv: Rect) [24]f32 {
+pub fn getRectVertices(xy: twod.Rect, uv: twod.Rect) [24]f32 {
     const origin = xy.tl.down(xy.height());
     const tex_bl = uv.tl.down(uv.height());
     const tex_tr = uv.tl.right(uv.width());
@@ -592,5 +563,170 @@ pub const RenderPass = struct {
         _ = self;
         c.sg_end_pass();
         c.sg_commit();
+    }
+};
+
+pub const AlphaTexturePipeline = struct {
+    pipeline: c.sg_pipeline,
+    shader: c.sg_shader,
+    vertex_buf: c.sg_buffer,
+    texture: c.sg_image,
+    sampler: c.sg_sampler,
+    vs_args: c.vs_params_t,
+    fs_args: c.fs_params_t,
+    nvertices: usize = 0,
+
+    pub fn init(texture_size: twod.Size) !@This() {
+        const shader = c.sg_make_shader(c.spritealpha_shader_desc(
+            c.sg_query_backend(),
+        ));
+        var pipeline_desc = c.sg_pipeline_desc{
+            .shader = shader,
+            .primitive_type = c.SG_PRIMITIVETYPE_TRIANGLES,
+            .label = "pipeline",
+        };
+        pipeline_desc.layout.attrs[c.ATTR_vs_pos] = .{
+            .format = c.SG_VERTEXFORMAT_FLOAT2,
+        };
+        pipeline_desc.layout.attrs[c.ATTR_vs_texuv] = .{
+            .format = c.SG_VERTEXFORMAT_FLOAT2,
+        };
+        pipeline_desc.colors[0].blend = .{
+            .enabled = true,
+            .src_factor_rgb = c.SG_BLENDFACTOR_SRC_ALPHA,
+            .dst_factor_rgb = c.SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+            .op_rgb = c.SG_BLENDOP_ADD,
+            .src_factor_alpha = c.SG_BLENDFACTOR_ONE,
+            .dst_factor_alpha = c.SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+            .op_alpha = c.SG_BLENDOP_ADD,
+        };
+        const pipeline = c.sg_make_pipeline(&pipeline_desc);
+
+        const max_quads = 256;
+        const vertices_per_quad = 6;
+        const vertex_vals = 4;
+        var vertex_buf_desc = c.sg_buffer_desc{
+            .usage = c.SG_USAGE_DYNAMIC,
+            .size = @sizeOf(f32) * max_quads * vertices_per_quad * vertex_vals,
+            .label = "vertices",
+        };
+        const vertex_buf = c.sg_make_buffer(&vertex_buf_desc);
+
+        var sampler_desc = c.sg_sampler_desc{
+            .label = "sampler",
+        };
+        const sampler = c.sg_make_sampler(&sampler_desc);
+
+        const screen = screen_rect();
+        const vs_args = c.vs_params_t{
+            .proj = .{
+                2.0 / screen.width(), 0,                     0, 0,
+                0,                    2.0 / screen.height(), 0, 0,
+                0,                    0,                     1, 0,
+                0,                    0,                     0, 1,
+            },
+        };
+        const fs_args = c.fs_params_t{
+            .color = colorVec(0, 0, 0),
+            .tex_size = .{
+                @floatFromInt(texture_size.width),
+                @floatFromInt(texture_size.height),
+            },
+        };
+        var image_desc = c.sg_image_desc{
+            .width = @intCast(texture_size.width),
+            .height = @intCast(texture_size.height),
+            .usage = c.SG_USAGE_DYNAMIC,
+            .pixel_format = c.SG_PIXELFORMAT_R8UI,
+        };
+        const image = c.sg_make_image(&image_desc);
+
+        return .{
+            .shader = shader,
+            .pipeline = pipeline,
+            .vertex_buf = vertex_buf,
+            .texture = image,
+            .sampler = sampler,
+            .vs_args = vs_args,
+            .fs_args = fs_args,
+        };
+    }
+
+    pub fn deinit(self: @This()) void {
+        c.sg_destroy_buffer(self.vertex_buf);
+        c.sg_destroy_image(self.texture);
+        c.sg_destroy_sampler(self.sampler);
+        c.sg_destroy_shader(self.shader);
+        c.sg_destroy_pipeline(self.pipeline);
+    }
+
+    const UpdateArgs = struct {
+        vertices: ?[]const f32 = null,
+        texture: ?[]const u8 = null,
+        color: ?[3]f32 = null,
+        screen_size: ?twod.Size = null,
+    };
+    pub fn update(self: *@This(), args: UpdateArgs) void {
+        if (args.vertices) |v| {
+            const vertex_data = c.sg_range{
+                .ptr = v.ptr,
+                .size = v.len * @sizeOf(f32),
+            };
+            c.sg_update_buffer(self.vertex_buf, &vertex_data);
+            self.nvertices = v.len / 4;
+        }
+
+        if (args.texture) |tex| {
+            const data = c.sg_range{
+                .ptr = tex.ptr,
+                .size = tex.len * @sizeOf(u8),
+            };
+            c.sg_update_image(self.texture, @ptrCast(&data));
+        }
+
+        if (args.screen_size) |size| {
+            const width: f32 = @floatFromInt(size.width);
+            const height: f32 = @floatFromInt(size.height);
+            self.vs_args.proj = .{
+                2.0 / width, 0,            0, 0,
+                0,           2.0 / height, 0, 0,
+                0,           0,            1, 0,
+                0,           0,            0, 1,
+            };
+        }
+
+        if (args.color) |color_| {
+            self.fs_args.color = color_;
+        }
+    }
+
+    pub fn apply(self: *const @This()) void {
+        c.sg_apply_pipeline(self.pipeline);
+
+        // Bindings
+        var bindings = c.sg_bindings{};
+        bindings.vertex_buffers[0] = self.vertex_buf;
+        bindings.fs.images[0] = self.texture;
+        bindings.fs.samplers[0] = self.sampler;
+        c.sg_apply_bindings(&bindings);
+
+        // Uniforms
+        const vs_data = c.sg_range{
+            .ptr = &self.vs_args,
+            .size = @sizeOf(c.vs_params_t),
+        };
+        c.sg_apply_uniforms(c.SG_SHADERSTAGE_VS, c.SLOT_vs_params, &vs_data);
+        const fs_data = c.sg_range{
+            .ptr = &self.fs_args,
+            .size = @sizeOf(c.fs_params_t),
+        };
+        c.sg_apply_uniforms(c.SG_SHADERSTAGE_FS, c.SLOT_fs_params, &fs_data);
+
+        // Draw
+        c.sg_draw(
+            0, // base_element
+            @intCast(self.nvertices), // num_elements
+            1, // num_instances
+        );
     }
 };
