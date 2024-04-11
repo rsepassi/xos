@@ -561,7 +561,10 @@ const GfxPipeline = struct {
 
 // TODO:
 // * Updating FontAtlas, caching
-// * Index buffer
+// * Index buffer?
+// * Scrolling
 // * Line wrap
 // * Text selection
+// * Text attributes (color, bold, italics, etc)
 // * Emoji
+// * Accessibility
