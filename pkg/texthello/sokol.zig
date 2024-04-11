@@ -2,20 +2,18 @@
 
 const std = @import("std");
 
-const sokol = @cImport({
+pub const c = @cImport({
     @cInclude("sokol_app.h");
     @cInclude("sokol_gfx.h");
     @cInclude("spritealpha_shader.h");
 });
-
-pub const c = sokol;
 
 pub fn App(comptime AppT: type) type {
     const CCtx = struct {
         const Self = @This();
 
         fn sokolGetCtx() *AppT {
-            return @ptrCast(@alignCast(sokol.sapp_userdata()));
+            return @ptrCast(@alignCast(c.sapp_userdata()));
         }
 
         fn sokolOnInit() callconv(.C) void {
@@ -34,7 +32,7 @@ pub fn App(comptime AppT: type) type {
             std.heap.c_allocator.destroy(app);
         }
 
-        fn sokolOnEvent(cevent: [*c]const sokol.sapp_event) callconv(.C) void {
+        fn sokolOnEvent(cevent: [*c]const c.sapp_event) callconv(.C) void {
             const app: *AppT = Self.sokolGetCtx();
             const event: *const Event = @ptrCast(cevent);
             app.onEvent(event.*);
@@ -54,7 +52,7 @@ pub fn App(comptime AppT: type) type {
     };
 
     const Main = struct {
-        fn sokol_main(argc: c_int, argv: [*][*:0]u8) callconv(.C) sokol.sapp_desc {
+        fn sokol_main(argc: c_int, argv: [*][*:0]u8) callconv(.C) c.sapp_desc {
             _ = argc;
             _ = argv;
             const ctx = std.heap.c_allocator.create(AppT) catch @panic("alloc failed");
@@ -421,22 +419,22 @@ fn cFree(alloc: std.mem.Allocator, ptr_or_null: ?*anyopaque) void {
     alloc.free(head[0..true_size.*]);
 }
 
-pub fn appEnv() sokol.sg_environment {
+pub fn appEnv() c.sg_environment {
     return .{
         .defaults = .{
-            .color_format = @intCast(sokol.sapp_color_format()),
-            .depth_format = @intCast(sokol.sapp_depth_format()),
-            .sample_count = @intCast(sokol.sapp_sample_count()),
+            .color_format = @intCast(c.sapp_color_format()),
+            .depth_format = @intCast(c.sapp_depth_format()),
+            .sample_count = @intCast(c.sapp_sample_count()),
         },
         .metal = .{
-            .device = sokol.sapp_metal_get_device(),
+            .device = c.sapp_metal_get_device(),
         },
         .d3d11 = .{
-            .device = sokol.sapp_d3d11_get_device(),
-            .device_context = sokol.sapp_d3d11_get_device_context(),
+            .device = c.sapp_d3d11_get_device(),
+            .device_context = c.sapp_d3d11_get_device_context(),
         },
         .wgpu = .{
-            .device = sokol.sapp_wgpu_get_device(),
+            .device = c.sapp_wgpu_get_device(),
         },
     };
 }
@@ -473,37 +471,37 @@ pub const Point2D = struct {
 };
 
 pub fn screen() Rect {
-    const width: f32 = @floatFromInt(sokol.sapp_width());
-    const height: f32 = @floatFromInt(sokol.sapp_height());
+    const width: f32 = @floatFromInt(c.sapp_width());
+    const height: f32 = @floatFromInt(c.sapp_height());
     return .{
         .tl = .{ .x = 0, .y = height },
         .br = .{ .x = width, .y = 0 },
     };
 }
 
-pub fn swapchain() sokol.sg_swapchain {
+pub fn swapchain() c.sg_swapchain {
     return .{
-        .width = sokol.sapp_width(),
-        .height = sokol.sapp_height(),
-        .sample_count = sokol.sapp_sample_count(),
-        .color_format = @intCast(sokol.sapp_color_format()),
-        .depth_format = @intCast(sokol.sapp_depth_format()),
+        .width = c.sapp_width(),
+        .height = c.sapp_height(),
+        .sample_count = c.sapp_sample_count(),
+        .color_format = @intCast(c.sapp_color_format()),
+        .depth_format = @intCast(c.sapp_depth_format()),
         .metal = .{
-            .current_drawable = sokol.sapp_metal_get_current_drawable(),
-            .depth_stencil_texture = sokol.sapp_metal_get_depth_stencil_texture(),
-            .msaa_color_texture = sokol.sapp_metal_get_msaa_color_texture(),
+            .current_drawable = c.sapp_metal_get_current_drawable(),
+            .depth_stencil_texture = c.sapp_metal_get_depth_stencil_texture(),
+            .msaa_color_texture = c.sapp_metal_get_msaa_color_texture(),
         },
         .d3d11 = .{
-            .render_view = sokol.sapp_d3d11_get_render_view(),
-            .resolve_view = sokol.sapp_d3d11_get_resolve_view(),
-            .depth_stencil_view = sokol.sapp_d3d11_get_depth_stencil_view(),
+            .render_view = c.sapp_d3d11_get_render_view(),
+            .resolve_view = c.sapp_d3d11_get_resolve_view(),
+            .depth_stencil_view = c.sapp_d3d11_get_depth_stencil_view(),
         },
         .wgpu = .{
-            .render_view = sokol.sapp_wgpu_get_render_view(),
-            .resolve_view = sokol.sapp_wgpu_get_resolve_view(),
-            .depth_stencil_view = sokol.sapp_wgpu_get_depth_stencil_view(),
+            .render_view = c.sapp_wgpu_get_render_view(),
+            .resolve_view = c.sapp_wgpu_get_resolve_view(),
+            .depth_stencil_view = c.sapp_wgpu_get_depth_stencil_view(),
         },
-        .gl = .{ .framebuffer = sokol.sapp_gl_get_framebuffer() },
+        .gl = .{ .framebuffer = c.sapp_gl_get_framebuffer() },
     };
 }
 
