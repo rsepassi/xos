@@ -183,7 +183,7 @@ const Ctx = struct {
             .pxsize = 24,
         });
         self.textbuf = try text.Buffer.init();
-        self.textbuf.addText("hello world");
+        self.textbuf.addText("welcome to xos");
 
         self.need_render = true;
         self.sg_initialized = false;
@@ -327,7 +327,7 @@ const Ctx = struct {
             var origin: sokol.Point2D = blk: {
                 const screen = sokol.screen();
                 const line_height: f32 = @floatFromInt(self.font.face.*.size.*.metrics.height >> 6);
-                break :blk screen.tl.down(line_height);
+                break :blk screen.tl.right(10).down(line_height);
             };
             var x_advance: f32 = 0;
             var shaped = self.font.shape(self.textbuf);
