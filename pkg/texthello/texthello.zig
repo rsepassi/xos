@@ -14,7 +14,7 @@ const Resources = struct {
 };
 
 const font_override: ?[:0]const u8 = null;
-// "/Users/ryan/fonts/notofonts.github.io-noto-monthly-release-24.4.1/fonts/NotoSerif/googlefonts/ttf/NotoSerif-Regular.ttf";
+//"/Users/ryan/fonts/notofonts.github.io-noto-monthly-release-24.4.1/fonts/NotoSerif/googlefonts/ttf/NotoSerif-Regular.ttf";
 
 comptime {
     sokol.App(Ctx).declare();
@@ -38,22 +38,71 @@ const ascii_chars = blk: {
 };
 
 const FontAtlas = struct {
-    const GlyphRenderInfo = struct {
-        quad: sokol.Rect,
+    const RenderInfo = struct {
         horiBearingX: c_long,
         horiBearingY: c_long,
     };
-    const InfoMap = std.hash_map.AutoHashMap(text.GlyphIndex, GlyphRenderInfo);
+    const AtlasInfo = struct {
+        quad: sokol.Rect,
+        info: RenderInfo,
+    };
+    const InfoMap = std.hash_map.AutoHashMap(text.GlyphIndex, AtlasInfo);
 
     data: []u8,
-    width: usize,
-    height: usize,
+    size: Size2D,
     info: InfoMap,
+    padpx: usize,
     needs_update: bool = true,
+    col_offset: usize = 0,
+
+    fn init(alloc: std.mem.Allocator, size: Size2D, padpx: usize) !@This() {
+        const info = FontAtlas.InfoMap.init(alloc);
+        const data = try alloc.alloc(u8, size.area());
+        return .{
+            .data = data,
+            .size = size,
+            .info = info,
+            .padpx = padpx,
+        };
+    }
 
     fn deinit(self: *@This()) void {
         self.info.allocator.free(self.data);
         self.info.deinit();
+    }
+
+    fn addGlyph(
+        self: *@This(),
+        glyph: text.GlyphIndex,
+        bitmap: text.Glyph.Bitmap,
+        info: RenderInfo,
+    ) !void {
+        const data_width = self.size.width;
+        const data_height = self.size.height;
+        if (bitmap.nrows > data_height) return error.CharTooTall;
+        if (self.col_offset + bitmap.ncols > data_width) return error.CharTooWide;
+
+        const start = data_width * (data_height - bitmap.nrows);
+
+        var i: usize = 0;
+        var rows = bitmap.rows();
+        while (rows.next()) |row| : (i += 1) {
+            const row_start = start + self.col_offset + i * data_width;
+            std.mem.copyForwards(u8, self.data[row_start .. row_start + bitmap.ncols], row);
+        }
+
+        try self.info.put(glyph, .{
+            .info = info,
+            .quad = .{
+                .tl = .{ .x = @floatFromInt(start + self.col_offset), .y = @floatFromInt(bitmap.nrows) },
+                .br = .{ .x = @floatFromInt(start + self.col_offset + bitmap.ncols), .y = 0 },
+            },
+        });
+
+        // To render to ascii on stderr, uncomment this line
+        // try bitmap.ascii(std.io.getStdErr().writer());
+
+        self.col_offset += bitmap.ncols + self.padpx;
     }
 
     fn ascii(self: @This(), quad: sokol.Rect, writer: anytype) !void {
@@ -79,8 +128,7 @@ fn buildAsciiAtlas(alloc: std.mem.Allocator, font: text.Font) !FontAtlas {
     var max_height: c_long = 0;
     var total_width: c_long = 0;
     for (ascii_chars) |char| {
-        const idx = font.glyphIdx(char);
-        try font.loadGlyph(idx);
+        try font.loadGlyph(font.glyphIdx(char));
         const metrics = font.face.*.glyph.*.metrics;
         max_height = @max(max_height, metrics.height);
         total_width += metrics.width + (padpx << 6);
@@ -88,46 +136,25 @@ fn buildAsciiAtlas(alloc: std.mem.Allocator, font: text.Font) !FontAtlas {
 
     const data_height: usize = @intCast((max_height + 1) >> 6);
     const data_width: usize = @intCast((total_width + 1) >> 6);
-    const data = try alloc.alloc(u8, data_height * data_width);
 
-    var info = FontAtlas.InfoMap.init(alloc);
+    var atlas = try FontAtlas.init(
+        alloc,
+        .{ .width = data_width, .height = data_height },
+        padpx,
+    );
 
-    var offset: usize = 0;
     for (ascii_chars) |char| {
         const idx = font.glyphIdx(char);
         var glyph = try font.glyph(idx);
         defer glyph.deinit();
         const bitmap = try glyph.render();
-        const start = data_width * (data_height - bitmap.nrows);
-
-        var i: usize = 0;
-        var rows = bitmap.rows();
-        while (rows.next()) |row| : (i += 1) {
-            const row_start = start + offset + i * data_width;
-            std.mem.copyForwards(u8, data[row_start .. row_start + bitmap.ncols], row);
-        }
-
-        try info.put(idx, .{
+        try atlas.addGlyph(idx, bitmap, .{
             .horiBearingX = font.face.*.glyph.*.metrics.horiBearingX,
             .horiBearingY = font.face.*.glyph.*.metrics.horiBearingY,
-            .quad = .{
-                .tl = .{ .x = @floatFromInt(start + offset), .y = @floatFromInt(bitmap.nrows) },
-                .br = .{ .x = @floatFromInt(start + offset + bitmap.ncols), .y = 0 },
-            },
         });
-
-        // To render to ascii on stderr, uncomment this line
-        // try bitmap.ascii(std.io.getStdErr().writer());
-
-        offset += bitmap.ncols + padpx;
     }
 
-    return .{
-        .data = data,
-        .width = data_width,
-        .height = data_height,
-        .info = info,
-    };
+    return atlas;
 }
 
 const Ctx = struct {
@@ -216,7 +243,7 @@ const Ctx = struct {
         };
         sokol.c.sg_setup(&sg_desc);
         self.gfx = GfxPipeline.init(
-            .{ .height = self.atlas.height, .width = self.atlas.width },
+            .{ .height = self.atlas.size.height, .width = self.atlas.size.width },
         ) catch @panic("pipe init");
         self.sg_initialized = true;
     }
@@ -345,9 +372,9 @@ const Ctx = struct {
 
                 // Get screen rect
                 const glyph_rect = blk: {
-                    const ybear: f32 = @floatFromInt(info.horiBearingY >> 6);
+                    const ybear: f32 = @floatFromInt(info.info.horiBearingY >> 6);
                     const ybear_offset = tex_rect.height() - ybear;
-                    const x_offset: f32 = @floatFromInt((char.pos.x_offset + info.horiBearingX) >> 6);
+                    const x_offset: f32 = @floatFromInt((char.pos.x_offset + info.info.horiBearingX) >> 6);
                     const y_offset: f32 = @as(f32, @floatFromInt((char.pos.y_offset) >> 6)) - ybear_offset;
                     const glyph_origin = origin.right(x_offset).up(y_offset);
                     break :blk sokol.Rect{
