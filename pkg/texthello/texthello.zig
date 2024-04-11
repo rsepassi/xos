@@ -212,7 +212,7 @@ const Ctx = struct {
             .pxsize = 24,
         });
         self.usertext = std.ArrayList(u8).init(self.alloc.allocator());
-        try self.usertext.appendSlice("welcome to xos ");
+        try self.usertext.appendSlice("welcome to xos");
         self.textbuf = try text.Buffer.init();
         self.textbuf.addText(self.usertext.items);
 
@@ -236,6 +236,7 @@ const Ctx = struct {
         self.alloc.allocator().free(self.exepath);
         if (self.sg_initialized) {
             self.gfx.deinit();
+            sokol.c.sgp_shutdown();
             sokol.c.sg_shutdown();
         }
         const leaked = self.alloc.detectLeaks();
@@ -249,6 +250,9 @@ const Ctx = struct {
         };
         sokol.c.sg_setup(&sg_desc);
         if (!sokol.c.sg_isvalid()) @panic("sokol init");
+        const sgp_desc: sokol.c.sgp_desc = .{};
+        sokol.c.sgp_setup(&sgp_desc);
+        if (!sokol.c.sgp_is_valid()) @panic("sokol gp init");
         self.gfx = GfxPipeline.init(
             .{ .height = self.atlas.size.height, .width = self.atlas.size.width },
         ) catch @panic("pipe init");
@@ -288,6 +292,7 @@ const Ctx = struct {
                     .width = @intCast(event.framebuffer_width),
                     .height = @intCast(event.framebuffer_height),
                 });
+                self.need_render = true;
             },
             .FILES_DROPPED => {
                 const x = event.mouse_x;
@@ -354,21 +359,19 @@ const Ctx = struct {
         if (self.textbuf.len() < 1) return;
         defer self.atlas.needs_update = false;
 
-        // Build up our vertices
-        var vertices = &self.vertex_list;
-        defer vertices.clearRetainingCapacity();
+        // Compute origin (bottom left of line)
+        const origin: sokol.Point2D = blk: {
+            const screen = sokol.screen();
+            const line_height: f32 = @floatFromInt(self.font.face.*.size.*.metrics.height >> 6);
+            break :blk screen.tl.right(10).down(line_height);
+        };
+        var cursor: sokol.Point2D = origin;
 
+        // Text
         {
             self.textbuf.reset();
             self.textbuf.addText(self.usertext.items);
             var shaped = self.font.shape(self.textbuf);
-
-            // Compute origin (bottom left of line)
-            var origin: sokol.Point2D = blk: {
-                const screen = sokol.screen();
-                const line_height: f32 = @floatFromInt(self.font.face.*.size.*.metrics.height >> 6);
-                break :blk screen.tl.right(10).down(line_height);
-            };
 
             var x_advance: f32 = 0;
             var iter = shaped.iterator();
@@ -376,7 +379,7 @@ const Ctx = struct {
                 x_advance = @floatFromInt(char.pos.x_advance >> 6);
             }) {
                 // Line advance
-                origin = origin.right(x_advance);
+                cursor = cursor.right(x_advance);
 
                 // Get atlas rect
                 const info = self.atlas.info.get(char.info.codepoint) orelse {
@@ -390,7 +393,7 @@ const Ctx = struct {
                     const ybear_offset = tex_rect.height() - ybear;
                     const x_offset: f32 = @floatFromInt((char.pos.x_offset + info.info.horiBearingX) >> 6);
                     const y_offset: f32 = @as(f32, @floatFromInt((char.pos.y_offset) >> 6)) - ybear_offset;
-                    const glyph_origin = origin.right(x_offset).up(y_offset);
+                    const glyph_origin = cursor.right(x_offset).up(y_offset);
                     break :blk sokol.Rect{
                         .tl = glyph_origin.up(tex_rect.height()),
                         .br = glyph_origin.right(tex_rect.width()),
@@ -398,32 +401,56 @@ const Ctx = struct {
                 };
 
                 // Add triangles
-                try vertices.appendSlice(&sokol.getRectVertices(glyph_rect, tex_rect));
+                try self.vertex_list.appendSlice(&sokol.getRectVertices(glyph_rect, tex_rect));
             }
+            cursor = cursor.right(x_advance);
         }
 
-        var action = sokol.c.sg_pass_action{};
-        action.colors[0] = .{
-            .load_action = sokol.c.SG_LOADACTION_CLEAR,
-            .store_action = sokol.c.SG_STOREACTION_STORE,
-            .clear_value = sokol.color(255, 255, 255, 1.0),
-        };
+        // 2D drawing
+        {
+            const screen = sokol.screen();
+            const width: c_int = @intFromFloat(screen.width());
+            const height: c_int = @intFromFloat(screen.height());
+            sokol.c.sgp_begin(width, height);
+            sokol.c.sgp_viewport(0, 0, width, height);
+            sokol.c.sgp_project(0, screen.width(), screen.height(), 0);
 
-        // Some notes on SG_LOADACTION_LOAD
-        // On Metal (and probably others) there is a default double (or triple)
-        // buffering happening, so when you say action=LOAD, you'll load one
-        // of those buffers, which may be uninitialized. To have more control
-        // over what you're actually loading, you should probably use an
-        // attachment, render to it, and load it. How exactly that should all
-        // work I don't know yet.
+            sokol.c.sgp_set_color(0.3, 0.3, 0.3, 1.0);
+            sokol.c.sgp_draw_filled_rect(origin.x, origin.y - 7, cursor.x - origin.x, 2.0);
+        }
 
-        const pass = sokol.RenderPass.begin(action, null);
-        defer pass.endAndCommit();
-        self.gfx.update(.{
-            .vertices = vertices.items,
-            .texture = if (self.atlas.needs_update) self.atlas.data else null,
-        });
-        self.gfx.apply();
+        // Render pass
+        {
+            // Some notes on SG_LOADACTION_LOAD
+            // On Metal (and probably others) there is a default double (or triple)
+            // buffering happening, so when you say action=LOAD, you'll load one
+            // of those buffers, which may be uninitialized. To have more control
+            // over what you're actually loading, you should probably use an
+            // attachment, render to it, and load it. How exactly that should all
+            // work I don't know yet.
+
+            var action = sokol.c.sg_pass_action{};
+            action.colors[0] = .{
+                .load_action = sokol.c.SG_LOADACTION_CLEAR,
+                .store_action = sokol.c.SG_STOREACTION_STORE,
+                .clear_value = sokol.color(255, 255, 255, 1.0),
+            };
+            const pass = sokol.RenderPass.begin(action, null);
+            defer pass.endAndCommit();
+
+            // Text
+            self.gfx.update(.{
+                .vertices = self.vertex_list.items,
+                .texture = if (self.atlas.needs_update) self.atlas.data else null,
+            });
+            self.gfx.apply();
+
+            // 2D
+            sokol.c.sgp_flush();
+            sokol.c.sgp_end();
+        }
+
+        self.vertex_list.clearRetainingCapacity();
         self.render_count += 1;
     }
 

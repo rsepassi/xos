@@ -6,6 +6,10 @@ file="sokol.tar.gz"
 src=$(fetch_untar "$url" "$file" "$hash")
 cd $src
 
+fetch "https://raw.githubusercontent.com/edubart/sokol_gp/master/sokol_gp.h" \
+  sokol_gp.h \
+  "91a092b7b103f55b7a26aa1098d2d35155b6924298d5516dc281ac1d75cc4472"
+
 sokol_file=sokol.c
 if [ "$TARGET_OS" = "linux" ]
 then
@@ -83,6 +87,7 @@ cat <<EOF > $sokol_file
 #define SOKOL_WIN32_FORCE_MAIN
 #include "sokol_app.h"
 #include "sokol_gfx.h"
+#include "sokol_gp.h"
 #include "sokol_log.h"
 #include "sokol_glue.h"
 #include "util/sokol_debugtext.h"
@@ -92,6 +97,7 @@ EOF
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -Iinclude \
+  -I $BUILD_DEPS \
   $cflags \
   $sokol_file \
   -lc
@@ -107,6 +113,7 @@ mv \
   "$src/util/sokol_shape.h" \
   "$src/util/sokol_color.h" \
   "$src/util/sokol_nuklear.h" \
+  "$BUILD_DEPS/sokol_gp.h" \
   include
 mv "$src/$(zigi lib sokol)" lib
 pkg-config --gendefault sokol --cflags "$cflags" --ldflags "$ldflags"
