@@ -172,6 +172,7 @@ const Ctx = struct {
     // Text
     ft: text.FreeType,
     font: text.Font,
+    usertext: std.ArrayList(u8),
     textbuf: text.Buffer,
 
     // Graphics
@@ -181,6 +182,7 @@ const Ctx = struct {
     vertex_list: std.ArrayList(f32),
     gfx: GfxPipeline = undefined,
     frame_count: u64 = 0,
+    render_count: u64 = 0,
 
     pub fn init(self: *Self) !void {
         self.timer = try std.time.Timer.start();
@@ -209,8 +211,10 @@ const Ctx = struct {
             .path = @ptrCast(font_path),
             .pxsize = 24,
         });
+        self.usertext = std.ArrayList(u8).init(self.alloc.allocator());
+        try self.usertext.appendSlice("welcome to xos ");
         self.textbuf = try text.Buffer.init();
-        self.textbuf.addText("welcome to xos");
+        self.textbuf.addText(self.usertext.items);
 
         self.need_render = true;
         self.sg_initialized = false;
@@ -218,11 +222,13 @@ const Ctx = struct {
         self.vertex_list = std.ArrayList(f32).init(self.alloc.allocator());
         self.gfx = undefined;
         self.frame_count = 0;
+        self.render_count = 0;
     }
 
     pub fn deinit(self: *Self) void {
         self.vertex_list.deinit();
         self.atlas.deinit();
+        self.usertext.deinit();
         self.textbuf.deinit();
         self.font.deinit();
         self.ft.deinit();
@@ -242,6 +248,7 @@ const Ctx = struct {
             .logger = sokol.sgLogger(self),
         };
         sokol.c.sg_setup(&sg_desc);
+        if (!sokol.c.sg_isvalid()) @panic("sokol init");
         self.gfx = GfxPipeline.init(
             .{ .height = self.atlas.size.height, .width = self.atlas.size.width },
         ) catch @panic("pipe init");
@@ -258,9 +265,10 @@ const Ctx = struct {
                 };
                 log.info("CHAR code={d} str={s}", .{ event.char_code, utf8 });
 
-                self.textbuf.reset();
-                self.textbuf.addText(utf8);
-                self.need_render = true;
+                if (std.ascii.isPrint(utf8[0])) {
+                    self.usertext.appendSlice(utf8) catch @panic("no mem");
+                    self.need_render = true;
+                }
             },
             .KEY_UP, .KEY_DOWN => {
                 log.info("{s} {s}", .{ @tagName(event.type), @tagName(event.key_code) });
@@ -331,7 +339,9 @@ const Ctx = struct {
         self.onFrameSafe() catch |err| {
             log.err("frame fail {any}", .{err});
             switch (err) {
-                error.GlyphNotInAtlas => {},
+                error.GlyphNotInAtlas => {
+                    @panic("bad glyph");
+                },
                 else => @panic("frame fail"),
             }
         };
@@ -349,14 +359,18 @@ const Ctx = struct {
         defer vertices.clearRetainingCapacity();
 
         {
+            self.textbuf.reset();
+            self.textbuf.addText(self.usertext.items);
+            var shaped = self.font.shape(self.textbuf);
+
             // Compute origin (bottom left of line)
             var origin: sokol.Point2D = blk: {
                 const screen = sokol.screen();
                 const line_height: f32 = @floatFromInt(self.font.face.*.size.*.metrics.height >> 6);
                 break :blk screen.tl.right(10).down(line_height);
             };
+
             var x_advance: f32 = 0;
-            var shaped = self.font.shape(self.textbuf);
             var iter = shaped.iterator();
             while (iter.next()) |char| : ({
                 x_advance = @floatFromInt(char.pos.x_advance >> 6);
@@ -391,15 +405,26 @@ const Ctx = struct {
         var action = sokol.c.sg_pass_action{};
         action.colors[0] = .{
             .load_action = sokol.c.SG_LOADACTION_CLEAR,
+            .store_action = sokol.c.SG_STOREACTION_STORE,
             .clear_value = sokol.color(255, 255, 255, 1.0),
         };
+
+        // Some notes on SG_LOADACTION_LOAD
+        // On Metal (and probably others) there is a default double (or triple)
+        // buffering happening, so when you say action=LOAD, you'll load one
+        // of those buffers, which may be uninitialized. To have more control
+        // over what you're actually loading, you should probably use an
+        // attachment, render to it, and load it. How exactly that should all
+        // work I don't know yet.
+
         const pass = sokol.RenderPass.begin(action, null);
         defer pass.endAndCommit();
-
-        self.gfx.apply(.{
+        self.gfx.update(.{
             .vertices = vertices.items,
             .texture = if (self.atlas.needs_update) self.atlas.data else null,
         });
+        self.gfx.apply();
+        self.render_count += 1;
     }
 
     pub fn onLog(self: Self, slog: sokol.Log) void {
@@ -426,6 +451,7 @@ const GfxPipeline = struct {
     sampler: sokol.c.sg_sampler,
     vs_args: shaderlib.vs_params_t,
     fs_args: shaderlib.fs_params_t,
+    nvertices: usize = 0,
 
     fn init(texture_size: Size2D) !@This() {
         const shader = sokol.c.sg_make_shader(shaderlib.spritealpha_shader_desc(
@@ -530,13 +556,11 @@ const GfxPipeline = struct {
         };
     }
 
-    const PassArgs = struct {
+    const UpdateArgs = struct {
         vertices: []const f32,
         texture: ?[]const u8 = null,
     };
-    fn apply(self: *const @This(), args: PassArgs) void {
-        sokol.c.sg_apply_pipeline(self.pipeline);
-
+    fn update(self: *@This(), args: UpdateArgs) void {
         // Buffers
         const vertex_data = sokol.c.sg_range{
             .ptr = args.vertices.ptr,
@@ -544,6 +568,11 @@ const GfxPipeline = struct {
         };
         sokol.c.sg_update_buffer(self.vertex_buf, &vertex_data);
         if (args.texture) |tex| self.updateTexture(tex);
+        self.nvertices = args.vertices.len / 4;
+    }
+
+    fn apply(self: *const @This()) void {
+        sokol.c.sg_apply_pipeline(self.pipeline);
 
         // Bindings
         var bindings = sokol.c.sg_bindings{};
@@ -567,7 +596,7 @@ const GfxPipeline = struct {
         // Draw
         sokol.c.sg_draw(
             0, // base_element
-            @intCast(args.vertices.len / 4), // num_elements
+            @intCast(self.nvertices), // num_elements
             1, // num_instances
         );
     }
