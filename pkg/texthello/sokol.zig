@@ -441,7 +441,7 @@ pub fn appEnv() sokol.sg_environment {
     };
 }
 
-pub const Quad = struct {
+pub const Rect = struct {
     tl: Point2D,
     br: Point2D,
 
@@ -472,7 +472,7 @@ pub const Point2D = struct {
     }
 };
 
-pub fn screen() Quad {
+pub fn screen() Rect {
     const width: f32 = @floatFromInt(sokol.sapp_width());
     const height: f32 = @floatFromInt(sokol.sapp_height());
     return .{
@@ -560,5 +560,21 @@ pub fn colorVec(r: u8, g: u8, b: u8) [3]f32 {
         @as(f32, @floatFromInt(r)) / 255.0,
         @as(f32, @floatFromInt(g)) / 255.0,
         @as(f32, @floatFromInt(b)) / 255.0,
+    };
+}
+
+pub fn getRectVertices(xy: Rect, uv: Rect) [24]f32 {
+    const origin = xy.tl.down(xy.height());
+    const tex_bl = uv.tl.down(uv.height());
+    const tex_tr = uv.tl.right(uv.width());
+    return .{
+        // Bottom triangle
+        origin.x,              origin.y, tex_bl.x, tex_bl.y,
+        xy.tl.x,               xy.tl.y,  uv.tl.x,  uv.tl.y,
+        origin.x + xy.width(), origin.y, uv.br.x,  uv.br.y,
+        // Top triangle
+        xy.tl.x,               xy.tl.y,  uv.tl.x,  uv.tl.y,
+        xy.tl.x + xy.width(),  xy.tl.y,  tex_tr.x, tex_tr.y,
+        origin.x + xy.width(), origin.y, uv.br.x,  uv.br.y,
     };
 }

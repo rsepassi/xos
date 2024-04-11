@@ -41,7 +41,7 @@ pub const Font = struct {
     const InitArgs = struct {
         path: [:0]const u8,
         face_index: u8 = 0,
-        pxheight: c_uint = 32,
+        pxsize: usize = 12,
     };
     pub fn init(lib: *const FreeType, args: InitArgs) !Self {
         var self: Self = undefined;
@@ -56,11 +56,20 @@ pub const Font = struct {
         if (c.FT_HAS_FIXED_SIZES(self.face)) {
             if (c.FT_Select_Size(self.face, 0) != 0) return error.FTFontSizeFail;
         } else {
-            if (c.FT_Set_Pixel_Sizes(self.face, 0, args.pxheight) != 0) return error.FTFontSizeFail;
+            if (c.FT_Set_Char_Size(self.face, 0, @intCast(args.pxsize << 6), 0, 0) != 0)
+                return error.FTFontSizeFail;
         }
+
+        // Identity transform
+        c.FT_Set_Transform(self.face, 0, 0);
 
         self.hb_face = c.hb_ft_face_create_referenced(self.face) orelse return error.HBFontFail;
         self.hb_font = c.hb_font_create(self.hb_face) orelse return error.HBFontFail;
+        c.hb_font_set_scale(
+            self.hb_font,
+            @intCast(args.pxsize << 6),
+            @intCast(args.pxsize << 6),
+        );
 
         return self;
     }
@@ -94,21 +103,17 @@ pub const Font = struct {
         return g;
     }
 
-    pub const CGlyphInfo = extern struct {
-        info: c.hb_glyph_info_t,
+    pub const ShapedChar = struct {
+        info: *const c.hb_glyph_info_t,
+        pos: *const c.hb_glyph_position_t,
         fn flags(self: @This()) c.hb_glyph_flags_t {
             c.hb_glyph_info_get_glyph_flags(&self.info);
         }
     };
 
-    pub const ShapedChar = struct {
-        info: *const CGlyphInfo,
-        pos: *const c.hb_glyph_position_t,
-    };
-
     pub const ShapedText = struct {
         font: *Font,
-        info: []const CGlyphInfo,
+        info: []const c.hb_glyph_info_t,
         pos: []const c.hb_glyph_position_t,
 
         const Iterator = struct {
@@ -133,7 +138,7 @@ pub const Font = struct {
     pub fn shape(self: *Self, buf: Buffer) ShapedText {
         c.hb_shape(self.hb_font, buf.buf, null, 0);
         var glyph_count: u32 = 0;
-        const glyph_infos: [*]CGlyphInfo = @ptrCast(c.hb_buffer_get_glyph_infos(buf.buf, &glyph_count));
+        const glyph_infos = c.hb_buffer_get_glyph_infos(buf.buf, &glyph_count);
         const glyph_poss = c.hb_buffer_get_glyph_positions(buf.buf, &glyph_count);
         return .{
             .font = self,
@@ -199,13 +204,32 @@ pub const Glyph = struct {
     pub const Bitmap = struct {
         glyph: *const Glyph,
         buf: []u8,
-        rows: u32,
-        cols: u32,
+        nrows: u32,
+        ncols: u32,
+        pitch: i32,
+
+        const Iterator = struct {
+            bitmap: *const Bitmap,
+            i: i32 = 0,
+
+            pub fn next(self: *@This()) ?[]u8 {
+                if (self.i >= self.bitmap.nrows) return null;
+                const rowstart = self.i * self.bitmap.pitch;
+                const rowend = rowstart + @as(i32, @intCast(self.bitmap.ncols));
+                const out = self.bitmap.buf[@intCast(rowstart)..@intCast(rowend)];
+                self.i += 1;
+                return out;
+            }
+        };
+
+        pub fn rows(self: *const @This()) Iterator {
+            return .{ .bitmap = self };
+        }
 
         pub fn ascii(self: @This(), writer: anytype) !void {
-            for (0..self.rows) |i| {
-                for (0..self.cols) |j| {
-                    const val = self.buf[i * self.cols + j];
+            var rows_ = self.rows();
+            while (rows_.next()) |row| {
+                for (row) |val| {
                     const s = if (val == 0) "_" else "X";
                     _ = try writer.write(s);
                 }
@@ -225,8 +249,9 @@ pub const Glyph = struct {
         return .{
             .glyph = self,
             .buf = bm.buffer[0 .. bm.rows * bm.width],
-            .rows = bm.rows,
-            .cols = bm.width,
+            .nrows = bm.rows,
+            .ncols = bm.width,
+            .pitch = bm.pitch,
         };
     }
 };

@@ -14,7 +14,7 @@ const Resources = struct {
 };
 
 const font_override: ?[:0]const u8 = null;
-// "fonts/notofonts.github.io-noto-monthly-release-24.4.1/fonts/NotoSerif/googlefonts/ttf/NotoSerif-Regular.ttf";
+// "/Users/ryan/fonts/notofonts.github.io-noto-monthly-release-24.4.1/fonts/NotoSerif/googlefonts/ttf/NotoSerif-Regular.ttf";
 
 comptime {
     sokol.App(Ctx).declare();
@@ -38,10 +38,17 @@ const ascii_chars = blk: {
 };
 
 const FontAtlas = struct {
+    const GlyphRenderInfo = struct {
+        quad: sokol.Rect,
+        horiBearingX: c_long,
+        horiBearingY: c_long,
+    };
+    const InfoMap = std.hash_map.AutoHashMap(text.GlyphIndex, GlyphRenderInfo);
+
     data: []u8,
     width: usize,
     height: usize,
-    info: std.hash_map.AutoHashMap(text.GlyphIndex, sokol.Quad),
+    info: InfoMap,
     needs_update: bool = true,
 
     fn deinit(self: *@This()) void {
@@ -49,7 +56,7 @@ const FontAtlas = struct {
         self.info.deinit();
     }
 
-    fn ascii(self: @This(), quad: sokol.Quad, writer: anytype) !void {
+    fn ascii(self: @This(), quad: sokol.Rect, writer: anytype) !void {
         const offset: usize = @intFromFloat(quad.tl.x);
         const width: usize = @intFromFloat(quad.width());
         const height: usize = @intFromFloat(quad.height());
@@ -67,28 +74,23 @@ const FontAtlas = struct {
 };
 
 fn buildAsciiAtlas(alloc: std.mem.Allocator, font: text.Font) !FontAtlas {
-    const pad = 2;
+    const padpx = 2;
 
-    var max_height: usize = 0;
-    var total_width: usize = 0;
+    var max_height: c_long = 0;
+    var total_width: c_long = 0;
     for (ascii_chars) |char| {
         const idx = font.glyphIdx(char);
         try font.loadGlyph(idx);
         const metrics = font.face.*.glyph.*.metrics;
-        const pheight: f32 = @floatFromInt(metrics.height);
-        const pwidth: f32 = @floatFromInt(metrics.width);
-        const h: usize = @intFromFloat(pheight / 64.0 + 0.5);
-        const w: usize = @intFromFloat(pwidth / 64.0 + 0.5);
-
-        max_height = @max(max_height, h);
-        total_width += w + pad;
+        max_height = @max(max_height, metrics.height);
+        total_width += metrics.width + (padpx << 6);
     }
 
-    const data_height = max_height;
-    const data_width = total_width;
+    const data_height: usize = @intCast((max_height + 1) >> 6);
+    const data_width: usize = @intCast((total_width + 1) >> 6);
     const data = try alloc.alloc(u8, data_height * data_width);
 
-    var info = std.hash_map.AutoHashMap(text.GlyphIndex, sokol.Quad).init(alloc);
+    var info = FontAtlas.InfoMap.init(alloc);
 
     var offset: usize = 0;
     for (ascii_chars) |char| {
@@ -96,21 +98,28 @@ fn buildAsciiAtlas(alloc: std.mem.Allocator, font: text.Font) !FontAtlas {
         var glyph = try font.glyph(idx);
         defer glyph.deinit();
         const bitmap = try glyph.render();
-        const start = data_width * (data_height - bitmap.rows);
-        for (0..bitmap.rows) |i| {
+        const start = data_width * (data_height - bitmap.nrows);
+
+        var i: usize = 0;
+        var rows = bitmap.rows();
+        while (rows.next()) |row| : (i += 1) {
             const row_start = start + offset + i * data_width;
-            for (0..bitmap.cols) |j| {
-                const src = bitmap.buf[i * bitmap.cols + j];
-                data[row_start + j] = src;
-            }
+            std.mem.copyForwards(u8, data[row_start .. row_start + bitmap.ncols], row);
         }
 
         try info.put(idx, .{
-            .tl = .{ .x = @floatFromInt(start + offset), .y = @floatFromInt(bitmap.rows) },
-            .br = .{ .x = @floatFromInt(start + offset + bitmap.cols), .y = 0 },
+            .horiBearingX = font.face.*.glyph.*.metrics.horiBearingX,
+            .horiBearingY = font.face.*.glyph.*.metrics.horiBearingY,
+            .quad = .{
+                .tl = .{ .x = @floatFromInt(start + offset), .y = @floatFromInt(bitmap.nrows) },
+                .br = .{ .x = @floatFromInt(start + offset + bitmap.ncols), .y = 0 },
+            },
         });
 
-        offset += bitmap.cols + pad;
+        // To render to ascii on stderr, uncomment this line
+        // try bitmap.ascii(std.io.getStdErr().writer());
+
+        offset += bitmap.ncols + padpx;
     }
 
     return .{
@@ -142,6 +151,7 @@ const Ctx = struct {
     need_render: bool,
     sg_initialized: bool,
     atlas: FontAtlas,
+    vertex_list: std.ArrayList(f32),
     gfx: GfxPipeline = undefined,
     frame_count: u64 = 0,
 
@@ -170,19 +180,21 @@ const Ctx = struct {
         self.ft = try text.FreeType.init();
         self.font = try self.ft.font(.{
             .path = @ptrCast(font_path),
-            .pxheight = 64,
+            .pxsize = 24,
         });
         self.textbuf = try text.Buffer.init();
-        self.textbuf.addText("hello");
+        self.textbuf.addText("hello world");
 
         self.need_render = true;
         self.sg_initialized = false;
         self.atlas = try buildAsciiAtlas(self.alloc.allocator(), self.font);
+        self.vertex_list = std.ArrayList(f32).init(self.alloc.allocator());
         self.gfx = undefined;
         self.frame_count = 0;
     }
 
     pub fn deinit(self: *Self) void {
+        self.vertex_list.deinit();
         self.atlas.deinit();
         self.textbuf.deinit();
         self.font.deinit();
@@ -193,6 +205,8 @@ const Ctx = struct {
             self.gfx.deinit();
             sokol.c.sg_shutdown();
         }
+        const leaked = self.alloc.detectLeaks();
+        log.info("leak check: {s}", .{if (leaked) "leaked!" else "ok"});
     }
 
     pub fn onInit(self: *Self) void {
@@ -240,7 +254,6 @@ const Ctx = struct {
                     .width = @intCast(event.framebuffer_width),
                     .height = @intCast(event.framebuffer_height),
                 });
-                self.need_render = true;
             },
             .FILES_DROPPED => {
                 const x = event.mouse_x;
@@ -289,46 +302,70 @@ const Ctx = struct {
     }
 
     pub fn onFrame(self: *Self) void {
+        self.onFrameSafe() catch |err| {
+            log.err("frame fail {any}", .{err});
+            switch (err) {
+                error.GlyphNotInAtlas => {},
+                else => @panic("frame fail"),
+            }
+        };
+    }
+
+    fn onFrameSafe(self: *Self) !void {
         defer self.frame_count += 1;
         if (!self.need_render) return;
         defer self.need_render = false;
         if (self.textbuf.len() < 1) return;
+        defer self.atlas.needs_update = false;
 
-        var shaped = self.font.shape(self.textbuf);
-        var iter = shaped.iterator();
+        // Build up our vertices
+        var vertices = &self.vertex_list;
+        defer vertices.clearRetainingCapacity();
 
-        var quad: sokol.Quad = undefined;
-        while (iter.next()) |char| {
-            const idx = char.info.info.codepoint;
-            quad = self.atlas.info.get(idx).?;
-            break;
+        {
+            // Compute origin (bottom left of line)
+            var origin: sokol.Point2D = blk: {
+                const screen = sokol.screen();
+                const line_height: f32 = @floatFromInt(self.font.face.*.size.*.metrics.height >> 6);
+                break :blk screen.tl.down(line_height);
+            };
+            var x_advance: f32 = 0;
+            var shaped = self.font.shape(self.textbuf);
+            var iter = shaped.iterator();
+            while (iter.next()) |char| : ({
+                x_advance = @floatFromInt(char.pos.x_advance >> 6);
+            }) {
+                // Line advance
+                origin = origin.right(x_advance);
+
+                // Get atlas rect
+                const info = self.atlas.info.get(char.info.codepoint) orelse {
+                    return error.GlyphNotInAtlas;
+                };
+                const tex_rect = info.quad;
+
+                // Get screen rect
+                const glyph_rect = blk: {
+                    const ybear: f32 = @floatFromInt(info.horiBearingY >> 6);
+                    const ybear_offset = tex_rect.height() - ybear;
+                    const x_offset: f32 = @floatFromInt((char.pos.x_offset + info.horiBearingX) >> 6);
+                    const y_offset: f32 = @as(f32, @floatFromInt((char.pos.y_offset) >> 6)) - ybear_offset;
+                    const glyph_origin = origin.right(x_offset).up(y_offset);
+                    break :blk sokol.Rect{
+                        .tl = glyph_origin.up(tex_rect.height()),
+                        .br = glyph_origin.right(tex_rect.width()),
+                    };
+                };
+
+                // Add triangles
+                try vertices.appendSlice(&sokol.getRectVertices(glyph_rect, tex_rect));
+            }
         }
 
-        // Screen coordinates
-        const screen = sokol.screen();
-        const tl = screen.tl;
-        const bl = tl.down(quad.height());
-        const br = bl.right(quad.width());
-        const tr = tl.right(quad.width());
-
-        // Texture coordinates
-        const tex_tl = quad.tl;
-        const tex_bl = tex_tl.down(quad.height());
-        const tex_br = quad.br;
-        const tex_tr = tex_tl.right(quad.width());
-
-        const vertices: []const f32 = &[_]f32{
-            bl.x, bl.y, tex_bl.x, tex_bl.y,
-            tl.x, tl.y, tex_tl.x, tex_tl.y,
-            br.x, br.y, tex_br.x, tex_br.y,
-            tr.x, tr.y, tex_tr.x, tex_tr.y,
-        };
-
         self.gfx.doPass(.{
-            .vertices = vertices,
+            .vertices = vertices.items,
             .update_texture = self.atlas.needs_update,
         });
-        self.atlas.needs_update = false;
     }
 
     pub fn onLog(self: Self, slog: sokol.Log) void {
@@ -371,7 +408,7 @@ const GfxPipeline = struct {
         ));
         var pipeline_desc = sokol.c.sg_pipeline_desc{
             .shader = shader,
-            .primitive_type = sokol.c.SG_PRIMITIVETYPE_TRIANGLE_STRIP,
+            .primitive_type = sokol.c.SG_PRIMITIVETYPE_TRIANGLES,
             .label = "pipeline",
         };
         pipeline_desc.layout.attrs[shaderlib.ATTR_vs_pos] = .{
@@ -391,10 +428,12 @@ const GfxPipeline = struct {
         };
         const pipeline = sokol.c.sg_make_pipeline(&pipeline_desc);
 
-        const max_vertices = 4;
+        const max_quads = 256;
+        const vertices_per_quad = 6;
+        const vertex_vals = 4;
         var vertex_buf_desc = sokol.c.sg_buffer_desc{
             .usage = sokol.c.SG_USAGE_DYNAMIC,
-            .size = 4 * @sizeOf(f32) * max_vertices,
+            .size = @sizeOf(f32) * max_quads * vertices_per_quad * vertex_vals,
             .label = "vertices",
         };
         const vertex_buf = sokol.c.sg_make_buffer(&vertex_buf_desc);
@@ -519,3 +558,10 @@ const GfxPipeline = struct {
         sokol.c.sg_commit();
     }
 };
+
+// TODO:
+// * Updating FontAtlas, caching
+// * Index buffer
+// * Line wrap
+// * Text selection
+// * Emoji
