@@ -576,6 +576,10 @@ pub const ImageTexturePipeline = TexturePipeline(.{
     .alpha_only = false,
 });
 
+const TexturePipelineConfig = struct {
+    alpha_only: bool,
+};
+
 fn TexturePipeline(comptime config: TexturePipelineConfig) type {
     return struct {
         pipeline: c.sg_pipeline,
@@ -613,7 +617,7 @@ fn TexturePipeline(comptime config: TexturePipelineConfig) type {
             };
             const pipeline = c.sg_make_pipeline(&pipeline_desc);
 
-            const max_quads = 256;
+            const max_quads = 1 << 16;
             const vertices_per_quad = 6;
             const vertex_vals = 4;
             var vertex_buf_desc = c.sg_buffer_desc{

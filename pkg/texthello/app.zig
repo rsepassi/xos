@@ -186,10 +186,11 @@ const Ctx = struct {
                 }
             },
             .CLIPBOARD_PASTED => {
-                const s = self.clipboard.get();
-                log.info("{s} str={s}", .{ @tagName(event.type), s });
-                self.usertext.appendSlice(s) catch @panic("no mem");
-                self.need_render = true;
+                if (self.clipboard.get()) |s| {
+                    log.info("{s} str={s}", .{ @tagName(event.type), s });
+                    self.usertext.appendSlice(s) catch @panic("no mem");
+                    self.need_render = true;
+                }
             },
             .QUIT_REQUESTED => {
                 log.info("{s} goodbye", .{@tagName(event.type)});

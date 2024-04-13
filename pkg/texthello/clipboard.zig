@@ -18,8 +18,8 @@ pub const Clipboard = struct {
         c.clipboard_clear(self.clipboard, c.LCB_CLIPBOARD);
     }
 
-    pub fn get(self: @This()) []const u8 {
-        const ctext = c.clipboard_text(self.clipboard);
+    pub fn get(self: @This()) ?[]const u8 {
+        const ctext = c.clipboard_text(self.clipboard) orelse return null;
         return ctext[0..std.mem.len(ctext)];
     }
 
