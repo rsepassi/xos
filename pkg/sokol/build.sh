@@ -13,8 +13,9 @@ fetch "https://raw.githubusercontent.com/edubart/sokol_gp/master/sokol_gp.h" \
 sokol_file=sokol.c
 if [ "$TARGET_OS" = "linux" ]
 then
-  need linuxsdk -- alpine mesa-dev,libxi-dev,libxcursor-dev GL,EGL,X11,Xi,Xcursor
-  sdk="$BUILD_DEPS/linuxsdk"
+  #need linuxsdk -- alpine mesa-dev,libxi-dev,libxcursor-dev GL,EGL,X11,Xi,Xcursor
+  #sdk="$BUILD_DEPS/linuxsdk"
+  sdk="/usr"
   cflags="-DSOKOL_GLES3 -I$sdk/include"
   ldflags="
   -L$sdk/lib
@@ -116,7 +117,7 @@ mv \
   "$BUILD_DEPS/sokol_gp.h" \
   include
 mv "$src/$(zigi lib sokol)" lib
-pkg-config --gendefault sokol --cflags "$cflags" --ldflags "$ldflags"
+pkg-config --gendefault sokol --cflags "$cflags" --ldflags "$(echo $ldflags)"
 
 # demo app
 cd "$HOME"

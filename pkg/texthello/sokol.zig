@@ -59,7 +59,10 @@ pub fn App(comptime AppT: type) type {
             _ = argc;
             _ = argv;
             const ctx = std.heap.c_allocator.create(AppT) catch @panic("alloc failed");
-            ctx.init() catch @panic("init failed");
+            ctx.init() catch |err| {
+                std.io.getStdErr().writer().print("error: {any}\n", .{err}) catch {};
+                @panic("init failed");
+            };
 
             return .{
                 .init_cb = CCtx.sokolOnInit,
@@ -602,7 +605,7 @@ pub const AlphaTexturePipeline = struct {
         };
         const pipeline = c.sg_make_pipeline(&pipeline_desc);
 
-        const max_quads = 256;
+        const max_quads = 1 << 16;
         const vertices_per_quad = 6;
         const vertex_vals = 4;
         var vertex_buf_desc = c.sg_buffer_desc{

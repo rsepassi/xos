@@ -3,6 +3,7 @@ const std = @import("std");
 const twod = @import("twod.zig");
 const sokol = @import("sokol.zig");
 const text = @import("text.zig");
+const clipboard = @import("clipboard.zig");
 
 const log = std.log.scoped(.texthello);
 pub const std_options = .{
@@ -14,7 +15,8 @@ const Resources = struct {
 };
 
 const unknown_char = "\xEF\xBF\xBD";
-const font_override: ?[:0]const u8 = "/Users/ryan/fonts/notofonts.github.io-noto-monthly-release-24.4.1/fonts/NotoSerif/googlefonts/ttf/NotoSerif-Regular.ttf";
+const font_override: ?[:0]const u8 = null;
+//"/Users/ryan/fonts/notofonts.github.io-noto-monthly-release-24.4.1/fonts/NotoSerif/googlefonts/ttf/NotoSerif-Regular.ttf";
 
 comptime {
     sokol.App(Ctx).declare();
@@ -30,6 +32,7 @@ const Ctx = struct {
     timer: std.time.Timer,
     alloc: std.heap.GeneralPurposeAllocator(.{}),
     resource_dir: std.fs.Dir,
+    clipboard: clipboard.Clipboard,
 
     // Text
     ft: text.FreeType,
@@ -45,6 +48,7 @@ const Ctx = struct {
     gfx: sokol.AlphaTexturePipeline,
     frame_count: u64,
     render_count: u64,
+    last_render_frame: u64,
 
     pub fn init(self: *Self) !void {
         self.timer = try std.time.Timer.start();
@@ -60,6 +64,8 @@ const Ctx = struct {
             defer alloc.free(resource_dir_path);
             break :blk try std.fs.cwd().openDir(resource_dir_path, .{});
         };
+
+        self.clipboard = try clipboard.Clipboard.init();
 
         // Text
         self.ft = try text.FreeType.init();
@@ -94,6 +100,9 @@ const Ctx = struct {
         self.gfx = undefined;
         self.frame_count = 0;
         self.render_count = 0;
+        self.last_render_frame = 0;
+
+        log.info("init done at {d}ms", .{self.timer.read() / std.time.ns_per_ms});
     }
 
     pub fn deinit(self: *Self) void {
@@ -103,6 +112,7 @@ const Ctx = struct {
         self.textbuf.deinit();
         self.font.deinit();
         self.ft.deinit();
+        self.clipboard.deinit();
         self.resource_dir.close();
         if (self.sg_initialized) {
             self.gfx.deinit();
@@ -127,6 +137,7 @@ const Ctx = struct {
             .{ .height = self.atlas.size.height, .width = self.atlas.size.width },
         ) catch @panic("pipe init");
         self.sg_initialized = true;
+        log.info("sokol init done at {d}ms", .{self.timer.read() / std.time.ns_per_ms});
     }
 
     pub fn onEvent(self: *Self, event: sokol.Event) void {
@@ -175,8 +186,10 @@ const Ctx = struct {
                 }
             },
             .CLIPBOARD_PASTED => {
-                const s = sokol.c.sapp_get_clipboard_string();
-                log.info("{s} {s}", .{ @tagName(event.type), s });
+                const s = self.clipboard.get();
+                log.info("{s} str={s}", .{ @tagName(event.type), s });
+                self.usertext.appendSlice(s) catch @panic("no mem");
+                self.need_render = true;
             },
             .QUIT_REQUESTED => {
                 log.info("{s} goodbye", .{@tagName(event.type)});
@@ -202,8 +215,7 @@ const Ctx = struct {
                 log.info("{s} n={d}", .{ @tagName(event.type), event.num_touches });
             },
             // Noisy, pass in silence
-            .MOUSE_MOVE,
-            => {},
+            .MOUSE_MOVE => {},
             .INVALID, .NUM => {
                 log.err("got unexpected event {s}", .{@tagName(event.type)});
             },
@@ -221,17 +233,22 @@ const Ctx = struct {
 
     fn onFrameSafe(self: *Self) !void {
         defer self.frame_count += 1;
-        if (!self.need_render) return;
+        if (!self.need_render) {
+            // To account for double/triple buffering
+            if (self.frame_count >= self.last_render_frame + 3)
+                return;
+        }
         defer self.need_render = false;
-        if (self.textbuf.len() < 1) return;
         defer self.atlas.needs_update = false;
 
         // Compute origin (bottom left of line)
-        const origin: twod.Point = blk: {
-            const screen = sokol.screen_rect();
-            const line_height: f32 = @floatFromInt(self.font.face.*.size.*.metrics.height >> 6);
-            break :blk screen.tl.right(10).down(line_height);
+        const screen = sokol.screen_rect();
+        const screen_pad = twod.Rect{
+            .tl = screen.tl.down(5).right(10),
+            .br = screen.br.up(5).left(10),
         };
+        const line_height: f32 = @floatFromInt(self.font.face.*.size.*.metrics.height >> 6);
+        const origin: twod.Point = screen_pad.tl.down(line_height);
         var cursor: twod.Point = origin;
 
         // Text
@@ -240,14 +257,11 @@ const Ctx = struct {
             self.textbuf.addText(self.usertext.items);
             var shaped = self.font.shape(self.textbuf);
 
-            var x_advance: f32 = 0;
             var iter = shaped.iterator();
             while (iter.next()) |char| : ({
-                x_advance = @floatFromInt(char.pos.x_advance >> 6);
-            }) {
-                // Line advance
+                const x_advance: f32 = @floatFromInt(char.pos.x_advance >> 6);
                 cursor = cursor.right(x_advance);
-
+            }) {
                 // Get atlas rect
                 const info = self.atlas.info.get(char.info.codepoint) orelse blk: {
                     log.err("missing glyph idx={d}", .{char.info.codepoint});
@@ -261,7 +275,21 @@ const Ctx = struct {
                     const ybear_offset = tex_rect.height() - ybear;
                     const x_offset: f32 = @floatFromInt((char.pos.x_offset + info.info.horiBearingX) >> 6);
                     const y_offset: f32 = @as(f32, @floatFromInt((char.pos.y_offset) >> 6)) - ybear_offset;
-                    const glyph_origin = cursor.right(x_offset).up(y_offset);
+
+                    const glyph_origin = blk2: {
+                        var glyph_origin = cursor.right(x_offset).up(y_offset);
+                        const glyph_br = cursor.right(tex_rect.width());
+                        if (glyph_br.x > screen_pad.br.x) {
+                            // New line
+                            cursor = twod.Point{
+                                .x = screen_pad.tl.x,
+                                .y = cursor.down(line_height).y,
+                            };
+                            glyph_origin = cursor.right(x_offset).up(y_offset);
+                        }
+                        break :blk2 glyph_origin;
+                    };
+
                     break :blk twod.Rect{
                         .tl = glyph_origin.up(tex_rect.height()),
                         .br = glyph_origin.right(tex_rect.width()),
@@ -271,18 +299,18 @@ const Ctx = struct {
                 // Add triangles
                 try self.vertex_list.appendSlice(&sokol.getRectVertices(glyph_rect, tex_rect));
             }
-            cursor = cursor.right(x_advance);
         }
 
         // 2D drawing
         {
-            const screen = sokol.screen_rect();
+            // Setup
             const width: c_int = @intFromFloat(screen.width());
             const height: c_int = @intFromFloat(screen.height());
             sokol.c.sgp_begin(width, height);
             sokol.c.sgp_viewport(0, 0, width, height);
             sokol.c.sgp_project(0, screen.width(), screen.height(), 0);
 
+            // Draw
             sokol.c.sgp_set_color(0.3, 0.3, 0.3, 1.0);
             sokol.c.sgp_draw_filled_rect(origin.x, origin.y - 7, cursor.x - origin.x, 2.0);
         }
@@ -297,11 +325,14 @@ const Ctx = struct {
             // attachment, render to it, and load it. How exactly that should all
             // work I don't know yet.
 
+            const background_color = sokol.color(255, 255, 255, 1.0);
+            const text_color = sokol.colorVec(0, 128, 0);
+
             var action = sokol.c.sg_pass_action{};
             action.colors[0] = .{
                 .load_action = sokol.c.SG_LOADACTION_CLEAR,
                 .store_action = sokol.c.SG_STOREACTION_STORE,
-                .clear_value = sokol.color(255, 255, 255, 1.0),
+                .clear_value = background_color,
             };
             const pass = sokol.RenderPass.begin(action, null);
             defer pass.endAndCommit();
@@ -310,7 +341,7 @@ const Ctx = struct {
             self.gfx.update(.{
                 .vertices = self.vertex_list.items,
                 .texture = if (self.atlas.needs_update) self.atlas.data else null,
-                .color = sokol.colorVec(0, 128, 0),
+                .color = text_color,
             });
             self.gfx.apply();
 
@@ -321,11 +352,16 @@ const Ctx = struct {
 
         self.vertex_list.clearRetainingCapacity();
         self.render_count += 1;
+        self.last_render_frame = self.frame_count;
+        if (self.render_count == 1) {
+            log.info("first render at {d}ms", .{self.timer.read() / std.time.ns_per_ms});
+        }
     }
 
     pub fn onLog(self: Self, slog: sokol.Log) void {
         _ = self;
         sokol_log.info("sokol {any}", .{slog});
+        if (slog.level == .panic) @panic("sokol failed");
     }
 };
 

@@ -1,6 +1,7 @@
 need freetype
 need harfbuzz
 need sokol
+need libclipboard
 needtool sokol-shdc
 
 slang=$(wrensh -c "$(cat <<EOF
@@ -21,18 +22,18 @@ EOF
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -I. \
-  $(pkg-config --cflags harfbuzz freetype sokol) \
-  "$BUILD_PKG/texthello.zig" \
+  $(pkg-config --cflags harfbuzz freetype sokol libclipboard/clipboard) \
+  "$BUILD_PKG/app.zig" \
   -lc
 
-touch texthello.c
+touch demo.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
-  texthello.c \
-  $(zigi lib texthello) \
-  $(pkg-config --cflags --libs harfbuzz freetype sokol) \
+  demo.c \
+  $(zigi lib app) \
+  $(pkg-config --cflags --libs harfbuzz freetype sokol libclipboard/clipboard) \
   -lc
 
 cd "$BUILD_OUT"
 mkdir -p bin/resources
-mv "$HOME"/$(zigi exe texthello) bin/demo
+mv "$HOME"/$(zigi exe demo) bin
 ln -s "$BUILD_PKG/CourierPrime-Regular.ttf" bin/resources
