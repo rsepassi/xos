@@ -22,6 +22,7 @@ uniform utexture2D tex;
 @sampler_type smp nonfiltering
 uniform sampler smp;
 uniform fs_params {
+    int alpha_only;
     vec3 color;
     vec2 tex_size;
 };
@@ -32,11 +33,16 @@ out vec4 pix;
 
 void main() {
     vec2 nuv = vec2(uv.x / tex_size.x, 1.0 - uv.y / tex_size.y);
-    float alpha = texture(usampler2D(tex, smp), nuv).r / 255.0;
-    if (alpha > 0) {
-      pix = vec4(color, alpha);
+    vec4 texval = texture(usampler2D(tex, smp), nuv);
+    if (alpha_only != 0) {
+      float alpha = texval.r / 255.0;
+      if (alpha > 0) {
+        pix = vec4(color, alpha);
+      } else {
+        discard;
+      }
     } else {
-      discard;
+      pix = texval;
     }
 }
 
