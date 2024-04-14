@@ -574,10 +574,12 @@ pub const AlphaTexturePipeline = TexturePipeline(.{
 });
 pub const ImageTexturePipeline = TexturePipeline(.{
     .alpha_only = false,
+    .max_quads = 6,
 });
 
 const TexturePipelineConfig = struct {
     alpha_only: bool,
+    max_quads: usize = 1 << 16,
 };
 
 fn TexturePipeline(comptime config: TexturePipelineConfig) type {
@@ -617,7 +619,7 @@ fn TexturePipeline(comptime config: TexturePipelineConfig) type {
             };
             const pipeline = c.sg_make_pipeline(&pipeline_desc);
 
-            const max_quads = 1 << 16;
+            const max_quads = config.max_quads;
             const vertices_per_quad = 6;
             const vertex_vals = 4;
             var vertex_buf_desc = c.sg_buffer_desc{
@@ -653,7 +655,7 @@ fn TexturePipeline(comptime config: TexturePipelineConfig) type {
                 .width = @intCast(texture_size.width),
                 .height = @intCast(texture_size.height),
                 .usage = c.SG_USAGE_DYNAMIC,
-                .pixel_format = if (config.alpha_only) c.SG_PIXELFORMAT_R8UI else c.SG_PIXELFORMAT_RGBA8,
+                .pixel_format = if (config.alpha_only) c.SG_PIXELFORMAT_R8UI else c.SG_PIXELFORMAT_RGBA8UI,
             };
             const image = c.sg_make_image(&image_desc);
 

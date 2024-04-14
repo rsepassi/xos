@@ -4,6 +4,7 @@ const twod = @import("twod.zig");
 const sokol = @import("sokol.zig");
 const text = @import("text.zig");
 const clipboard = @import("clipboard.zig");
+const png = @import("png.zig");
 
 const log = std.log.scoped(.texthello);
 pub const std_options = .{
@@ -12,6 +13,7 @@ pub const std_options = .{
 
 const Resources = struct {
     const font = "CourierPrime-Regular.ttf";
+    const image = "nasa-earth.png";
 };
 
 const unknown_char = "\xEF\xBF\xBD";
@@ -40,12 +42,16 @@ const Ctx = struct {
     usertext: std.ArrayList(u8),
     textbuf: text.Buffer,
 
+    // Image
+    image: png.Image,
+
     // Graphics
     need_render: bool,
     sg_initialized: bool,
     atlas: text.FontAtlas,
     vertex_list: std.ArrayList(f32),
-    gfx: sokol.AlphaTexturePipeline,
+    text_pipeline: sokol.AlphaTexturePipeline,
+    image_pipeline: sokol.ImageTexturePipeline,
     frame_count: u64,
     render_count: u64,
     last_render_frame: u64,
@@ -93,11 +99,16 @@ const Ctx = struct {
         self.textbuf = try text.Buffer.init();
         self.textbuf.addText(self.usertext.items);
 
+        var image_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+        const image_path = try self.resource_dir.realpath(Resources.image, &image_path_buf);
+        self.image = try png.Image.fromFile(self.alloc.allocator(), image_path);
+
         self.need_render = true;
         self.sg_initialized = false;
         self.atlas = try text.buildAsciiAtlas(self.alloc.allocator(), self.font);
         self.vertex_list = std.ArrayList(f32).init(self.alloc.allocator());
-        self.gfx = undefined;
+        self.text_pipeline = undefined;
+        self.image_pipeline = undefined;
         self.frame_count = 0;
         self.render_count = 0;
         self.last_render_frame = 0;
@@ -113,9 +124,11 @@ const Ctx = struct {
         self.font.deinit();
         self.ft.deinit();
         self.clipboard.deinit();
+        self.image.deinit();
         self.resource_dir.close();
         if (self.sg_initialized) {
-            self.gfx.deinit();
+            self.text_pipeline.deinit();
+            self.image_pipeline.deinit();
             sokol.c.sgp_shutdown();
             sokol.c.sg_shutdown();
         }
@@ -133,8 +146,11 @@ const Ctx = struct {
         const sgp_desc: sokol.c.sgp_desc = .{};
         sokol.c.sgp_setup(&sgp_desc);
         if (!sokol.c.sgp_is_valid()) @panic("sokol gp init");
-        self.gfx = sokol.AlphaTexturePipeline.init(
+        self.text_pipeline = sokol.AlphaTexturePipeline.init(
             .{ .height = self.atlas.size.height, .width = self.atlas.size.width },
+        ) catch @panic("pipe init");
+        self.image_pipeline = sokol.ImageTexturePipeline.init(
+            .{ .height = self.image.size.height, .width = self.image.size.width },
         ) catch @panic("pipe init");
         self.sg_initialized = true;
         log.info("sokol init done at {d}ms", .{self.timer.read() / std.time.ns_per_ms});
@@ -169,7 +185,11 @@ const Ctx = struct {
             },
             .RESIZED => {
                 log.info("{s} ({d}, {d})", .{ @tagName(event.type), event.framebuffer_width, event.framebuffer_height });
-                self.gfx.update(.{ .screen_size = .{
+                self.text_pipeline.update(.{ .screen_size = .{
+                    .width = @intCast(event.framebuffer_width),
+                    .height = @intCast(event.framebuffer_height),
+                } });
+                self.image_pipeline.update(.{ .screen_size = .{
                     .width = @intCast(event.framebuffer_width),
                     .height = @intCast(event.framebuffer_height),
                 } });
@@ -239,7 +259,17 @@ const Ctx = struct {
             if (self.frame_count >= self.last_render_frame + 3)
                 return;
         }
-        defer self.need_render = false;
+        defer {
+            if (self.need_render) {
+                self.need_render = false;
+                self.last_render_frame = self.frame_count;
+            }
+            self.render_count += 1;
+            if (self.render_count == 1) {
+                log.info("first render at {d}ms", .{self.timer.read() / std.time.ns_per_ms});
+            }
+        }
+        defer self.vertex_list.clearRetainingCapacity();
         defer self.atlas.needs_update = false;
 
         // Compute origin (bottom left of line)
@@ -339,23 +369,37 @@ const Ctx = struct {
             defer pass.endAndCommit();
 
             // Text
-            self.gfx.update(.{
-                .vertices = self.vertex_list.items,
-                .texture = if (self.atlas.needs_update) self.atlas.data else null,
-                .color = text_color,
-            });
-            self.gfx.apply();
+            {
+                self.text_pipeline.update(.{
+                    .vertices = self.vertex_list.items,
+                    .texture = if (self.atlas.needs_update) self.atlas.data else null,
+                    .color = text_color,
+                });
+                self.text_pipeline.apply();
+            }
+
+            // Image
+            {
+                const image_uv = twod.Rect.fromSize(self.image.size);
+                const image_origin = origin.down(30);
+                const image_loc = twod.Rect{
+                    .tl = image_origin,
+                    .br = image_origin.down(image_uv.tl.y).right(image_uv.br.x),
+                };
+                const image_vertices = sokol.getRectVertices(image_loc, image_uv);
+                const image_data: [*]u8 = @ptrCast(self.image.data.ptr);
+                self.image_pipeline.update(.{
+                    .vertices = &image_vertices,
+                    .texture = image_data[0 .. self.image.data.len * 4],
+                });
+                self.image_pipeline.apply();
+            }
 
             // 2D
-            sokol.c.sgp_flush();
-            sokol.c.sgp_end();
-        }
-
-        self.vertex_list.clearRetainingCapacity();
-        self.render_count += 1;
-        self.last_render_frame = self.frame_count;
-        if (self.render_count == 1) {
-            log.info("first render at {d}ms", .{self.timer.read() / std.time.ns_per_ms});
+            {
+                sokol.c.sgp_flush();
+                sokol.c.sgp_end();
+            }
         }
     }
 

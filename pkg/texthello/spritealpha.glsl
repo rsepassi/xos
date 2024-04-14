@@ -32,17 +32,18 @@ in vec2 uv;
 out vec4 pix;
 
 void main() {
-    vec2 nuv = vec2(uv.x / tex_size.x, 1.0 - uv.y / tex_size.y);
-    vec4 texval = texture(usampler2D(tex, smp), nuv);
+    vec2 norm_uv = vec2(uv.x / tex_size.x, 1.0 - uv.y / tex_size.y);
+    uvec4 texval = texture(usampler2D(tex, smp), norm_uv);
+
     if (alpha_only != 0) {
-      float alpha = texval.r / 255.0;
+      float alpha = float(texval.r) / 255.0f;
       if (alpha > 0) {
         pix = vec4(color, alpha);
       } else {
         discard;
       }
     } else {
-      pix = texval;
+      pix = vec4(texval) / 255.0f;
     }
 }
 

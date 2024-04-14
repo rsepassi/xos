@@ -17,6 +17,17 @@ pub const Rect = struct {
     pub fn width(self: @This()) f32 {
         return self.br.x - self.tl.x;
     }
+
+    pub fn fromSize(size: Size) @This() {
+        const tr = Point{
+            .x = @floatFromInt(size.width),
+            .y = @floatFromInt(size.height),
+        };
+        return .{
+            .tl = tr.left(tr.x),
+            .br = tr.down(tr.y),
+        };
+    }
 };
 
 pub const Point = struct {
