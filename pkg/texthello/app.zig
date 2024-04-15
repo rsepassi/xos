@@ -55,7 +55,6 @@ const Ctx = struct {
     vertex_list: std.ArrayList(f32),
     text_pipeline: sokol.AlphaTexturePipeline,
     image_pipeline: sokol.ImageTexturePipeline,
-    image_jpg_pipeline: sokol.ImageTexturePipeline,
     frame_count: u64,
     render_count: u64,
     last_render_frame: u64,
@@ -121,7 +120,6 @@ const Ctx = struct {
         self.vertex_list = std.ArrayList(f32).init(self.alloc.allocator());
         self.text_pipeline = undefined;
         self.image_pipeline = undefined;
-        self.image_jpg_pipeline = undefined;
         self.frame_count = 0;
         self.render_count = 0;
         self.last_render_frame = 0;
@@ -143,7 +141,6 @@ const Ctx = struct {
         if (self.sg_initialized) {
             self.text_pipeline.deinit();
             self.image_pipeline.deinit();
-            self.image_jpg_pipeline.deinit();
             sokol.c.sgp_shutdown();
             sokol.c.sg_shutdown();
         }
@@ -161,15 +158,20 @@ const Ctx = struct {
         const sgp_desc: sokol.c.sgp_desc = .{};
         sokol.c.sgp_setup(&sgp_desc);
         if (!sokol.c.sgp_is_valid()) @panic("sokol gp init");
-        self.text_pipeline = sokol.AlphaTexturePipeline.init(
+
+        self.text_pipeline = sokol.AlphaTexturePipeline.init(self.alloc.allocator()) catch @panic("pipe init");
+        _ = self.text_pipeline.addTexture(
             .{ .height = self.atlas.size.height, .width = self.atlas.size.width },
         ) catch @panic("pipe init");
-        self.image_pipeline = sokol.ImageTexturePipeline.init(
+
+        self.image_pipeline = sokol.ImageTexturePipeline.init(self.alloc.allocator()) catch @panic("pipe init");
+        _ = self.image_pipeline.addTexture(
             .{ .height = self.image.size.height, .width = self.image.size.width },
         ) catch @panic("pipe init");
-        self.image_jpg_pipeline = sokol.ImageTexturePipeline.init(
+        _ = self.image_pipeline.addTexture(
             .{ .height = self.image_jpg.size.height, .width = self.image_jpg.size.width },
         ) catch @panic("pipe init");
+
         self.sg_initialized = true;
         log.info("sokol init done at {d}ms", .{self.timer.read() / std.time.ns_per_ms});
     }
@@ -208,10 +210,6 @@ const Ctx = struct {
                     .height = @intCast(event.framebuffer_height),
                 } });
                 self.image_pipeline.update(.{ .screen_size = .{
-                    .width = @intCast(event.framebuffer_width),
-                    .height = @intCast(event.framebuffer_height),
-                } });
-                self.image_jpg_pipeline.update(.{ .screen_size = .{
                     .width = @intCast(event.framebuffer_width),
                     .height = @intCast(event.framebuffer_height),
                 } });
@@ -393,8 +391,11 @@ const Ctx = struct {
             // Text
             {
                 self.text_pipeline.update(.{
-                    .vertices = self.vertex_list.items,
-                    .texture = if (self.atlas.needs_update) self.atlas.data else null,
+                    .texture = .{
+                        .id = 0,
+                        .data = if (self.atlas.needs_update) self.atlas.data else null,
+                        .vertices = self.vertex_list.items,
+                    },
                     .color = text_color,
                 });
                 self.text_pipeline.apply();
@@ -411,8 +412,11 @@ const Ctx = struct {
                 const image_vertices = sokol.getRectVertices(image_loc, image_uv);
                 const image_data: [*]u8 = @ptrCast(self.image.data.ptr);
                 self.image_pipeline.update(.{
-                    .vertices = &image_vertices,
-                    .texture = image_data[0 .. self.image.data.len * 4],
+                    .texture = .{
+                        .id = 0,
+                        .data = image_data[0 .. self.image.data.len * 4],
+                        .vertices = &image_vertices,
+                    },
                 });
                 self.image_pipeline.apply();
             }
@@ -427,11 +431,14 @@ const Ctx = struct {
                 };
                 const image_vertices = sokol.getRectVertices(image_loc, image_uv);
                 const image_data: [*]u8 = @ptrCast(self.image_jpg.data.ptr);
-                self.image_jpg_pipeline.update(.{
-                    .vertices = &image_vertices,
-                    .texture = image_data[0 .. self.image_jpg.data.len * 4],
+                self.image_pipeline.update(.{
+                    .texture = .{
+                        .id = 1,
+                        .data = image_data[0 .. self.image_jpg.data.len * 4],
+                        .vertices = &image_vertices,
+                    },
                 });
-                self.image_jpg_pipeline.apply();
+                self.image_pipeline.apply();
             }
 
             // 2D

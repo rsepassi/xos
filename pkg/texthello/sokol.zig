@@ -571,6 +571,7 @@ pub const RenderPass = struct {
 
 pub const AlphaTexturePipeline = TexturePipeline(.{
     .alpha_only = true,
+    .max_quads = 1 << 16,
 });
 pub const ImageTexturePipeline = TexturePipeline(.{
     .alpha_only = false,
@@ -579,21 +580,28 @@ pub const ImageTexturePipeline = TexturePipeline(.{
 
 const TexturePipelineConfig = struct {
     alpha_only: bool,
-    max_quads: usize = 1 << 16,
+    max_quads: usize,
 };
 
 fn TexturePipeline(comptime config: TexturePipelineConfig) type {
     return struct {
+        const Texture = struct {
+            image: c.sg_image,
+            vertex_buf: c.sg_buffer,
+            nvertices: usize,
+            size: twod.Size,
+        };
+        const TextureId = usize;
+
         pipeline: c.sg_pipeline,
         shader: c.sg_shader,
-        vertex_buf: c.sg_buffer,
-        texture: c.sg_image,
         sampler: c.sg_sampler,
         vs_args: c.vs_params_t,
         fs_args: c.fs_params_t,
-        nvertices: usize = 0,
+        textures: std.ArrayList(Texture),
+        texture_id: ?TextureId = null,
 
-        pub fn init(texture_size: twod.Size) !@This() {
+        pub fn init(alloc: std.mem.Allocator) !@This() {
             const shader = c.sg_make_shader(c.spritealpha_shader_desc(
                 c.sg_query_backend(),
             ));
@@ -619,16 +627,6 @@ fn TexturePipeline(comptime config: TexturePipelineConfig) type {
             };
             const pipeline = c.sg_make_pipeline(&pipeline_desc);
 
-            const max_quads = config.max_quads;
-            const vertices_per_quad = 6;
-            const vertex_vals = 4;
-            var vertex_buf_desc = c.sg_buffer_desc{
-                .usage = c.SG_USAGE_DYNAMIC,
-                .size = @sizeOf(f32) * max_quads * vertices_per_quad * vertex_vals,
-                .label = "vertices",
-            };
-            const vertex_buf = c.sg_make_buffer(&vertex_buf_desc);
-
             var sampler_desc = c.sg_sampler_desc{
                 .label = "sampler",
             };
@@ -646,24 +644,13 @@ fn TexturePipeline(comptime config: TexturePipelineConfig) type {
             const fs_args = c.fs_params_t{
                 .alpha_only = if (config.alpha_only) 1 else 0,
                 .color = colorVec(0, 0, 0),
-                .tex_size = .{
-                    @floatFromInt(texture_size.width),
-                    @floatFromInt(texture_size.height),
-                },
+                .tex_size = .{ 0, 0 },
             };
-            var image_desc = c.sg_image_desc{
-                .width = @intCast(texture_size.width),
-                .height = @intCast(texture_size.height),
-                .usage = c.SG_USAGE_DYNAMIC,
-                .pixel_format = if (config.alpha_only) c.SG_PIXELFORMAT_R8UI else c.SG_PIXELFORMAT_RGBA8UI,
-            };
-            const image = c.sg_make_image(&image_desc);
 
             return .{
                 .shader = shader,
                 .pipeline = pipeline,
-                .vertex_buf = vertex_buf,
-                .texture = image,
+                .textures = std.ArrayList(Texture).init(alloc),
                 .sampler = sampler,
                 .vs_args = vs_args,
                 .fs_args = fs_args,
@@ -671,35 +658,77 @@ fn TexturePipeline(comptime config: TexturePipelineConfig) type {
         }
 
         pub fn deinit(self: @This()) void {
-            c.sg_destroy_buffer(self.vertex_buf);
-            c.sg_destroy_image(self.texture);
+            for (self.textures.items) |t| {
+                c.sg_destroy_buffer(t.vertex_buf);
+                c.sg_destroy_image(t.image);
+            }
+            self.textures.deinit();
             c.sg_destroy_sampler(self.sampler);
             c.sg_destroy_shader(self.shader);
             c.sg_destroy_pipeline(self.pipeline);
         }
 
+        pub fn addTexture(self: *@This(), size: twod.Size) !TextureId {
+            var image_desc = c.sg_image_desc{
+                .width = @intCast(size.width),
+                .height = @intCast(size.height),
+                .usage = c.SG_USAGE_DYNAMIC,
+                .pixel_format = if (config.alpha_only) c.SG_PIXELFORMAT_R8UI else c.SG_PIXELFORMAT_RGBA8UI,
+            };
+            const image = c.sg_make_image(&image_desc);
+
+            const max_quads = config.max_quads;
+            const vertices_per_quad = 6;
+            const vertex_vals = 4;
+            var vertex_buf_desc = c.sg_buffer_desc{
+                .usage = c.SG_USAGE_DYNAMIC,
+                .size = @sizeOf(f32) * max_quads * vertices_per_quad * vertex_vals,
+            };
+            const vertex_buf = c.sg_make_buffer(&vertex_buf_desc);
+
+            try self.textures.append(.{
+                .image = image,
+                .size = size,
+                .vertex_buf = vertex_buf,
+                .nvertices = 0,
+            });
+            return self.textures.items.len - 1;
+        }
+
         const UpdateArgs = struct {
-            vertices: ?[]const f32 = null,
-            texture: ?[]const u8 = null,
+            texture: ?(struct {
+                id: TextureId,
+                vertices: ?[]const f32 = null,
+                data: ?[]const u8 = null,
+            }) = null,
             color: ?[3]f32 = null,
             screen_size: ?twod.Size = null,
         };
         pub fn update(self: *@This(), args: UpdateArgs) void {
-            if (args.vertices) |v| {
-                const vertex_data = c.sg_range{
-                    .ptr = v.ptr,
-                    .size = v.len * @sizeOf(f32),
-                };
-                c.sg_update_buffer(self.vertex_buf, &vertex_data);
-                self.nvertices = v.len / 4;
-            }
-
             if (args.texture) |tex| {
-                const data = c.sg_range{
-                    .ptr = tex.ptr,
-                    .size = tex.len * @sizeOf(u8),
+                self.texture_id = tex.id;
+                var tex_ = &self.textures.items[tex.id];
+                self.fs_args.tex_size = .{
+                    @floatFromInt(tex_.size.width),
+                    @floatFromInt(tex_.size.height),
                 };
-                c.sg_update_image(self.texture, @ptrCast(&data));
+
+                if (tex.data) |tex_data| {
+                    const data = c.sg_range{
+                        .ptr = tex_data.ptr,
+                        .size = tex_data.len * @sizeOf(u8),
+                    };
+                    c.sg_update_image(tex_.image, @ptrCast(&data));
+                }
+
+                if (tex.vertices) |v| {
+                    const vertex_data = c.sg_range{
+                        .ptr = v.ptr,
+                        .size = v.len * @sizeOf(f32),
+                    };
+                    c.sg_update_buffer(tex_.vertex_buf, &vertex_data);
+                    tex_.nvertices = v.len / 4;
+                }
             }
 
             if (args.screen_size) |size| {
@@ -720,11 +749,12 @@ fn TexturePipeline(comptime config: TexturePipelineConfig) type {
 
         pub fn apply(self: *const @This()) void {
             c.sg_apply_pipeline(self.pipeline);
+            const tex = self.textures.items[self.texture_id.?];
 
             // Bindings
             var bindings = c.sg_bindings{};
-            bindings.vertex_buffers[0] = self.vertex_buf;
-            bindings.fs.images[0] = self.texture;
+            bindings.vertex_buffers[0] = tex.vertex_buf;
+            bindings.fs.images[0] = tex.image;
             bindings.fs.samplers[0] = self.sampler;
             c.sg_apply_bindings(&bindings);
 
@@ -743,7 +773,7 @@ fn TexturePipeline(comptime config: TexturePipelineConfig) type {
             // Draw
             c.sg_draw(
                 0, // base_element
-                @intCast(self.nvertices), // num_elements
+                @intCast(tex.nvertices), // num_elements
                 1, // num_instances
             );
         }
