@@ -569,10 +569,19 @@ pub const RenderPass = struct {
     }
 };
 
+// Each texture is many images
+pub const SpriteTexturePipeline = TexturePipeline(.{
+    .alpha_only = false,
+    .max_quads = 1 << 16,
+});
+
+// Each texture is many (alpha) images
 pub const AlphaTexturePipeline = TexturePipeline(.{
     .alpha_only = true,
     .max_quads = 1 << 16,
 });
+
+// Each texture is just 1 image
 pub const ImageTexturePipeline = TexturePipeline(.{
     .alpha_only = false,
     .max_quads = 6,
