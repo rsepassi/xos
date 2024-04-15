@@ -20,9 +20,9 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
 
 zig build-exe -target $TARGET -O $OPT_ZIG \
 	-I "$BUILD_DEPS" \
+  $cflags \
   "$BUILD_PKG/demo.c" \
   $(zigi lib miniaudio) \
-  $cflags \
   -lc
 
 cd "$BUILD_OUT"
