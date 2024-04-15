@@ -6,16 +6,29 @@ fetch "$url" "$file" "$hash"
 if [ "$TARGET_OS" = "macos" ]
 then
   need macossdk
-  cflags=$(pkg-config --cflags macossdk)
+  cflags="$(pkg-config --cflags macossdk) -framework CoreFoundation -framework CoreAudio -framework AudioToolbox"
 fi
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -DMINIAUDIO_IMPLEMENTATION \
-  -cflags $cflags -- \
+  -DMA_NO_RUNTIME_LINKING \
+  -DMA_ENABLE_ONLY_SPECIFIC_BACKENDS \
+  -DMA_ENABLE_COREAUDIO \
+  $cflags \
   -x c "$BUILD_DEPS/miniaudio.h" \
   -lc
 
+zig build-exe -target $TARGET -O $OPT_ZIG \
+	-I "$BUILD_DEPS" \
+  "$BUILD_PKG/demo.c" \
+  $(zigi lib miniaudio) \
+  $cflags \
+  -lc
+
 cd "$BUILD_OUT"
-mkdir lib include
+mkdir lib include bin share
 cp "$BUILD_DEPS/miniaudio.h" include
 cp "$HOME/$(zigi lib miniaudio)" lib
+cp "$HOME/$(zigi exe demo)" bin
+ln -s "$BUILD_PKG/CantinaBand3.wav" share
+pkg-config --gendefault miniaudio --cflags "$cflags"
