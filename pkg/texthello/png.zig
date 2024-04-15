@@ -1,18 +1,17 @@
 const std = @import("std");
 const c = @cImport(@cInclude("png.h"));
 const twod = @import("twod.zig");
-const libimage = @import("image.zig");
 
 pub const PNG = struct {
-    const Row = [*]libimage.RGBA;
+    const Row = [*]twod.RGBA;
 
     alloc: std.mem.Allocator,
-    data: []libimage.RGBA,
+    data: []twod.RGBA,
     rows: []Row,
     size: twod.Size,
 
     pub fn init(alloc: std.mem.Allocator, size: twod.Size) !@This() {
-        const data = try alloc.alloc(libimage.RGBA, size.area());
+        const data = try alloc.alloc(twod.RGBA, size.area());
         errdefer alloc.free(data);
         const rows = try alloc.alloc(Row, size.height);
         for (rows, 0..) |*row, i| {
@@ -31,7 +30,7 @@ pub const PNG = struct {
         self.alloc.free(self.rows);
     }
 
-    pub fn image(self: @This()) libimage.Image {
+    pub fn image(self: @This()) twod.Image {
         return .{
             .data = self.data,
             .size = self.size,

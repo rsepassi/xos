@@ -47,3 +47,15 @@ pub const Point = struct {
         return .{ .x = self.x + delta, .y = self.y };
     }
 };
+
+pub const RGBA = extern struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+};
+
+pub const Image = struct {
+    data: []RGBA,
+    size: Size,
+};
