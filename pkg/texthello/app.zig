@@ -5,6 +5,7 @@ const sokol = @import("sokol.zig");
 const text = @import("text.zig");
 const clipboard = @import("clipboard.zig");
 const png = @import("png.zig");
+const jpg = @import("jpg.zig");
 
 const log = std.log.scoped(.texthello);
 pub const std_options = .{
@@ -14,6 +15,7 @@ pub const std_options = .{
 const Resources = struct {
     const font = "CourierPrime-Regular.ttf";
     const image = "nasa-earth.png";
+    const image_jpg = "van.jpg";
 };
 
 const unknown_char = "\xEF\xBF\xBD";
@@ -44,6 +46,7 @@ const Ctx = struct {
 
     // Image
     image: png.Image,
+    image_jpg: jpg.Image,
 
     // Graphics
     need_render: bool,
@@ -52,6 +55,7 @@ const Ctx = struct {
     vertex_list: std.ArrayList(f32),
     text_pipeline: sokol.AlphaTexturePipeline,
     image_pipeline: sokol.ImageTexturePipeline,
+    image_jpg_pipeline: sokol.ImageTexturePipeline,
     frame_count: u64,
     render_count: u64,
     last_render_frame: u64,
@@ -99,9 +103,17 @@ const Ctx = struct {
         self.textbuf = try text.Buffer.init();
         self.textbuf.addText(self.usertext.items);
 
-        var image_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-        const image_path = try self.resource_dir.realpath(Resources.image, &image_path_buf);
-        self.image = try png.Image.fromFile(self.alloc.allocator(), image_path);
+        {
+            var image_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+            const image_path = try self.resource_dir.realpath(Resources.image, &image_path_buf);
+            self.image = try png.Image.fromFile(self.alloc.allocator(), image_path);
+        }
+        {
+            var image_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+            const image_path = try self.resource_dir.realpath(Resources.image_jpg, &image_path_buf);
+            image_path_buf[image_path.len] = 0;
+            self.image_jpg = try jpg.Image.fromFile(self.alloc.allocator(), @ptrCast(image_path));
+        }
 
         self.need_render = true;
         self.sg_initialized = false;
@@ -109,6 +121,7 @@ const Ctx = struct {
         self.vertex_list = std.ArrayList(f32).init(self.alloc.allocator());
         self.text_pipeline = undefined;
         self.image_pipeline = undefined;
+        self.image_jpg_pipeline = undefined;
         self.frame_count = 0;
         self.render_count = 0;
         self.last_render_frame = 0;
@@ -125,10 +138,12 @@ const Ctx = struct {
         self.ft.deinit();
         self.clipboard.deinit();
         self.image.deinit();
+        self.image_jpg.deinit();
         self.resource_dir.close();
         if (self.sg_initialized) {
             self.text_pipeline.deinit();
             self.image_pipeline.deinit();
+            self.image_jpg_pipeline.deinit();
             sokol.c.sgp_shutdown();
             sokol.c.sg_shutdown();
         }
@@ -151,6 +166,9 @@ const Ctx = struct {
         ) catch @panic("pipe init");
         self.image_pipeline = sokol.ImageTexturePipeline.init(
             .{ .height = self.image.size.height, .width = self.image.size.width },
+        ) catch @panic("pipe init");
+        self.image_jpg_pipeline = sokol.ImageTexturePipeline.init(
+            .{ .height = self.image_jpg.size.height, .width = self.image_jpg.size.width },
         ) catch @panic("pipe init");
         self.sg_initialized = true;
         log.info("sokol init done at {d}ms", .{self.timer.read() / std.time.ns_per_ms});
@@ -190,6 +208,10 @@ const Ctx = struct {
                     .height = @intCast(event.framebuffer_height),
                 } });
                 self.image_pipeline.update(.{ .screen_size = .{
+                    .width = @intCast(event.framebuffer_width),
+                    .height = @intCast(event.framebuffer_height),
+                } });
+                self.image_jpg_pipeline.update(.{ .screen_size = .{
                     .width = @intCast(event.framebuffer_width),
                     .height = @intCast(event.framebuffer_height),
                 } });
@@ -393,6 +415,23 @@ const Ctx = struct {
                     .texture = image_data[0 .. self.image.data.len * 4],
                 });
                 self.image_pipeline.apply();
+            }
+
+            // Image 2
+            {
+                const image_uv = twod.Rect.fromSize(self.image_jpg.size);
+                const image_origin = origin.down(30).right(@floatFromInt(self.image.size.width + 20));
+                const image_loc = twod.Rect{
+                    .tl = image_origin,
+                    .br = image_origin.down(image_uv.tl.y).right(image_uv.br.x),
+                };
+                const image_vertices = sokol.getRectVertices(image_loc, image_uv);
+                const image_data: [*]u8 = @ptrCast(self.image_jpg.data.ptr);
+                self.image_jpg_pipeline.update(.{
+                    .vertices = &image_vertices,
+                    .texture = image_data[0 .. self.image_jpg.data.len * 4],
+                });
+                self.image_jpg_pipeline.apply();
             }
 
             // 2D

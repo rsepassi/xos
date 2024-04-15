@@ -3,6 +3,7 @@ need harfbuzz
 need sokol
 need libclipboard
 need libpng
+need stb_image
 needtool sokol-shdc
 
 slang=$(wrensh -c "$(cat <<EOF
@@ -23,7 +24,7 @@ EOF
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -I. \
-  $(pkg-config --cflags harfbuzz freetype sokol libclipboard/clipboard libpng/png) \
+  $(pkg-config --cflags harfbuzz freetype sokol libclipboard/clipboard libpng/png stb_image) \
   "$BUILD_PKG/app.zig" \
   -lc
 
@@ -31,7 +32,7 @@ touch demo.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
   demo.c \
   $(zigi lib app) \
-  $(pkg-config --cflags --libs harfbuzz freetype sokol libclipboard/clipboard libpng/png) \
+  $(pkg-config --cflags --libs harfbuzz freetype sokol libclipboard/clipboard libpng/png stb_image) \
   -lc
 
 cd "$BUILD_OUT"
@@ -39,3 +40,4 @@ mkdir -p bin/resources
 mv "$HOME"/$(zigi exe demo) bin
 ln -s "$BUILD_PKG/CourierPrime-Regular.ttf" bin/resources
 ln -s "$BUILD_PKG/nasa-earth.png" bin/resources
+ln -s "$BUILD_PKG/van.jpg" bin/resources
