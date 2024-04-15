@@ -25,9 +25,8 @@ EOF
 
 if [ "$TARGET_OS" = "linux" ]
 then
-  #need linuxsdk -- libxcb-dev xcb
-  #sdk="$BUILD_DEPS/linuxsdk"
-  sdk="/usr"
+  need linuxsdk -- alpine libxcb-dev xcb
+  sdk="$BUILD_DEPS/linuxsdk"
   cflags="-I$sdk/include"
   ldflags="-L$sdk/lib -lxcb"
 elif [ "$TARGET_OS" = "macos" ]

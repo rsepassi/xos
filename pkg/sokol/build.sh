@@ -13,9 +13,8 @@ fetch "https://raw.githubusercontent.com/edubart/sokol_gp/master/sokol_gp.h" \
 sokol_file=sokol.c
 if [ "$TARGET_OS" = "linux" ]
 then
-  #need linuxsdk -- alpine mesa-dev,libxi-dev,libxcursor-dev GL,EGL,X11,Xi,Xcursor
-  #sdk="$BUILD_DEPS/linuxsdk"
-  sdk="/usr"
+  need linuxsdk -- alpine mesa-dev,libxi-dev,libxcursor-dev GL,EGL,X11,Xi,Xcursor
+  sdk="$BUILD_DEPS/linuxsdk"
   cflags="-DSOKOL_GLES3 -I$sdk/include"
   ldflags="
   -L$sdk/lib

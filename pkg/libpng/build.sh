@@ -35,6 +35,8 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
 cd "$BUILD_OUT"
 mkdir lib include bin
 cp "$src/png.h" include
+cp "$src/pngconf.h" include
+cp "$BUILD_PKG/pnglibconf.h" include
 mv "$src/$(zigi lib png)" lib
 mv "$src/$(zigi exe demo)" bin
 pkg-config --gendefault png --deps zlib/z
