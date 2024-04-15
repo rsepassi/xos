@@ -3,22 +3,74 @@
 
 #include "miniaudio.h"
 
+ma_result onOpen(ma_vfs* pVFS, const char* pFilePath, ma_uint32 openMode, ma_vfs_file* pFile) {
+  char* mode = (openMode & MA_OPEN_MODE_WRITE) ? "wb" : "rb";
+  FILE* f = fopen(pFilePath, mode);
+  *pFile = f;
+  return MA_SUCCESS;
+}
+
+ma_result onClose(ma_vfs* pVFS, ma_vfs_file file) {
+  fclose(file);
+  return MA_SUCCESS;
+}
+
+ma_result onRead(ma_vfs* pVFS, ma_vfs_file file, void* pDst, size_t sizeInBytes, size_t* pBytesRead) {
+  *pBytesRead = fread(pDst, 1, sizeInBytes, file);
+  return MA_SUCCESS;
+}
+
+ma_result onInfo(ma_vfs* pVFS, ma_vfs_file file, ma_file_info* pInfo) {
+  fseek(file, 0, SEEK_END);
+  long fsize = ftell(file);
+  fseek(file, 0, SEEK_SET);
+  pInfo->sizeInBytes = fsize;
+  return MA_SUCCESS;
+}
+
 int playback_main(char* input_file)
 {
     ma_result result;
     ma_engine engine;
 
-    result = ma_engine_init(NULL, &engine);
+    ma_vfs_callbacks vfs = {
+        .onOpen = onOpen,
+        .onClose = onClose,
+        .onRead = onRead,
+        .onInfo = onInfo,
+    };
+
+    ma_resource_manager_config config = ma_resource_manager_config_init();
+    config.pVFS = &vfs;
+
+    ma_resource_manager resourceManager;
+    result = ma_resource_manager_init(&config, &resourceManager);
+    if (result != MA_SUCCESS) {
+      return result;
+    }
+
+    ma_engine_config engineConfig = ma_engine_config_init();
+    engineConfig.pResourceManager = &resourceManager;
+
+    result = ma_engine_init(&engineConfig, &engine);
     if (result != MA_SUCCESS) {
         printf("Failed to initialize audio engine.");
         return -1;
     }
 
-    ma_engine_play_sound(&engine, input_file, NULL);
+    ma_sound sound;
+
+    result = ma_sound_init_from_file(&engine, input_file, 0, NULL, NULL, &sound);
+    if (result != MA_SUCCESS) {
+          return result;
+    }
+
+    ma_sound_start(&sound);
 
     printf("Press Enter to quit...");
     getchar();
 
+    ma_sound_stop(&sound);
     ma_engine_uninit(&engine);
 
     return 0;
