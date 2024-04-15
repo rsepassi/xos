@@ -5,7 +5,7 @@ const sokol = @import("sokol.zig");
 const text = @import("text.zig");
 const clipboard = @import("clipboard.zig");
 const png = @import("png.zig");
-const jpg = @import("jpg.zig");
+const jpeg = @import("jpeg.zig");
 
 const log = std.log.scoped(.texthello);
 pub const std_options = .{
@@ -15,7 +15,7 @@ pub const std_options = .{
 const Resources = struct {
     const font = "CourierPrime-Regular.ttf";
     const image = "nasa-earth.png";
-    const image_jpg = "van.jpg";
+    const image_jpeg = "van.jpg";
 };
 
 const unknown_char = "\xEF\xBF\xBD";
@@ -45,8 +45,8 @@ const Ctx = struct {
     textbuf: text.Buffer,
 
     // Image
-    image: png.Image,
-    image_jpg: jpg.Image,
+    image: png.PNG,
+    image_jpeg: jpeg.JPEG,
 
     // Graphics
     need_render: bool,
@@ -105,13 +105,13 @@ const Ctx = struct {
         {
             var image_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
             const image_path = try self.resource_dir.realpath(Resources.image, &image_path_buf);
-            self.image = try png.Image.fromFile(self.alloc.allocator(), image_path);
+            self.image = try png.PNG.fromFile(self.alloc.allocator(), image_path);
         }
         {
             var image_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-            const image_path = try self.resource_dir.realpath(Resources.image_jpg, &image_path_buf);
+            const image_path = try self.resource_dir.realpath(Resources.image_jpeg, &image_path_buf);
             image_path_buf[image_path.len] = 0;
-            self.image_jpg = try jpg.Image.fromFile(self.alloc.allocator(), @ptrCast(image_path));
+            self.image_jpeg = try jpeg.JPEG.fromFile(self.alloc.allocator(), @ptrCast(image_path));
         }
 
         self.need_render = true;
@@ -136,7 +136,7 @@ const Ctx = struct {
         self.ft.deinit();
         self.clipboard.deinit();
         self.image.deinit();
-        self.image_jpg.deinit();
+        self.image_jpeg.deinit();
         self.resource_dir.close();
         if (self.sg_initialized) {
             self.text_pipeline.deinit();
@@ -166,10 +166,10 @@ const Ctx = struct {
 
         self.image_pipeline = sokol.ImageTexturePipeline.init(self.alloc.allocator()) catch @panic("pipe init");
         _ = self.image_pipeline.addTexture(
-            .{ .height = self.image.size.height, .width = self.image.size.width },
+            .{ .height = self.image.image().size.height, .width = self.image.image().size.width },
         ) catch @panic("pipe init");
         _ = self.image_pipeline.addTexture(
-            .{ .height = self.image_jpg.size.height, .width = self.image_jpg.size.width },
+            .{ .height = self.image_jpeg.image().size.height, .width = self.image_jpeg.image().size.width },
         ) catch @panic("pipe init");
 
         self.sg_initialized = true;
@@ -403,18 +403,19 @@ const Ctx = struct {
 
             // Image
             {
-                const image_uv = twod.Rect.fromSize(self.image.size);
+                const img = self.image.image();
+                const image_uv = twod.Rect.fromSize(img.size);
                 const image_origin = origin.down(30);
                 const image_loc = twod.Rect{
                     .tl = image_origin,
                     .br = image_origin.down(image_uv.tl.y).right(image_uv.br.x),
                 };
                 const image_vertices = sokol.getRectVertices(image_loc, image_uv);
-                const image_data: [*]u8 = @ptrCast(self.image.data.ptr);
+                const image_data: [*]u8 = @ptrCast(img.data.ptr);
                 self.image_pipeline.update(.{
                     .texture = .{
                         .id = 0,
-                        .data = image_data[0 .. self.image.data.len * 4],
+                        .data = image_data[0 .. img.data.len * 4],
                         .vertices = &image_vertices,
                     },
                 });
@@ -423,18 +424,19 @@ const Ctx = struct {
 
             // Image 2
             {
-                const image_uv = twod.Rect.fromSize(self.image_jpg.size);
+                const img = self.image_jpeg.image();
+                const image_uv = twod.Rect.fromSize(img.size);
                 const image_origin = origin.down(30).right(@floatFromInt(self.image.size.width + 20));
                 const image_loc = twod.Rect{
                     .tl = image_origin,
                     .br = image_origin.down(image_uv.tl.y).right(image_uv.br.x),
                 };
                 const image_vertices = sokol.getRectVertices(image_loc, image_uv);
-                const image_data: [*]u8 = @ptrCast(self.image_jpg.data.ptr);
+                const image_data: [*]u8 = @ptrCast(img.data.ptr);
                 self.image_pipeline.update(.{
                     .texture = .{
                         .id = 1,
-                        .data = image_data[0 .. self.image_jpg.data.len * 4],
+                        .data = image_data[0 .. img.data.len * 4],
                         .vertices = &image_vertices,
                     },
                 });

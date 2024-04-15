@@ -1,24 +1,18 @@
 const std = @import("std");
 const c = @cImport(@cInclude("png.h"));
 const twod = @import("twod.zig");
+const libimage = @import("image.zig");
 
-pub const RGBA = extern struct {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
-};
-
-pub const Image = struct {
-    const Row = [*]RGBA;
+pub const PNG = struct {
+    const Row = [*]libimage.RGBA;
 
     alloc: std.mem.Allocator,
-    data: []RGBA,
+    data: []libimage.RGBA,
     rows: []Row,
     size: twod.Size,
 
     pub fn init(alloc: std.mem.Allocator, size: twod.Size) !@This() {
-        const data = try alloc.alloc(RGBA, size.area());
+        const data = try alloc.alloc(libimage.RGBA, size.area());
         errdefer alloc.free(data);
         const rows = try alloc.alloc(Row, size.height);
         for (rows, 0..) |*row, i| {
@@ -35,6 +29,13 @@ pub const Image = struct {
     pub fn deinit(self: @This()) void {
         self.alloc.free(self.data);
         self.alloc.free(self.rows);
+    }
+
+    pub fn image(self: @This()) libimage.Image {
+        return .{
+            .data = self.data,
+            .size = self.size,
+        };
     }
 
     pub fn ascii(self: @This(), writer: anytype) !void {
@@ -93,9 +94,9 @@ pub const Image = struct {
             c.png_read_update_info(png_ptr, info_ptr);
         }
 
-        const image = try Image.init(alloc, size);
-        c.png_read_image(png_ptr, @ptrCast(@alignCast(image.rows.ptr)));
-        return image;
+        const img = try PNG.init(alloc, size);
+        c.png_read_image(png_ptr, @ptrCast(@alignCast(img.rows.ptr)));
+        return img;
     }
 };
 
