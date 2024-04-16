@@ -16,12 +16,14 @@ do
 done
 IFS=$oldifs
 
+ldlibs=""
 libs=""
 oldifs=$IFS
 IFS=","
 for lib in $3
 do
   libs="$libs $lib"
+  ldlibs="$ldlibs -l$lib"
 done
 IFS=$oldifs
 
@@ -47,3 +49,9 @@ for lib in $libs
 do
   cp export/usr/lib/lib$lib.so "$BUILD_OUT"/lib
 done
+
+mkdir "$BUILD_OUT/pkgconfig"
+cat <<EOF > "$BUILD_OUT/pkgconfig/linuxsdk.pc"
+Cflags: -I\${rootdir}/include
+Libs: $ldlibs
+EOF
