@@ -67,7 +67,7 @@ int playback_main(char* input_file)
 
     ma_sound_start(&sound);
 
-    printf("Press Enter to quit...");
+    fprintf(stderr, "Press Enter to quit...");
     getchar();
 
     ma_sound_stop(&sound);
@@ -124,7 +124,7 @@ int capture_main(char* output_file)
         return -3;
     }
 
-    printf("Press Enter to stop recording...\n");
+    fprintf(stderr, "Press Enter to stop recording...\n");
     getchar();
     
     ma_device_uninit(&device);

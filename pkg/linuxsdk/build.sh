@@ -16,12 +16,14 @@ do
 done
 IFS=$oldifs
 
+ldlibs=""
 libs=""
 oldifs=$IFS
 IFS=","
 for lib in $3
 do
   libs="$libs $lib"
+  ldlibs="$ldlibs -l$lib"
 done
 IFS=$oldifs
 
@@ -33,10 +35,10 @@ then
   arch="arm64"
 fi
 
-id=$(system podman run --arch $arch -d alpine:3.19 sleep 10000000)
-system podman exec $id apk add $pkgs
-system podman export $id -o export.tar.gz
-system podman kill $id
+id=$(system_export podman run --arch $arch -d alpine:3.19 sleep 10000000)
+system_export podman exec $id apk add $pkgs
+system_export podman export $id -o export.tar.gz
+system_export podman kill $id
 
 mkdir export
 tar xf export.tar.gz -C export
@@ -47,3 +49,9 @@ for lib in $libs
 do
   cp export/usr/lib/lib$lib.so "$BUILD_OUT"/lib
 done
+
+mkdir "$BUILD_OUT/pkgconfig"
+cat <<EOF > "$BUILD_OUT/pkgconfig/linuxsdk.pc"
+Cflags: -I\${rootdir}/include
+Libs: -L\${rootdir}/lib $ldlibs
+EOF
