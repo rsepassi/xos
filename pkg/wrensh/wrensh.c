@@ -692,6 +692,9 @@ extern void timerLap(WrenVM*);
 extern void timerRead(WrenVM*);
 extern void timerReset(WrenVM*);
 
+extern void jsonEncode(WrenVM*);
+extern void jsonDecode(WrenVM*);
+
 WrenForeignClassMethods bindForeignClass(
     WrenVM* vm, const char* module, const char* className) {
   CHECK(!strcmp(module, "io"), "unexpected foreign class");
@@ -740,6 +743,12 @@ WrenForeignMethodFn bindForeignMethod(
       if (!strcmp(signature, "reset()")) return timerReset;
   }
 
+  // JSON
+  if (!strcmp(className, "JSON") && isStatic) {
+      if (!strcmp(signature, "encode(_)")) return jsonEncode;
+      if (!strcmp(signature, "decode(_)")) return jsonDecode;
+  }
+
   // IO
   CHECK(!strcmp(className, "IO") &&
         isStatic, "unexpected foreign method");
@@ -783,7 +792,7 @@ WrenVM* setupWren(Ctx* ctx) {
 
   CHECK(wrenInterpret(vm, "io", wrenMetaSource()) == WREN_RESULT_SUCCESS, "bad meta src");
   CHECK(wrenInterpret(vm, "io", wrensh_src_io) == WREN_RESULT_SUCCESS, "bad io src");
-  CHECK(wrenInterpret(vm, "main", "import \"io\" for IO, X, Data") == WREN_RESULT_SUCCESS);
+  CHECK(wrenInterpret(vm, "main", "import \"io\" for IO, X, Data, JSON") == WREN_RESULT_SUCCESS);
 
   return vm;
 }

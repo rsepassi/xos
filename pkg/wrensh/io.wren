@@ -1,3 +1,8 @@
+class JSON {
+  foreign static encode(obj)
+  foreign static decode(str)
+}
+
 foreign class Trap {
   construct new(signal, fn) {}
   foreign cancel()
