@@ -47,7 +47,7 @@ mv export/usr/include "$BUILD_OUT"
 mkdir "$BUILD_OUT"/lib
 for lib in $libs
 do
-  cp export/usr/lib/lib$lib.so "$BUILD_OUT"/lib
+  cp export/usr/lib/lib$lib.so* "$BUILD_OUT"/lib
 done
 
 mkdir "$BUILD_OUT/pkgconfig"
