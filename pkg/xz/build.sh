@@ -1,8 +1,8 @@
 file=xz.tar.xz
 src=$(fetch_untar \
-  "https://github.com/tukaani-project/xz/releases/download/v5.4.6/xz-5.4.6.tar.xz" \
+  "https://github.com/tukaani-project/xz/archive/refs/tags/v5.2.2.tar.gz" \
   "xz.tar.xz" \
-  "b92d4e3a438affcf13362a1305cd9d94ed47ddda22e456a42791e630a5644f5c")
+  "578694987c14d73b2d075f477d89006522b91c88890f45a1d231cd29d555e00e")
 cd $src
 cp $BUILD_PKG/build.zig .
 cp $BUILD_PKG/arch/config-$TARGET_OS.h config.h
