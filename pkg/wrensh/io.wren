@@ -3,6 +3,11 @@ class JSON {
   foreign static decode(str)
 }
 
+foreign class Watcher {
+  construct new(path, fn) {}
+  foreign cancel()
+}
+
 foreign class Trap {
   construct new(signal, fn) {}
   foreign cancel()
@@ -210,6 +215,10 @@ class IO {
 
   static trap(sig, fn) {
     return Trap.new(sig, fn)
+  }
+
+  static watch(path, fn) {
+    return Watcher.new(path, fn)
   }
 
   foreign static glob(pattern)
