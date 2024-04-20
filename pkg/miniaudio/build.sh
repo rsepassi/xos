@@ -9,7 +9,7 @@ if [ "$TARGET_OS" = "macos" ]
 then
   need macossdk
   cflags="$(pkg-config --cflags macossdk) -framework CoreFoundation -framework CoreAudio -framework AudioToolbox"
-  backend="-DMA_ENABLE_COREAUDIO"
+  backend="-DMA_ENABLE_COREAUDIO -DMA_NO_RUNTIME_LINKING"
 elif [ "$TARGET_OS" = "windows" ]
 then
   backend="-DMA_ENABLE_WASAPI"
@@ -25,7 +25,6 @@ fi
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -DMINIAUDIO_IMPLEMENTATION \
-  -DMA_NO_RUNTIME_LINKING \
   -DMA_ENABLE_ONLY_SPECIFIC_BACKENDS \
   $backend \
   $cflags \
