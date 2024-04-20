@@ -187,7 +187,12 @@ const Ctx = struct {
                 log.info("CHAR code={d} str={s}", .{ event.char_code, utf8 });
 
                 if (std.ascii.isPrint(utf8[0])) {
+                    // Printable character
                     self.usertext.appendSlice(utf8) catch @panic("no mem");
+                    self.need_render = true;
+                } else if (utf8[0] == 127) {
+                    // Backspace
+                    _ = self.usertext.pop();
                     self.need_render = true;
                 }
             },
@@ -291,6 +296,8 @@ const Ctx = struct {
         }
         defer self.vertex_list.clearRetainingCapacity();
         defer self.atlas.needs_update = false;
+
+        const first_render = self.render_count == 0;
 
         // Compute origin (bottom left of line)
         const screen = sokol.screen_rect();
@@ -415,7 +422,7 @@ const Ctx = struct {
                 self.image_pipeline.update(.{
                     .texture = .{
                         .id = 0,
-                        .data = image_data[0 .. img.data.len * 4],
+                        .data = if (first_render) image_data[0 .. img.data.len * 4] else null,
                         .vertices = &image_vertices,
                     },
                 });
@@ -436,7 +443,7 @@ const Ctx = struct {
                 self.image_pipeline.update(.{
                     .texture = .{
                         .id = 1,
-                        .data = image_data[0 .. img.data.len * 4],
+                        .data = if (first_render) image_data[0 .. img.data.len * 4] else null,
                         .vertices = &image_vertices,
                     },
                 });
