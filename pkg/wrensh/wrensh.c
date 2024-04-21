@@ -7,6 +7,8 @@
 #include "xglob.h"
 #include "sds.h"
 
+#include "wrensh.h"
+
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define LOG_HELPER(prefix, fmt, ...) do { \
 	fprintf(stderr, "[" prefix " %s:%d] " fmt "%s\n", &__FILENAME__[0], __LINE__, __VA_ARGS__); \
@@ -52,47 +54,32 @@
 #define PTR_SIZE 8
 #define PTR_INT_T uint64_t
 
-extern const char* wrensh_src_usage;
 extern const char* wrensh_src_io;
-extern const char* wrensh_src_user;
-extern const char* wrensh_src_meta;
 static const int maxpathlen = 4096;
 static char wrenErrorStr[4096];
 
-typedef struct Node {
-  void* data;
-  struct Node* next;
-} Node;
+typedef union {
+  uv_pipe_t pipe;
+  uv_tty_t tty;
+} uv_stdio_stream_t;
 
 typedef struct {
-  int argc;
-  char** argv;
   uv_loop_t* loop;
-  uv_stream_t* stdin_stream;
-  uv_stream_t* stdout_stream;
-  WrenHandle* wren_tx_val;
-  WrenHandle* wren_tx_err;
-  WrenHandle* wren_tx;
-  WrenHandle* wren_call;
-  WrenHandle* wren_call_val;
-  WrenHandle* wren_call2_val;
-  Node* garbage;
-} Ctx;
+  uv_fs_t req;
+  uv_file file;
+} intpipe_state;
+
+typedef struct {
+  uv_stdio_stream_t stdin_stream;
+  uv_stdio_stream_t stdout_stream;
+  uv_pipe_t intpipe_read;
+  uv_pipe_t intpipe_write;
+  intpipe_state intpipe_state;
+} stdio_state;
 
 void add_garbage(Ctx* ctx, Node* garbage) {
   garbage->next = ctx->garbage;
   ctx->garbage = garbage;
-}
-
-void cleanupGarbage(Ctx* ctx) {
-  void* data = NULL;
-  Node* g = ctx->garbage;
-  while (g) {
-    data = g->data;
-    g = g->next;
-    free(data);
-  }
-  ctx->garbage = NULL;
 }
 
 void dbgArgs(int argc, const char* const* argv) {
@@ -187,8 +174,9 @@ void wrenshRead(WrenVM* vm) {
   *state = s2;
 
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
-  uv_handle_set_data((uv_handle_t*)ctx->stdin_stream, state);
-  UV_CHECK(uv_read_start(ctx->stdin_stream, wrenshReadAlloc, wrenshReadCb));
+  stdio_state* stdio = (stdio_state*)ctx->stdio;
+  uv_handle_set_data((uv_handle_t*)&stdio->stdin_stream, state);
+  UV_CHECK(uv_read_start((uv_stream_t*)&stdio->stdin_stream, wrenshReadAlloc, wrenshReadCb));
 }
 
 typedef struct {
@@ -241,7 +229,8 @@ void wrenshWrite(WrenVM* vm) {
 
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
   uv_req_set_data((uv_req_t*)&state->req, state);
-  UV_CHECK(uv_write(&state->req, ctx->stdout_stream, state->bufs, 1, wrenshWriteCb));
+  stdio_state* stdio = (stdio_state*)ctx->stdio;
+  UV_CHECK(uv_write(&state->req, (uv_stream_t*)&stdio->stdout_stream, state->bufs, 1, wrenshWriteCb));
 }
 
 typedef struct {
@@ -290,31 +279,9 @@ void wrenshFlush(WrenVM* vm) {
   fflush(stdout);
 }
 
-void wrenshArg(WrenVM* vm) {
-  DLOG("wrenshArg");
-  WrenType t = wrenGetSlotType(vm, 1);
-  WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to IO.arg");
-  int n = (int)wrenGetSlotDouble(vm, 1);
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
-  WREN_CHECK(n < ctx->argc, "only %d args", ctx->argc);
-  wrenSetSlotBytes(vm, 0, ctx->argv[n], strlen(ctx->argv[n]));
-}
-
 void wrenshArgc(WrenVM* vm) {
   Ctx* ctx = (Ctx*)wrenGetUserData(vm);
   wrenSetSlotDouble(vm, 0, ctx->argc);
-}
-
-void wrenshArgs(WrenVM* vm) {
-  DLOG("wrenshArgs");
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
-
-  wrenEnsureSlots(vm, 2);
-  wrenSetSlotNewList(vm, 0);
-  for (int i = 0; i < ctx->argc; ++i) {
-    wrenSetSlotString(vm, 1, ctx->argv[i]);
-    wrenInsertInList(vm, 0, -1, 1);
-  }
 }
 
 void wrenshEnv(WrenVM* vm) {
@@ -750,6 +717,9 @@ extern void timerReset(WrenVM*);
 extern void jsonEncode(WrenVM*);
 extern void jsonDecode(WrenVM*);
 
+extern void wrenshArgs(WrenVM*);
+extern void wrenshArg(WrenVM*);
+
 extern void wrenshEnvMap(WrenVM* vm);
 
 extern char* wrenMetaSource();
@@ -770,8 +740,7 @@ void cleanupWren(WrenVM* vm) {
   wrenReleaseHandle(vm, ctx->wren_call_val);
   wrenReleaseHandle(vm, ctx->wren_call2_val);
 
-  // TODO: segfaults
-  // wrenFreeVM(vm);
+  wrenFreeVM(vm);
 }
 
 char* readFile(char* path) {
@@ -796,8 +765,8 @@ void uv_cleanup_cb(uv_handle_t *handle, void *arg) {
 
 void cleanupUV(Ctx* ctx) {
   DLOG("cleanupUV");
-  uv_close((uv_handle_t*)ctx->stdout_stream, NULL);
-  uv_close((uv_handle_t*)ctx->stdin_stream, NULL);
+  uv_close((uv_handle_t*)&((stdio_state*)ctx->stdio)->stdout_stream, NULL);
+  uv_close((uv_handle_t*)&((stdio_state*)ctx->stdio)->stdin_stream, NULL);
   uv_run(ctx->loop, UV_RUN_DEFAULT);
   uv_walk(ctx->loop, uv_cleanup_cb, 0);
   uv_run(ctx->loop, UV_RUN_DEFAULT);
@@ -805,27 +774,11 @@ void cleanupUV(Ctx* ctx) {
   DLOG("cleanupUV done");
 }
 
-void tickerCb(uv_timer_t* handle) {
-  Ctx* ctx = (Ctx*)uv_handle_get_data((uv_handle_t*)handle);
-  cleanupGarbage(ctx);
-}
-
-typedef union {
-  uv_pipe_t pipe;
-  uv_tty_t tty;
-} uv_stdio_stream_t;
-
 void intpipeAlloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t* buf) {
   DLOG("intpipeAlloc");
   static char readbuf[1 << 16];
   *buf = uv_buf_init(readbuf, sizeof(readbuf));
 }
-
-typedef struct {
-  uv_loop_t* loop;
-  uv_fs_t req;
-  uv_file file;
-} intpipe_state;
 
 void dummyFsWriteCb(uv_fs_t *req) {}
 
@@ -946,131 +899,78 @@ WrenVM* setupWren(Ctx* ctx) {
   return vm;
 }
 
-int main(int argc, char** argv) {
-  DLOG("wrensh main");
-  dbgArgs(argc, (const char* const*)argv);
-  bool has_user_src = wrensh_src_user != NULL;
-  DLOG("has_user_src %d", has_user_src);
-
-  if (!has_user_src) {
-    // usage
-    if (argc == 1 ||
-        (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")))) {
-      fputs(wrensh_src_usage, stderr);
-      exit(1);
-    }
+void cleanupGarbage(Ctx* ctx) {
+  DLOG("cleanupGarbage");
+  void* data = NULL;
+  Node* g = ctx->garbage;
+  while (g) {
+    data = g->data;
+    g = g->next;
+    free(data);
   }
+  ctx->garbage = NULL;
+}
 
-  // read src
-  char* user_src;
-  char* file_src = NULL;
-  if (has_user_src) {
-    user_src = (char*)wrensh_src_user;
-  } else if (argc > 2 && !strcmp(argv[1], "-c")) {
-    user_src = argv[2];
-  } else {
-    file_src = readFile(argv[1]);
-    user_src = file_src;
-  }
+void cleanupStdio(void* state) {
+  DLOG("cleanupStdio");
+  free((stdio_state*)state);
+}
 
-  // uv setup
-  uv_loop_t loop_;
-  uv_loop_t* loop = &loop_;
-  uv_loop_init(loop);
+void* setupStdio(uv_loop_t* loop) {
+  stdio_state* ctx = malloc(sizeof(stdio_state));
   uv_disable_stdio_inheritance();
-  DLOG("uv setup");
-
-  // context
-  Ctx ctx = {.argc = argc, .argv = argv, .loop = loop};
-
-  // wren setup
-  WrenVM* wren = setupWren(&ctx);
-  DLOG("wren setup vm=%p", wren);
 
   // setup std{in,out}
   uv_handle_type stdin_type = uv_guess_handle(fileno(stdin));
   uv_handle_type stdout_type = uv_guess_handle(fileno(stdout));
   DLOG("uv stdin=%s stdout=%s", uv_handle_type_name(stdin_type), uv_handle_type_name(stdout_type));
 
-  uv_stdio_stream_t stdin_stream = {0};
-  uv_stdio_stream_t stdout_stream = {0};
+  uv_stdio_stream_t* stdin_stream = &ctx->stdin_stream;
+  uv_stdio_stream_t* stdout_stream = &ctx->stdout_stream;
 
   if (stdin_type == UV_TTY) {
-    UV_CHECK(uv_tty_init(loop, &stdin_stream.tty, fileno(stdin), 0));
+    UV_CHECK(uv_tty_init(loop, &stdin_stream->tty, fileno(stdin), 0));
   } else {
     if (stdin_type != UV_NAMED_PIPE) {
       DLOG("treating stdin as pipe but type=%s", uv_handle_type_name(stdin_type));
     }
-    UV_CHECK(uv_pipe_init(loop, &stdin_stream.pipe, 0));
-    UV_CHECK(uv_pipe_open(&stdin_stream.pipe, fileno(stdin)));
+    UV_CHECK(uv_pipe_init(loop, &stdin_stream->pipe, 0));
+    UV_CHECK(uv_pipe_open(&stdin_stream->pipe, fileno(stdin)));
   }
-  ctx.stdin_stream = (uv_stream_t*)&stdin_stream;
 
   // Used only if stdout is a file
   // we'll read from this pipe and on data we'll write to the actual file
-  uv_pipe_t intpipe_read = {0};
+  uv_pipe_t* intpipe_read = &ctx->intpipe_read;
   // this is the pipe that will stand in for stdout
-  uv_pipe_t intpipe_write = {0};
-  intpipe_state intpipe_state_ = {0};
+  uv_pipe_t* intpipe_write = &ctx->intpipe_write;
+  intpipe_state* intpipe_state_ = &ctx->intpipe_state;
   if (stdout_type == UV_FILE) {
     uv_file fds[2];
     UV_CHECK(uv_pipe(fds, UV_NONBLOCK_PIPE, UV_NONBLOCK_PIPE));
 
-    UV_CHECK(uv_pipe_init(loop, &intpipe_read, 0));
-    UV_CHECK(uv_pipe_open(&intpipe_read, fds[0]));
-    intpipe_state_.loop = loop;
-    intpipe_state_.file = fileno(stdout);
-    uv_handle_set_data((uv_handle_t*)&intpipe_read, &intpipe_state_);
-    UV_CHECK(uv_read_start((uv_stream_t*)&intpipe_read, intpipeAlloc, intpipeRead));
-    uv_unref((uv_handle_t*)&intpipe_read);
+    UV_CHECK(uv_pipe_init(loop, intpipe_read, 0));
+    UV_CHECK(uv_pipe_open(intpipe_read, fds[0]));
+    intpipe_state_->loop = loop;
+    intpipe_state_->file = fileno(stdout);
+    uv_handle_set_data((uv_handle_t*)intpipe_read, intpipe_state_);
+    UV_CHECK(uv_read_start((uv_stream_t*)intpipe_read, intpipeAlloc, intpipeRead));
+    uv_unref((uv_handle_t*)intpipe_read);
 
-    UV_CHECK(uv_pipe_init(loop, &intpipe_write, 0));
-    UV_CHECK(uv_pipe_open(&intpipe_write, fds[1]));
-    ctx.stdout_stream = (uv_stream_t*)&intpipe_write;
+    UV_CHECK(uv_pipe_init(loop, intpipe_write, 0));
+    UV_CHECK(uv_pipe_open(intpipe_write, fds[1]));
   } else if (stdout_type == UV_NAMED_PIPE) {
-    UV_CHECK(uv_pipe_init(loop, &stdout_stream.pipe, 0));
-    UV_CHECK(uv_pipe_open(&stdout_stream.pipe, fileno(stdout)));
-    ctx.stdout_stream = (uv_stream_t*)&stdout_stream;
+    UV_CHECK(uv_pipe_init(loop, &stdout_stream->pipe, 0));
+    UV_CHECK(uv_pipe_open(&stdout_stream->pipe, fileno(stdout)));
   } else if (stdout_type == UV_TTY) {
-    UV_CHECK(uv_tty_init(loop, &stdout_stream.tty, fileno(stdout), 0));
-    ctx.stdout_stream = (uv_stream_t*)&stdout_stream;
+    UV_CHECK(uv_tty_init(loop, &stdout_stream->tty, fileno(stdout), 0));
   } else {
     CHECK(false, "unsupported stdout type %s", uv_handle_type_name(stdout_type));
   }
 
   DLOG("stdio setup");
-
-  // setup ticker (garbage collection)
-  uv_timer_t ticker;
-  uv_timer_init(loop, &ticker);
-  uv_handle_set_data((uv_handle_t*)&ticker, &ctx);
-  uv_unref((uv_handle_t*)&ticker);
-  uv_timer_start(&ticker, tickerCb, 0, 1000);
-
-  // user script
-  int res = wrenInterpret(wren, "main", user_src);
-  DLOG("user script run, code=%d", res);
-  if (res != WREN_RESULT_SUCCESS) return res;
-
-  // io loop run
-  DLOG("uv loop start");
-  int live = 1;
-  while (live) {
-    DLOG("uv loop tick %ld", (int64_t)uv_now(loop));
-    live = uv_run(loop, UV_RUN_ONCE);
-  }
-  uv_timer_stop(&ticker);
-  uv_close((uv_handle_t*)&ticker, NULL);
-  DLOG("uv loop done, exiting");
-
-  // Cleanup
-  if (file_src) free(file_src);
-  cleanupWren(wren);
-  cleanupUV(&ctx);
-  cleanupGarbage(&ctx);
-
-  return 0;
+  return ctx;
 }
+
 
 // TODO:
 // * read(n), readln
