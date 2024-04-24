@@ -112,10 +112,11 @@ class BuildCheck {
         var fields = line.split("  ")
         var depid = fields[0]
         var depname = fields[1]
-        var depargs = fields[2..-1]
+        var pkgname = fields[2]
+        var depargs = fields.count > 3 ? JSON.decode(fields[3]) : []
         var env = IO.env()
         env["TARGET"] = target
-        var depid2 = IO.run(_self + depargs, env).trim()
+        var depid2 = IO.run(_self + [pkgname, "--"] + depargs, env).trim()
         return depid == depid2
       }
 

@@ -1,7 +1,3 @@
-# WORK IN PROGRESS
-# TODO:
-# * Need to work out argument serialization/deserialization.
-#   Maybe JSON+LMDB. Also would allow for parallelization.
 #!/usr/bin/env wrensh
 
 var args = IO.args()
@@ -26,12 +22,12 @@ if (!IO.Process(["ls", dst]).test()) {
 var depargs = []
 var sep = args.indexOf("--")
 if (sep != -1) {
-  depargs = args[sep..-1]
+  depargs = args[sep + 1..-1]
 }
 
 env["TARGET"] = target
 env["OPT"] = opt
-var pkgid = IO.run(["%(env["XOS_ROOT"])/build", pkg] + depargs, env).trim()
+var pkgid = IO.run(["%(env["XOS_ROOT"])/build", pkg, "--"] + depargs, env).trim()
 var pkgid_prefix = pkgid[0...2]
 
 // link
@@ -39,21 +35,7 @@ IO.run(["mkdir", "-p", deps])
 IO.run(["ln", "-s", "%(env["XOS_BUILD_CACHE"])/pkg/%(pkgid_prefix)/%(pkgid)/out", dst])
 
 // log the dynamic dependency
-var depsep = "  "
-var depargs_quoted = []
-for (arg in depargs) {
-  depargs_quoted.add("'%(arg)'")
-}
-var depargs_str = depargs_quoted.join(" ")
-
-var depparts = [
-  pkgid,
-  name,
-  pkg,
-  depargs_str,
-]
-var depline = depparts.join(depsep)
-
-IO.env("V") == "1" ? System.print("need %(depline)") : null
+var depargs_str = JSON.encode(depargs)
+var depline = "%(pkgid)  %(name)  %(pkg)  %(JSON.encode(depargs))"
 var outf = "%(env["XOS_BUILD_OUT"])/%(txt)"
-IO.run(["sh", "-c", "echo \"%(depargs_str)\" >> %(outf)"])
+IO.run(["sh", "-c", "echo '%(depline)' >> %(outf)"])

@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const Hash = std.crypto.hash.sha2.Sha256;
-const bufsize = 4096;
+const bufsize = 1 << 15;
 
 pub fn main() !void {
     const alloc = std.heap.c_allocator;

@@ -51,22 +51,20 @@ script_tools="
 ar
 c++
 cc
+ld
+rc
+pkg-config
+zigi
+windres
 fetch
 fetch_untar
 fetch_urltxt
-ld
-need
-needtool
-pkg-config
-rc
+untar
 system
 system_export
-untar
-windres
 xos_build.wren
 xos_internal_mktemp
 xos_internal_pkgid
-zigi
 "
 for script in $script_tools
 do
@@ -80,11 +78,20 @@ do
   fi
 done
 
+if [ "$mode" = "release" ]
+then
+  cp "$BUILD_PKG/src/need.wren" "$scripts/$(zigi exe need)"
+  cp "$BUILD_PKG/src/needtool.wren" "$scripts/$(zigi exe needtool)"
+else
+  ln -s "$BUILD_PKG/src/need.wren" "$scripts/$(zigi exe need)"
+  ln -s "$BUILD_PKG/src/needtool.wren" "$scripts/$(zigi exe needtool)"
+fi
+
 # readme
 cp "$BUILD_PKG/src/dist_readme.txt" "$out/readme.txt"
 
 # xos id
-zigid="0.12.0-dev.3457+341857e5c"
+zigid="0.12.0"
 bbid="1.36.1 FRP-5236-g7dff7f376"
 xosid() {
   src="$PWD"
