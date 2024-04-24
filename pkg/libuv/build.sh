@@ -39,8 +39,8 @@ case "$TARGET_OS" in
     "
     flags="-I./src/unix -D_GNU_SOURCE -DHAVE_DLFCN_H=1 -DHAVE_PTHREAD_PRIO_INHERIT=1"
     headers="
-    include/uv/linux.h
-    include/uv/unix.h
+    $src/include/uv/linux.h
+    $src/include/uv/unix.h
     "
     ;;
   macos)
@@ -56,8 +56,8 @@ case "$TARGET_OS" in
     "
     flags="-I./src/unix -D_DARWIN_USE_64_BIT_INODE=1 -D_DARWIN_UNLIMITED_SELECT=1 -DHAVE_DLFCN_H=1 -DHAVE_PTHREAD_PRIO_INHERIT=1"
     headers="
-    include/uv/darwin.h
-    include/uv/unix.h
+    $src/include/uv/darwin.h
+    $src/include/uv/unix.h
     "
     ;;
 
@@ -90,8 +90,8 @@ case "$TARGET_OS" in
     "
     flags="-I./src/win -DWIN32_LEAN_AND_MEAN -D_FILE_OFFSET_BITS=64"
     headers="
-    include/uv/win.h
-    include/uv/tree.h
+    $src/include/uv/win.h
+    $src/include/uv/tree.h
     "
     ldflags="-lws2_32 -luserenv -lole32 -liphlpapi -ldbghelp"
     ;;
@@ -125,17 +125,18 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   -cflags -std=gnu89 -- \
   uv.c src/*.c $files
 
-
-mkdir -p "$BUILD_OUT/lib" "$BUILD_OUT/include/uv" "$BUILD_OUT/pkgconfig"
-mv $(zigi lib uv) "$BUILD_OUT/lib"
-cp include/uv.h "$BUILD_OUT/include"
+cd "$BUILD_OUT"
+mkdir -p lib include/uv pkgconfig zig
+mv $src/$(zigi lib uv) lib
+cp $src/include/uv.h include
 cp \
-  include/uv/version.h \
-  include/uv/threadpool.h \
-  include/uv/errno.h \
+  $src/include/uv/version.h \
+  $src/include/uv/threadpool.h \
+  $src/include/uv/errno.h \
   $headers \
-  "$BUILD_OUT/include/uv"
-cat <<EOF > $BUILD_OUT/pkgconfig/uv.pc
+  include/uv
+cat <<EOF > pkgconfig/uv.pc
 Cflags: -I\${rootdir}/include
 Libs: \${rootdir}/lib/$(zigi lib uv) $ldflags
 EOF
+cp "$BUILD_PKG"/cimport.zig zig/uv.zig
