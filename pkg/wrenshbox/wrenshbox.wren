@@ -44,6 +44,12 @@ var cmds = {
 }
 
 var main = Fn.new {
-  cmds[IO.arg(0).split("/")[-1]].call()
+  var cmd = IO.arg(0).split("/")[-1]
+  if (cmd == "wrenshbox") {
+    IO.writeln("wrenshbox commands: %(cmds.keys.toList)")
+    return
+  }
+
+  cmds[cmd].call()
 }
 main.call()

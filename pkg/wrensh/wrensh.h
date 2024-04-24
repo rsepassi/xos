@@ -20,11 +20,8 @@ typedef struct {
   WrenHandle* wren_call;
   WrenHandle* wren_call_val;
   WrenHandle* wren_call2_val;
-
-  Node* garbage;
 } Ctx;
 
 void* setupStdio(uv_loop_t* loop);
 void cleanupStdio(void* ctx);
 void cleanupUV(Ctx* ctx);
-void cleanupGarbage(Ctx* ctx);

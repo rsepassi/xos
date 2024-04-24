@@ -28,11 +28,13 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   $(pkg-config --cflags wren libuv/uv xglob sds cjson/json) \
   --dep lmdb \
   --dep wren \
+  --dep uv \
   -Mwrensh="$BUILD_PKG/wrensh.zig" \
   $(pkg-config --cflags lmdb) \
   -Mlmdb=$BUILD_DEPS/lmdb-zig/zig/lib.zig \
   $(pkg-config --cflags wren) \
   -Mwren=$BUILD_DEPS/wren-zig/zig/wren.zig \
+  -Muv=$BUILD_DEPS/libuv/zig/uv.zig \
   -lc
 
 touch wrensh.c
@@ -48,4 +50,4 @@ cd "$BUILD_OUT"
 mkdir bin lib
 mv "$HOME/$(zigi exe wrensh)" bin
 mv "$HOME/$(zigi lib wrensh)" lib
-pkg-config --gendefault wrensh --deps "wren,libuv/uv,xglob,sds,cjson/json"
+pkg-config --gendefault wrensh --deps "wren,libuv/uv,xglob,sds,cjson/json,lmdb"

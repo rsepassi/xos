@@ -99,12 +99,39 @@ pub const VM = struct {
         return c.wrenEnsureSlots(self.vm, @intCast(n));
     }
 
-    const Types = enum {
+    const Type = enum {
+        Bool,
+        Num,
+        Foreign,
+        List,
+        Map,
+        Null,
+        String,
+        Unknown,
+
+        fn fromInt(x: c_uint) @This() {
+            return switch (x) {
+                c.WREN_TYPE_BOOL => .Bool,
+                c.WREN_TYPE_NUM => .Num,
+                c.WREN_TYPE_FOREIGN => .Foreign,
+                c.WREN_TYPE_LIST => .List,
+                c.WREN_TYPE_MAP => .Map,
+                c.WREN_TYPE_NULL => .Null,
+                c.WREN_TYPE_STRING => .String,
+                c.WREN_TYPE_UNKNOWN => .Unknown,
+                else => unreachable,
+            };
+        }
+    };
+
+    const SlotType = enum {
         Bool,
         Bytes,
         String,
         Num,
         Handle,
+        List,
+        Type,
 
         fn getType(x: @This()) type {
             return switch (x) {
@@ -113,10 +140,12 @@ pub const VM = struct {
                 .String => [:0]const u8,
                 .Num => f64,
                 .Handle => Handle,
+                .List => List,
+                .Type => Type,
             };
         }
     };
-    pub fn getSlot(self: *Self, i: usize, comptime T: Types) T.getType() {
+    pub fn getSlot(self: *Self, i: usize, comptime T: SlotType) T.getType() {
         return getSlot2(self, i, T.getType());
     }
 
@@ -139,6 +168,12 @@ pub const VM = struct {
             },
             [:0]u8, [:0]const u8 => {
                 c.wrenSetSlotString(self.vm, i, val.ptr);
+            },
+            Handle => {
+                c.wrenSetSlotHandle(self.vm, i, val.handle);
+            },
+            i8, i16, i32, i64, u8, u16, u32, u64, usize => {
+                c.wrenSetSlotDouble(self.vm, i, @floatFromInt(val));
             },
             else => {
                 @compileLog(@TypeOf(val));
@@ -164,6 +199,30 @@ pub const VM = struct {
         c.wrenAbortFiber(self.vm, @intCast(i));
     }
 
+    pub fn call(self: *Self, handle: ?*c.WrenHandle) !void {
+        const rc = c.wrenCall(self.vm, handle);
+        return switch (rc) {
+            c.WREN_RESULT_SUCCESS => void{},
+            c.WREN_RESULT_COMPILE_ERROR => ResultError.Compile,
+            c.WREN_RESULT_RUNTIME_ERROR => ResultError.Runtime,
+            else => unreachable,
+        };
+    }
+
+    const List = struct {
+        vm: *Self,
+        slot: c_int,
+
+        pub fn len(self: @This()) usize {
+            return @intCast(c.wrenGetListCount(self.vm.vm, self.slot));
+        }
+
+        pub fn get(self: @This(), i: usize, scratch: usize, comptime T: SlotType) T.getType() {
+            c.wrenGetListElement(self.vm.vm, self.slot, @intCast(i), @intCast(scratch));
+            return self.vm.getSlot(scratch, T);
+        }
+    };
+
     fn getSlot2(self: *Self, idx: usize, comptime T: type) T {
         const i: c_int = @intCast(idx);
         if (T == bool) {
@@ -182,6 +241,13 @@ pub const VM = struct {
                 .vm = self,
                 .handle = c.wrenGetSlotHandle(self.vm, i),
             };
+        } else if (T == List) {
+            return .{
+                .vm = self,
+                .slot = i,
+            };
+        } else if (T == Type) {
+            return Type.fromInt(c.wrenGetSlotType(self.vm, i));
         } else {
             @compileError("invalid slot type");
         }

@@ -10,7 +10,6 @@ pub const KV = struct {
     }
 
     fn allocSafe(vm: *wren.VM) !void {
-        log.info("kv init", .{});
         errdefer vm.abortFiber("failed to open kv db", .{});
         const db = try vm.setSlotNewForeign(0, 0, lmdb.Environment);
         const path = vm.getSlot(1, .String);

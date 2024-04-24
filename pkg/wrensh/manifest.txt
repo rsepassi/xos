@@ -2,6 +2,7 @@ build.sh
 io.wren
 json.zig
 kv.zig
+process.zig
 usage.txt
 wrensh.c
 wrensh.h

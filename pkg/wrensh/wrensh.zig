@@ -5,13 +5,14 @@ const uv = @cImport(@cInclude("uv.h"));
 const c = @cImport(@cInclude("wrensh.h"));
 const json = @import("json.zig");
 const kv = @import("kv.zig");
+const process = @import("process.zig");
 
 const wren = wren2.c;
 const wren2 = @import("wren");
 
 const log = std.log.scoped(.wrensh);
 pub const std_options = .{
-    // .log_level = .debug,
+    //    .log_level = .debug,
 };
 
 extern const wrensh_src_io: [*c]const u8;
@@ -101,23 +102,23 @@ fn uvGetCtx(handle: anytype) *c.Ctx {
     return @ptrCast(@alignCast(uv.uv_handle_get_data(@ptrCast(handle))));
 }
 
-fn tickerCb(handle: [*c]uv.uv_timer_t) callconv(.C) void {
-    const ctx: *c.Ctx = uvGetCtx(handle);
-    log.info("tick", .{});
-    c.cleanupGarbage(ctx);
-}
+// fn tickerCb(handle: [*c]uv.uv_timer_t) callconv(.C) void {
+//     const ctx: *c.Ctx = uvGetCtx(handle);
+//     log.info("tick", .{});
+//     process.cleanupGarbage(ctx);
+// }
 
-fn startTicker(ctx: *c.Ctx, ticker: *uv.uv_timer_t) !void {
-    try uvcall(uv.uv_timer_init(@ptrCast(@alignCast(ctx.loop)), ticker));
-    uv.uv_handle_set_data(@ptrCast(ticker), ctx);
-    uv.uv_unref(@ptrCast(ticker));
-    try uvcall(uv.uv_timer_start(ticker, tickerCb, 0, 1000));
-}
-
-fn stopTicker(ticker: *uv.uv_timer_t) void {
-    _ = uv.uv_timer_stop(ticker);
-    uv.uv_close(@ptrCast(ticker), null);
-}
+// fn startTicker(ctx: *c.Ctx, ticker: *uv.uv_timer_t) !void {
+//     try uvcall(uv.uv_timer_init(@ptrCast(@alignCast(ctx.loop)), ticker));
+//     uv.uv_handle_set_data(@ptrCast(ticker), ctx);
+//     uv.uv_unref(@ptrCast(ticker));
+//     try uvcall(uv.uv_timer_start(ticker, tickerCb, 0, 1000));
+// }
+//
+// fn stopTicker(ticker: *uv.uv_timer_t) void {
+//     _ = uv.uv_timer_stop(ticker);
+//     uv.uv_close(@ptrCast(ticker), null);
+// }
 
 export fn wrenshArgs(vm: *wren.WrenVM) void {
     const ctx = wrenshGetCtx(vm);
@@ -235,6 +236,11 @@ fn zigBindForeignMethod(
         if (std.mem.eql(u8, signature, "decode(_)")) return json.jsonDecode;
     }
 
+    // IO
+    if (std.mem.eql(u8, className, "IO") and isStatic) {
+        if (std.mem.eql(u8, signature, "run_(_,_,_,_,_,_)")) return process.run;
+    }
+
     return null;
 }
 
@@ -309,7 +315,6 @@ export fn wrenshGetCtx(vm: ?*wren.WrenVM) *c.Ctx {
 }
 
 fn setupWren(alloc: std.mem.Allocator, ctx: *c.Ctx) !*wren2.VM {
-    log.info("wren setup", .{});
     const vm = try wren2.VM.init(.{
         .allocator = alloc,
         .write_fn = wrenWrite,
@@ -336,6 +341,7 @@ fn setupWren(alloc: std.mem.Allocator, ctx: *c.Ctx) !*wren2.VM {
 }
 
 fn cleanupWren(vm: *wren2.VM, ctx: c.Ctx) void {
+    log.debug("cleanupWren", .{});
     (wren2.Handle{ .vm = vm, .handle = @ptrCast(ctx.wren_tx_val) }).deinit();
     (wren2.Handle{ .vm = vm, .handle = @ptrCast(ctx.wren_tx_err) }).deinit();
     (wren2.Handle{ .vm = vm, .handle = @ptrCast(ctx.wren_tx) }).deinit();
@@ -345,6 +351,7 @@ fn cleanupWren(vm: *wren2.VM, ctx: c.Ctx) void {
 }
 
 pub fn main() !void {
+    defer log.debug("ok", .{});
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const alloc = gpa.allocator();
     defer if (gpa.deinit() == .leak) log.err("leak!", .{});
@@ -352,6 +359,7 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(alloc);
     defer std.process.argsFree(alloc, args);
     const argc = args.len;
+    log.debug("wrensh argc={d}", .{argc});
 
     const stderr = std.io.getStdErr().writer();
     const stdout = std.io.getStdOut().writer();
@@ -366,26 +374,33 @@ pub fn main() !void {
     ctx.argc = @intCast(argc);
     ctx.argv = @ptrCast(args.ptr);
 
+    log.debug("uv init", .{});
     var loop: uv.uv_loop_t = undefined;
     try uvcall(uv.uv_loop_init(&loop));
     ctx.loop = @ptrCast(&loop);
     defer c.cleanupUV(&ctx);
-    defer c.cleanupGarbage(&ctx);
+    // defer process.cleanupGarbage(&ctx);
 
+    log.debug("stdio setup", .{});
     ctx.stdio = c.setupStdio(@ptrCast(&loop));
     defer c.cleanupStdio(ctx.stdio);
 
+    log.debug("wren setup", .{});
     const wrenvm = try setupWren(alloc, &ctx);
     defer wrenvm.deinit();
     defer cleanupWren(wrenvm, ctx);
 
     // setup ticker (garbage collection)
-    var ticker: uv.uv_timer_t = undefined;
-    try startTicker(&ctx, &ticker);
-    defer stopTicker(&ticker);
+    // var ticker: uv.uv_timer_t = undefined;
+    // try startTicker(&ctx, &ticker);
+    // defer stopTicker(&ticker);
 
+    log.debug("wren interpret", .{});
     try wrenvm.interpret("main", src.user_src.?);
 
+    log.debug("loop", .{});
     var live: c_int = 1;
     while (live > 0) live = uv.uv_run(&loop, uv.UV_RUN_ONCE);
+
+    log.debug("loop exit", .{});
 }
