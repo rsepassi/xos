@@ -1,9 +1,11 @@
 need wren
+need wren-zig
 need libuv
 need xglob
 need sds
 need cjson
 need lmdb
+need lmdb-zig
 needtool cstrbake
 
 cstrbake="$BUILD_TOOLS/cstrbake/bin/cstrbake"
@@ -22,9 +24,15 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   "$BUILD_PKG/wrensh.c" \
   usage_src.c \
   io_src.c \
-  "$BUILD_PKG/wrensh.zig" \
   $cflags \
-  $(pkg-config --cflags wren libuv/uv xglob sds cjson/json lmdb) \
+  $(pkg-config --cflags wren libuv/uv xglob sds cjson/json) \
+  --dep lmdb \
+  --dep wren \
+  -Mwrensh="$BUILD_PKG/wrensh.zig" \
+  $(pkg-config --cflags lmdb) \
+  -Mlmdb=$BUILD_DEPS/lmdb-zig/zig/lib.zig \
+  $(pkg-config --cflags wren) \
+  -Mwren=$BUILD_DEPS/wren-zig/zig/wren.zig \
   -lc
 
 touch wrensh.c

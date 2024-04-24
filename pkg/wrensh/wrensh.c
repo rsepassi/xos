@@ -54,9 +54,14 @@
 #define PTR_SIZE 8
 #define PTR_INT_T uint64_t
 
-extern const char* wrensh_src_io;
 static const int maxpathlen = 4096;
 static char wrenErrorStr[4096];
+
+extern Ctx* wrenshGetCtx(WrenVM*);
+
+extern void wrenshArgs(WrenVM*);
+extern void wrenshArg(WrenVM*);
+extern void wrenshEnvMap(WrenVM* vm);
 
 typedef union {
   uv_pipe_t pipe;
@@ -136,7 +141,7 @@ void wrenshReadAlloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t* buf) 
 void wrenshReadFinalize(readstate* state) {
   DLOG("wrenshReadFinalize");
   WrenVM* vm = state->vm;
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  Ctx* ctx = wrenshGetCtx(vm);
   wrenEnsureSlots(vm, 2);
   wrenSetSlotHandle(vm, 0, state->fiber);
   wrenSetSlotBytes(vm, 1, state->str, sdslen(state->str));
@@ -173,7 +178,7 @@ void wrenshRead(WrenVM* vm) {
   CHECK(state);
   *state = s2;
 
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  Ctx* ctx = wrenshGetCtx(vm);
   stdio_state* stdio = (stdio_state*)ctx->stdio;
   uv_handle_set_data((uv_handle_t*)&stdio->stdin_stream, state);
   UV_CHECK(uv_read_start((uv_stream_t*)&stdio->stdin_stream, wrenshReadAlloc, wrenshReadCb));
@@ -195,7 +200,7 @@ void wrenshWriteCb(uv_write_t* req, int status) {
   wrenEnsureSlots(vm, 1);
 
   if (status == 0) {
-    Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+    Ctx* ctx = wrenshGetCtx(vm);
     wrenSetSlotHandle(vm, 0, state->fiber);
     QCHECK(wrenCall(vm, ctx->wren_tx) == WREN_RESULT_SUCCESS);
   } else {
@@ -227,7 +232,7 @@ void wrenshWrite(WrenVM* vm) {
   CHECK(state);
   *state = s2;
 
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  Ctx* ctx = wrenshGetCtx(vm);
   uv_req_set_data((uv_req_t*)&state->req, state);
   stdio_state* stdio = (stdio_state*)ctx->stdio;
   UV_CHECK(uv_write(&state->req, (uv_stream_t*)&stdio->stdout_stream, state->bufs, 1, wrenshWriteCb));
@@ -244,7 +249,7 @@ void sleep_cb(uv_timer_t* handle) {
   timerstate* state = (timerstate*)uv_handle_get_data((uv_handle_t*)handle);
   wrenEnsureSlots(state->vm, 1);
   wrenSetSlotHandle(state->vm, 0, state->fiber);
-  Ctx* ctx = (Ctx*)wrenGetUserData(state->vm);
+  Ctx* ctx = wrenshGetCtx(state->vm);
   QCHECK(wrenCall(state->vm, ctx->wren_tx) == WREN_RESULT_SUCCESS);
 
   uv_timer_stop(&state->handle);
@@ -268,7 +273,7 @@ void wrenshSleep(WrenVM* vm) {
   CHECK(state);
   *state = state_;
 
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  Ctx* ctx = wrenshGetCtx(vm);
   uv_handle_set_data((uv_handle_t*)&state->handle, state);
   UV_CHECK(uv_timer_init(ctx->loop, &state->handle));
   UV_CHECK(uv_timer_start(&state->handle, sleep_cb, n, 0));
@@ -280,7 +285,7 @@ void wrenshFlush(WrenVM* vm) {
 }
 
 void wrenshArgc(WrenVM* vm) {
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  Ctx* ctx = wrenshGetCtx(vm);
   wrenSetSlotDouble(vm, 0, ctx->argc);
 }
 
@@ -408,7 +413,7 @@ typedef struct {
 void wrenshRunFinalize(runstate* state) {
   wrenEnsureSlots(state->vm, 2);
   wrenSetSlotHandle(state->vm, 0, state->fiber);
-  Ctx* ctx = (Ctx*)wrenGetUserData(state->vm);
+  Ctx* ctx = wrenshGetCtx(state->vm);
   if (state->exit_status == 0 || state->return_code) {
     if (state->exit_status != 0) {
       // return exit code
@@ -530,7 +535,7 @@ void wrenshRun(WrenVM* vm) {
   state->return_code = wrenGetSlotBool(vm, rc_i);
 
   // Setup stdio
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  Ctx* ctx = wrenshGetCtx(vm);
   uv_stdio_container_t stdio[3];
   stdio[0].flags = UV_IGNORE;
   if (stdout_redir) {
@@ -622,7 +627,7 @@ void fswatcherCb(uv_fs_event_t* handle, const char* filename, int events, int st
     wrenSetSlotNull(state->vm, 1);
   }
   wrenSetSlotDouble(state->vm, 2, events);
-  Ctx* ctx = (Ctx*)wrenGetUserData(state->vm);
+  Ctx* ctx = wrenshGetCtx(state->vm);
   QCHECK(wrenCall(state->vm, ctx->wren_call2_val) == WREN_RESULT_SUCCESS);
 }
 
@@ -639,7 +644,7 @@ void fswatcherAlloc(WrenVM* vm) {
   const char* path = wrenGetSlotString(vm, 1);
   WrenHandle* fn = wrenGetSlotHandle(vm, 2);
 
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  Ctx* ctx = wrenshGetCtx(vm);
 
   watchstate* state = (watchstate*)wrenSetSlotNewForeign(
       vm, 0, 0, sizeof(watchstate));
@@ -670,7 +675,7 @@ void trapCb(uv_signal_t* handle, int signal) {
   trapstate* state = (trapstate*)uv_handle_get_data((uv_handle_t*)handle);
   wrenEnsureSlots(state->vm, 1);
   wrenSetSlotHandle(state->vm, 0, state->fn);
-  Ctx* ctx = (Ctx*)wrenGetUserData(state->vm);
+  Ctx* ctx = wrenshGetCtx(state->vm);
   QCHECK(wrenCall(state->vm, ctx->wren_call) == WREN_RESULT_SUCCESS);
 }
 
@@ -686,7 +691,7 @@ void trapAlloc(WrenVM* vm) {
   state->vm = vm;
   state->fn = fn;
   uv_handle_set_data((uv_handle_t*)&state->handle, state);
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
+  Ctx* ctx = wrenshGetCtx(vm);
   uv_signal_init(ctx->loop, &state->handle);
   uv_signal_start_oneshot(&state->handle, trapCb, signal);
 }
@@ -708,41 +713,6 @@ void trapCancel(WrenVM* vm) {
   state->cancelled = true;
 }
 
-extern void timerAlloc(WrenVM*);
-extern void timerFinal(void*);
-extern void timerLap(WrenVM*);
-extern void timerRead(WrenVM*);
-extern void timerReset(WrenVM*);
-
-extern void jsonEncode(WrenVM*);
-extern void jsonDecode(WrenVM*);
-
-extern void wrenshArgs(WrenVM*);
-extern void wrenshArg(WrenVM*);
-
-extern void wrenshEnvMap(WrenVM* vm);
-
-extern char* wrenMetaSource();
-extern WrenForeignMethodFn wrenMetaBindForeignMethod(
-    WrenVM* vm,
-    const char* className,
-    bool isStatic,
-    const char* signature);
-
-void cleanupWren(WrenVM* vm) {
-  DLOG("cleanupWren");
-  Ctx* ctx = (Ctx*)wrenGetUserData(vm);
-
-  wrenReleaseHandle(vm, ctx->wren_tx_val);
-  wrenReleaseHandle(vm, ctx->wren_tx_err);
-  wrenReleaseHandle(vm, ctx->wren_tx);
-  wrenReleaseHandle(vm, ctx->wren_call);
-  wrenReleaseHandle(vm, ctx->wren_call_val);
-  wrenReleaseHandle(vm, ctx->wren_call2_val);
-
-  wrenFreeVM(vm);
-}
-
 char* readFile(char* path) {
   DLOG("readFile");
   FILE *f = fopen(path, "rb");
@@ -759,8 +729,8 @@ char* readFile(char* path) {
 }
 
 void uv_cleanup_cb(uv_handle_t *handle, void *arg) {
-  DLOG("uv_cleanup_cb type=%s", uv_handle_type_name(handle->type));
-  uv_close(handle, 0);
+  DLOG("uv_cleanup_cb type=%s(%d)", uv_handle_type_name(handle->type), handle->type);
+  if (handle->type != UV_UNKNOWN_HANDLE) uv_close(handle, 0);
 }
 
 void cleanupUV(Ctx* ctx) {
@@ -768,7 +738,9 @@ void cleanupUV(Ctx* ctx) {
   uv_close((uv_handle_t*)&((stdio_state*)ctx->stdio)->stdout_stream, NULL);
   uv_close((uv_handle_t*)&((stdio_state*)ctx->stdio)->stdin_stream, NULL);
   uv_run(ctx->loop, UV_RUN_DEFAULT);
-  uv_walk(ctx->loop, uv_cleanup_cb, 0);
+  // TODO: sometimes segfaults, not really an issue bc we're exiting, but would
+  // be nice to have a clean shutdown.
+  // uv_walk(ctx->loop, uv_cleanup_cb, 0);
   uv_run(ctx->loop, UV_RUN_DEFAULT);
   uv_loop_close(ctx->loop);
   DLOG("cleanupUV done");
@@ -796,33 +768,28 @@ void intpipeRead(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf) {
   UV_CHECK(uv_fs_write(state->loop, &state->req, state->file, buf, 1, -1, dummyFsWriteCb));
 }
 
-WrenForeignClassMethods bindForeignClass(
-    WrenVM* vm, const char* module, const char* className) {
-  CHECK(!strcmp(module, "io"), "unexpected foreign class");
-  WrenForeignClassMethods m;
+bool cBindForeignClass(
+    WrenVM* vm, const char* module, const char* className, WrenForeignClassMethods* m) {
   if (!strcmp(className, "Trap")) {
-    m.allocate = trapAlloc;
-    m.finalize = trapFinal;
-  }
-  if (!strcmp(className, "Timer")) {
-    m.allocate = timerAlloc;
-    m.finalize = timerFinal;
+    m->allocate = trapAlloc;
+    m->finalize = trapFinal;
+    return true;
   }
   if (!strcmp(className, "Watcher")) {
-    m.allocate = fswatcherAlloc;
-    m.finalize = fswatcherFinal;
+    m->allocate = fswatcherAlloc;
+    m->finalize = fswatcherFinal;
+    return true;
   }
-  return m;
+
+  return false;
 }
 
-WrenForeignMethodFn bindForeignMethod(
+WrenForeignMethodFn cBindForeignMethod(
     WrenVM* vm,
     const char* module,
     const char* className,
     bool isStatic,
     const char* signature) {
-  CHECK(!strcmp(module, "io"), "unexpected foreign method");
-
   // Trap
   if (!strcmp(className, "Trap")
       && !isStatic
@@ -833,70 +800,27 @@ WrenForeignMethodFn bindForeignMethod(
       && !isStatic
       && !strcmp(signature, "cancel()")) return fswatcherCancel;
 
-  // Meta
-  WrenForeignMethodFn meta = wrenMetaBindForeignMethod(vm, className, isStatic, signature);
-  if (meta != NULL) return meta;
-
-  // Timer
-  if (!strcmp(className, "Timer") && !isStatic) {
-      if (!strcmp(signature, "lap()")) return timerLap;
-      if (!strcmp(signature, "read()")) return timerRead;
-      if (!strcmp(signature, "reset()")) return timerReset;
-  }
-
-  // JSON
-  if (!strcmp(className, "JSON") && isStatic) {
-      if (!strcmp(signature, "encode(_)")) return jsonEncode;
-      if (!strcmp(signature, "decode(_)")) return jsonDecode;
-  }
-
   // IO
-  CHECK(!strcmp(className, "IO") &&
-        isStatic, "unexpected foreign method");
-  if (!strcmp(signature, "write_(_,_)")) return wrenshWrite;
-  if (!strcmp(signature, "flush()")) return wrenshFlush;
-  if (!strcmp(signature, "read_(_)")) return wrenshRead;
-  if (!strcmp(signature, "sleep_(_,_)")) return wrenshSleep;
-  if (!strcmp(signature, "arg(_)")) return wrenshArg;
-  if (!strcmp(signature, "argc()")) return wrenshArgc;
-  if (!strcmp(signature, "args()")) return wrenshArgs;
-  if (!strcmp(signature, "env()")) return wrenshEnvMap;
-  if (!strcmp(signature, "env(_)")) return wrenshEnv;
-  if (!strcmp(signature, "exit(_)")) return wrenshExit;
-  if (!strcmp(signature, "exec_(_,_)")) return wrenshExec;
-  if (!strcmp(signature, "glob(_)")) return wrenshGlob;
-  if (!strcmp(signature, "glob(_,_)")) return wrenshGlob;
-  if (!strcmp(signature, "run_(_,_,_,_,_,_)")) return wrenshRun;
-  if (!strcmp(signature, "chdir(_)")) return wrenshChdir;
-  if (!strcmp(signature, "cwd()")) return wrenshCwd;
+  if (!strcmp(className, "IO") && isStatic) {
+    if (!strcmp(signature, "write_(_,_)")) return wrenshWrite;
+    if (!strcmp(signature, "flush()")) return wrenshFlush;
+    if (!strcmp(signature, "read_(_)")) return wrenshRead;
+    if (!strcmp(signature, "sleep_(_,_)")) return wrenshSleep;
+    if (!strcmp(signature, "arg(_)")) return wrenshArg;
+    if (!strcmp(signature, "argc()")) return wrenshArgc;
+    if (!strcmp(signature, "args()")) return wrenshArgs;
+    if (!strcmp(signature, "env()")) return wrenshEnvMap;
+    if (!strcmp(signature, "env(_)")) return wrenshEnv;
+    if (!strcmp(signature, "exit(_)")) return wrenshExit;
+    if (!strcmp(signature, "exec_(_,_)")) return wrenshExec;
+    if (!strcmp(signature, "glob(_)")) return wrenshGlob;
+    if (!strcmp(signature, "glob(_,_)")) return wrenshGlob;
+    if (!strcmp(signature, "run_(_,_,_,_,_,_)")) return wrenshRun;
+    if (!strcmp(signature, "chdir(_)")) return wrenshChdir;
+    if (!strcmp(signature, "cwd()")) return wrenshCwd;
+  }
 
-  CHECK(false, "unexpected foreign method: %s", signature);
-}
-
-WrenVM* setupWren(Ctx* ctx) {
-  DLOG("setupWren");
-  WrenConfiguration config;
-  wrenInitConfiguration(&config);
-  config.writeFn = wrenWriteFn;
-  config.errorFn = wrenErrorFn;
-  config.bindForeignMethodFn = bindForeignMethod;
-  config.bindForeignClassFn = bindForeignClass;
-  config.userData = (void*)ctx;
-  WrenVM* vm = wrenNewVM(&config);
-  CHECK(vm != NULL, "could not initialize wren");
-
-  ctx->wren_tx_val = wrenMakeCallHandle(vm, "transfer(_)");
-  ctx->wren_tx_err = wrenMakeCallHandle(vm, "transferError(_)");
-  ctx->wren_tx = wrenMakeCallHandle(vm, "transfer()");
-  ctx->wren_call = wrenMakeCallHandle(vm, "call()");
-  ctx->wren_call_val = wrenMakeCallHandle(vm, "call(_)");
-  ctx->wren_call2_val = wrenMakeCallHandle(vm, "call(_,_)");
-
-  CHECK(wrenInterpret(vm, "io", wrenMetaSource()) == WREN_RESULT_SUCCESS, "bad meta src");
-  CHECK(wrenInterpret(vm, "io", wrensh_src_io) == WREN_RESULT_SUCCESS, "bad io src");
-  CHECK(wrenInterpret(vm, "main", "import \"io\" for IO, X, Data, JSON") == WREN_RESULT_SUCCESS);
-
-  return vm;
+  return NULL;
 }
 
 void cleanupGarbage(Ctx* ctx) {

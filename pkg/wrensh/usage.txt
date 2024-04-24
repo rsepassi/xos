@@ -9,8 +9,8 @@ IO:
   arg(i)  argc()  args()  env() env(name)
   read()  write(s)  writeln(s)  flush()
   cwd()  chdir(dir)  Process(args)  run(args)  run(args, env)  runc(args)
-  exec(args)  exec(args, env)   sleep(n)  trap(sig, fn)  glob(pattern)
-  glob(pattern, dir)  exit(code)
+  exec(args)  exec(args, env)   sleep(ms)  trap(sig, fn)  glob(pattern)
+  glob(pattern, dir)  exit(code)  Timer()
 ProcessBuilder:
   env(env)  stdout(fname)  stderr(fname)  run()  runc()  test()
 X:
@@ -21,3 +21,9 @@ Trap:
   cancel()
 Data:
   Record(name, fields)
+Timer:
+  lap()  read()  reset()
+JSON:
+  encode(val)  decode(str)
+KV(path):
+  get(key)  getp(prefix)  set(key, val)

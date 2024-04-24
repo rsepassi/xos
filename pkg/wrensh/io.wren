@@ -1,3 +1,11 @@
+foreign class KV {
+  construct new(path) {}
+
+  foreign get(key)
+  foreign getp(prefix)
+  foreign set(key, val)
+}
+
 class JSON {
   foreign static encode(obj)
   foreign static decode(str)
