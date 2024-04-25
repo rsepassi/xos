@@ -24,6 +24,7 @@ fn runCoro(vm: *wren.VM) void {
         log.debug("abort fiber {s}", .{msg});
 
         const ctx = vm.getUser(wrensh.Ctx);
+        vm.ensureSlots(2);
         vm.setSlot(0, fiber);
         vm.setSlot(1, msg);
         vm.call(@ptrCast(ctx.wren_tx_err)) catch {

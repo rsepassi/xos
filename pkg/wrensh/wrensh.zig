@@ -2,11 +2,13 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 const uv = @cImport(@cInclude("uv.h"));
-const c = @cImport(@cInclude("wrensh.h"));
+pub const c = @cImport(@cInclude("wrensh.h"));
+pub const Ctx = c.Ctx;
 const json = @import("json.zig");
 const kv = @import("kv.zig");
 const process = @import("process.zig");
 const fs = @import("fs.zig");
+const wtimer = @import("timer.zig");
 const coro = @import("zigcoro");
 
 const wren = wren2.c;
@@ -129,6 +131,21 @@ export fn wrenshArg(vm: *wren.WrenVM) void {
     }
 }
 
+pub fn getCtx(vm: *wren2.VM) *Ctx {
+    return vm.getUser(Ctx);
+}
+
+pub fn fiberError(vm: *wren2.VM, fiber: wren2.Handle, comptime fmt: []const u8, args: anytype) void {
+    const msg = std.fmt.allocPrintZ(vm.args.allocator, fmt, args) catch @panic("no mem");
+    defer vm.args.allocator.free(msg);
+    log.debug("abort fiber {s}", .{msg});
+
+    const ctx = getCtx(vm);
+    vm.setSlot(0, fiber);
+    vm.setSlot(1, msg);
+    vm.call(@ptrCast(ctx.wren_tx_err)) catch @panic("bad call");
+}
+
 const WrenshSrc = struct {
     has_baked_src: bool,
     alloc: std.mem.Allocator,
@@ -227,6 +244,7 @@ fn zigBindForeignMethod(
         if (std.mem.eql(u8, signature, "read_(_,_)")) return fs.readFile;
         if (std.mem.eql(u8, signature, "write_(_,_,_)")) return fs.writeFile;
         if (std.mem.eql(u8, signature, "append_(_,_,_)")) return fs.appendFile;
+        if (std.mem.eql(u8, signature, "sleep_(_,_)")) return wtimer.sleep;
     }
 
     return null;

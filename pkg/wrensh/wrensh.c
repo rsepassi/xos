@@ -242,47 +242,6 @@ void wrenshWrite(WrenVM* vm) {
   UV_CHECK(uv_write(&state->req, (uv_stream_t*)&stdio->stdout_stream, state->bufs, 1, wrenshWriteCb));
 }
 
-typedef struct {
-  WrenHandle* fiber;
-  WrenVM* vm;
-  uv_timer_t handle;
-} timerstate;
-
-void sleep_cb(uv_timer_t* handle) {
-  DLOG("sleep_cb");
-  timerstate* state = (timerstate*)uv_handle_get_data((uv_handle_t*)handle);
-  wrenEnsureSlots(state->vm, 1);
-  wrenSetSlotHandle(state->vm, 0, state->fiber);
-  Ctx* ctx = wrenshGetCtx(state->vm);
-  QCHECK(wrenCall(state->vm, ctx->wren_tx) == WREN_RESULT_SUCCESS);
-
-  uv_timer_stop(&state->handle);
-  wrenReleaseHandle(state->vm, state->fiber);
-  free(state);
-}
-
-void wrenshSleep(WrenVM* vm) {
-  DLOG("wrenshSleep");
-  WrenHandle* fiber = wrenGetSlotHandle(vm, 1);
-  WrenType t = wrenGetSlotType(vm, 2);
-  WREN_CHECK(t == WREN_TYPE_NUM, "must pass an integer to IO.sleep");
-  int n = (int)wrenGetSlotDouble(vm, 2);
-  DLOG("wrenshSleep n=%d", n);
-
-  const timerstate state_ = {
-    .fiber = fiber,
-    .vm = vm,
-  };
-  timerstate* state = malloc(sizeof(timerstate));
-  CHECK(state);
-  *state = state_;
-
-  Ctx* ctx = wrenshGetCtx(vm);
-  uv_handle_set_data((uv_handle_t*)&state->handle, state);
-  UV_CHECK(uv_timer_init(ctx->loop, &state->handle));
-  UV_CHECK(uv_timer_start(&state->handle, sleep_cb, n, 0));
-}
-
 void wrenshFlush(WrenVM* vm) {
   DLOG("wrenshFlush");
   fflush(stdout);
@@ -603,7 +562,6 @@ WrenForeignMethodFn cBindForeignMethod(
     if (!strcmp(signature, "write_(_,_)")) return wrenshWrite;
     if (!strcmp(signature, "flush()")) return wrenshFlush;
     if (!strcmp(signature, "read_(_)")) return wrenshRead;
-    if (!strcmp(signature, "sleep_(_,_)")) return wrenshSleep;
     if (!strcmp(signature, "arg(_)")) return wrenshArg;
     if (!strcmp(signature, "argc()")) return wrenshArgc;
     if (!strcmp(signature, "args()")) return wrenshArgs;
