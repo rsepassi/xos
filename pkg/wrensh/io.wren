@@ -169,6 +169,21 @@ class IO {
     return Fiber.yield()
   }
 
+  static read(f) {
+    read_(Fiber.current, f)
+    return Fiber.yield()
+  }
+
+  static write(f, contents) {
+    write_(Fiber.current, f, contents)
+    return Fiber.yield()
+  }
+
+  static append(f, contents) {
+    append_(Fiber.current, f, contents)
+    return Fiber.yield()
+  }
+
   static write(s) {
     if (!(s is String)) s = "%(s)"
     write_(Fiber.current, s)
@@ -202,7 +217,11 @@ class IO {
   }
 
   static runc(argv) {
-    return run_wrap_(argv, null, true, null, null)
+    return run_wrap_(argv, null, true, "/dev/null", "/dev/null")
+  }
+
+  static runc(argv, env) {
+    return run_wrap_(argv, env, true, "/dev/null", "/dev/null")
   }
 
   static exec(argv) {
@@ -236,7 +255,10 @@ class IO {
 
   // private
   foreign static read_(f)
+  foreign static read_(f, file)
   foreign static write_(f, s)
+  foreign static write_(f, file, contents)
+  foreign static append_(f, file, contents)
   foreign static sleep_(f, n)
   foreign static exec_(args, env)
   foreign static run_(f, args, env, rc, stdout, stderr)

@@ -6,6 +6,8 @@ const c = @cImport(@cInclude("wrensh.h"));
 const json = @import("json.zig");
 const kv = @import("kv.zig");
 const process = @import("process.zig");
+const fs = @import("fs.zig");
+const coro = @import("zigcoro");
 
 const wren = wren2.c;
 const wren2 = @import("wren");
@@ -101,24 +103,6 @@ fn uvcall(rc: c_int) !void {
 fn uvGetCtx(handle: anytype) *c.Ctx {
     return @ptrCast(@alignCast(uv.uv_handle_get_data(@ptrCast(handle))));
 }
-
-// fn tickerCb(handle: [*c]uv.uv_timer_t) callconv(.C) void {
-//     const ctx: *c.Ctx = uvGetCtx(handle);
-//     log.info("tick", .{});
-//     process.cleanupGarbage(ctx);
-// }
-
-// fn startTicker(ctx: *c.Ctx, ticker: *uv.uv_timer_t) !void {
-//     try uvcall(uv.uv_timer_init(@ptrCast(@alignCast(ctx.loop)), ticker));
-//     uv.uv_handle_set_data(@ptrCast(ticker), ctx);
-//     uv.uv_unref(@ptrCast(ticker));
-//     try uvcall(uv.uv_timer_start(ticker, tickerCb, 0, 1000));
-// }
-//
-// fn stopTicker(ticker: *uv.uv_timer_t) void {
-//     _ = uv.uv_timer_stop(ticker);
-//     uv.uv_close(@ptrCast(ticker), null);
-// }
 
 export fn wrenshArgs(vm: *wren.WrenVM) void {
     const ctx = wrenshGetCtx(vm);
@@ -239,6 +223,9 @@ fn zigBindForeignMethod(
     // IO
     if (std.mem.eql(u8, className, "IO") and isStatic) {
         if (std.mem.eql(u8, signature, "run_(_,_,_,_,_,_)")) return process.run;
+        if (std.mem.eql(u8, signature, "read_(_,_)")) return fs.readFile;
+        if (std.mem.eql(u8, signature, "write_(_,_,_)")) return fs.writeFile;
+        if (std.mem.eql(u8, signature, "append_(_,_,_)")) return fs.appendFile;
     }
 
     return null;
@@ -356,6 +343,10 @@ pub fn main() !void {
     const alloc = gpa.allocator();
     defer if (gpa.deinit() == .leak) log.err("leak!", .{});
 
+    coro.initEnv(.{
+        .stack_allocator = alloc,
+    });
+
     const args = try std.process.argsAlloc(alloc);
     defer std.process.argsFree(alloc, args);
     const argc = args.len;
@@ -379,7 +370,6 @@ pub fn main() !void {
     try uvcall(uv.uv_loop_init(&loop));
     ctx.loop = @ptrCast(&loop);
     defer c.cleanupUV(&ctx);
-    // defer process.cleanupGarbage(&ctx);
 
     log.debug("stdio setup", .{});
     ctx.stdio = c.setupStdio(@ptrCast(&loop));
@@ -390,17 +380,18 @@ pub fn main() !void {
     defer wrenvm.deinit();
     defer cleanupWren(wrenvm, ctx);
 
-    // setup ticker (garbage collection)
-    // var ticker: uv.uv_timer_t = undefined;
-    // try startTicker(&ctx, &ticker);
-    // defer stopTicker(&ticker);
-
     log.debug("wren interpret", .{});
     try wrenvm.interpret("main", src.user_src.?);
 
     log.debug("loop", .{});
     var live: c_int = 1;
-    while (live > 0) live = uv.uv_run(&loop, uv.UV_RUN_ONCE);
+    while (live > 0) {
+        if (builtin.mode == .Debug) {
+            log.debug("tick", .{});
+            uv.uv_print_all_handles(&loop, uv.__stderrp);
+        }
+        live = uv.uv_run(&loop, uv.UV_RUN_ONCE);
+    }
 
     log.debug("loop exit", .{});
 }

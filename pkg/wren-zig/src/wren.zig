@@ -172,7 +172,7 @@ pub const VM = struct {
             Handle => {
                 c.wrenSetSlotHandle(self.vm, i, val.handle);
             },
-            i8, i16, i32, i64, u8, u16, u32, u64, usize => {
+            comptime_int, i8, i16, i32, i64, u8, u16, u32, u64, usize => {
                 c.wrenSetSlotDouble(self.vm, i, @floatFromInt(val));
             },
             else => {

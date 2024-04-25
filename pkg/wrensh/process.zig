@@ -53,6 +53,7 @@ fn runSafe(vm: *wren.VM) !void {
     defer if (env) |e| alloc.free(e);
 
     var state = try alloc.create(RunState);
+    errdefer alloc.destroy(state);
     state.* = .{
         .vm = vm,
         .fiber = vm.getSlot(Slots.fiber.i(), .Handle),
@@ -177,16 +178,24 @@ const Slots = enum(u8) {
 
 fn finalize(state: *RunState) !void {
     const vm = state.vm;
+    const alloc = vm.args.allocator;
     const ctx = vm.getUser(wrensh.Ctx);
+
+    defer state.fiber.deinit();
+    defer uv.uv_close(@ptrCast(&state.handle), null);
+    defer alloc.destroy(state);
+
     vm.ensureSlots(2);
     vm.setSlot(0, state.fiber);
     const success = state.exit_status.? == 0;
-    const alloc = vm.args.allocator;
 
     if (success) {
         if (state.stdout_state) |stdout_state| {
             defer stdout_state.str.deinit();
             vm.setSlot(1, stdout_state.str.items);
+            try vm.call(@ptrCast(ctx.wren_tx_val));
+        } else if (state.return_code) {
+            vm.setSlot(1, 0);
             try vm.call(@ptrCast(ctx.wren_tx_val));
         } else {
             try vm.call(@ptrCast(ctx.wren_tx));
@@ -202,9 +211,6 @@ fn finalize(state: *RunState) !void {
             try vm.call(@ptrCast(ctx.wren_tx_err));
         }
     }
-
-    state.fiber.deinit();
-    uv.uv_close(@ptrCast(&state.handle), null);
 }
 
 fn exitCb(process: [*c]uv.uv_process_t, exit_status: i64, term_signal: c_int) callconv(.C) void {
