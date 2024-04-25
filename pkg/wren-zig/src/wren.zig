@@ -191,6 +191,7 @@ pub const VM = struct {
     pub fn abortFiber(self: *Self, comptime fmt: str, args: anytype) void {
         const msg = std.fmt.allocPrint(self.args.allocator, fmt, args) catch @panic("no mem");
         defer self.args.allocator.free(msg);
+        log.debug("abortFiber {s}", .{msg});
         self.setSlot(0, msg);
         self.abortFiberSlot(0);
     }

@@ -33,21 +33,27 @@ fn appendFileSafe(vm: *wren.VM) !void {
 
 fn readFileCoro(vm: *wren.VM) void {
     readFileCoroSafe(vm) catch |err| {
+        log.debug("read coro err", .{});
         vm.abortFiber("read failed err={any}", .{err});
+        return;
     };
     coro.xsuspendBlock(finalize, .{ vm, coro.xframe() });
 }
 
 fn writeFileCoro(vm: *wren.VM) void {
     writeFileCoroSafe(vm, false) catch |err| {
+        log.debug("write coro err", .{});
         vm.abortFiber("write failed err={any}", .{err});
+        return;
     };
     coro.xsuspendBlock(finalize, .{ vm, coro.xframe() });
 }
 
 fn appendFileCoro(vm: *wren.VM) void {
     writeFileCoroSafe(vm, true) catch |err| {
+        log.debug("append coro err", .{});
         vm.abortFiber("append failed err={any}", .{err});
+        return;
     };
     coro.xsuspendBlock(finalize, .{ vm, coro.xframe() });
 }
@@ -92,9 +98,9 @@ fn writeFileCoroSafe(vm: *wren.VM, append: bool) !void {
     const path = vm.getSlot(2, .String);
     const contents = vm.getSlot(3, .Bytes);
 
-    const flag = if (append) uv.File.Flags.APPEND else (uv.File.Flags.WRONLY | uv.File.Flags.TRUNC);
+    const flag = if (append) uv.File.Flags.APPEND else uv.File.Flags.TRUNC;
 
-    const file = try uv.coro.File.open(loop, path, flag | uv.File.Flags.CREAT, 0o664);
+    const file = try uv.coro.File.open(loop, path, flag | uv.File.Flags.WRONLY | uv.File.Flags.CREAT, 0o664);
     defer file.close();
 
     const writer = file.writer();
