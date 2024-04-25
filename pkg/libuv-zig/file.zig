@@ -78,15 +78,11 @@ pub const File = struct {
         var data = Data.init();
         uv.setReqData(&req, &data);
         var uvbuf = uv.newbuf(@constCast(buf));
-        std.debug.print("pre fs_write\n", .{});
         try uv.check(uv.uv_fs_write(self.loop, &req, self.fd, &uvbuf, 1, -1, xresume));
-        std.debug.print("post fs_write\n", .{});
         coro.xsuspend();
         if (req.result < 0) {
-            std.debug.print("post resume fs_write err\n", .{});
             return Error.Write;
         } else {
-            std.debug.print("post resume fs_write len {d}\n", .{req.result});
             return @intCast(req.result);
         }
     }
