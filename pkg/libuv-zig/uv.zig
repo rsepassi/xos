@@ -3,6 +3,7 @@ pub usingnamespace (c);
 
 pub const coro = struct {
     pub usingnamespace @import("file.zig");
+    pub usingnamespace @import("process.zig");
 };
 
 /// A `uv` error
@@ -263,6 +264,14 @@ pub fn setReqData(req: anytype, data: anytype) void {
 
 pub fn getReqData(req: anytype, comptime T: type) *T {
     return @ptrCast(@alignCast(c.uv_req_get_data(@ptrCast(req))));
+}
+
+pub fn setHandleData(h: anytype, data: anytype) void {
+    c.uv_handle_set_data(@ptrCast(h), data);
+}
+
+pub fn getHandleData(h: anytype, comptime T: type) *T {
+    return @ptrCast(@alignCast(c.uv_handle_get_data(@ptrCast(h))));
 }
 
 pub fn newbuf(data: []u8) c.uv_buf_t {

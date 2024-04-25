@@ -217,11 +217,13 @@ class IO {
   }
 
   static runc(argv) {
-    return run_wrap_(argv, null, true, "/dev/null", "/dev/null")
+    runc_(Fiber.current, argv, null)
+    return Fiber.yield()
   }
 
   static runc(argv, env) {
-    return run_wrap_(argv, env, true, "/dev/null", "/dev/null")
+    runc_(Fiber.current, argv, env)
+    return Fiber.yield()
   }
 
   static exec(argv) {
@@ -262,6 +264,7 @@ class IO {
   foreign static sleep_(f, n)
   foreign static exec_(args, env)
   foreign static run_(f, args, env, rc, stdout, stderr)
+  foreign static runc_(f, args, env)
 
   static run_wrap_(argv, env, rc, stdout, stderr) {
     argv = normalize_argv_(argv)

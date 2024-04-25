@@ -1,9 +1,92 @@
 const std = @import("std");
 const wren = @import("wren");
 const uv = @import("uv");
+const coro = @import("zigcoro");
 const wrensh = @cImport(@cInclude("wrensh.h"));
 
 const log = std.log.scoped(.wrensh);
+
+pub fn runc(vm: ?*wren.c.WrenVM) callconv(.C) void {
+    runcSafe(wren.VM.get(vm)) catch {};
+}
+
+fn runcSafe(vm: *wren.VM) !void {
+    _ = try coro.xasync(runCoro, .{vm}, 1 << 14);
+}
+
+fn runCoro(vm: *wren.VM) void {
+    const fiber = vm.getSlot(Slots.fiber.i(), .Handle);
+    defer fiber.deinit();
+
+    runCoroSafe(vm) catch |err| {
+        const msg = std.fmt.allocPrintZ(vm.args.allocator, "process spawn failed err={any}", .{err}) catch @panic("no mem");
+        defer vm.args.allocator.free(msg);
+        log.debug("abort fiber {s}", .{msg});
+
+        const ctx = vm.getUser(wrensh.Ctx);
+        vm.setSlot(0, fiber);
+        vm.setSlot(1, msg);
+        vm.call(@ptrCast(ctx.wren_tx_err)) catch {
+            @panic("bad call");
+        };
+
+        return;
+    };
+
+    vm.setSlot(0, fiber);
+    coro.xsuspendBlock(corofinalize, .{ vm, coro.xframe() });
+}
+
+fn corofinalize(vm: *wren.VM, frame: coro.Frame) void {
+    const ctx = vm.getUser(wrensh.Ctx);
+    vm.call(@ptrCast(ctx.wren_tx_val)) catch {
+        vm.abortFiber("error", .{});
+    };
+    frame.deinit();
+}
+
+fn runCoroSafe(vm: *wren.VM) !void {
+    log.debug("run", .{});
+    const ctx = vm.getUser(wrensh.Ctx);
+    const loop: *uv.uv_loop_t = @ptrCast(@alignCast(ctx.loop));
+    const alloc = vm.args.allocator;
+
+    const wargs = vm.getSlot(Slots.args.i(), .List);
+    const wargs_len = wargs.len();
+
+    const args = try alloc.alloc([:0]const u8, wargs_len);
+    defer alloc.free(args);
+
+    for (0..wargs_len) |i| {
+        const arg = wargs.get(i, Slots.scratch.i(), .String);
+        log.debug("- {s}", .{arg});
+        args[i] = arg;
+    }
+
+    const env = blk: {
+        var env: ?[][:0]const u8 = null;
+        if (vm.getSlot(Slots.env.i(), .Type) == .Null) {
+            break :blk env;
+        }
+
+        const wenv = vm.getSlot(Slots.env.i(), .List);
+        const wenv_len = wenv.len();
+        env = try alloc.alloc([:0]const u8, wenv_len);
+        for (0..wenv_len) |i| {
+            const entry = wenv.get(i, Slots.scratch.i(), .String);
+            log.debug("- {s}", .{entry});
+            env.?[i] = entry;
+        }
+        break :blk env;
+    };
+    defer if (env) |e| alloc.free(e);
+
+    const out = try uv.coro.Process.run(loop, alloc, args, .{
+        .env = env,
+    });
+    vm.ensureSlots(2);
+    vm.setSlot(1, out.exit_status);
+}
 
 pub fn run(vm: ?*wren.c.WrenVM) callconv(.C) void {
     runSafe(wren.VM.get(vm)) catch |err| {
