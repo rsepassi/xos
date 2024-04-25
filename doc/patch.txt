@@ -15,7 +15,7 @@ Prepare the patch environment with git
 # git init; git add .; git commit -m "base"
 
 Editing
-* In the packages build.sh, point the source directory at your tmp directory
+* In the package's build.sh, point the source directory at your tmp directory
   e.g. in pkg/libuv/build.sh set src=/tmp/libuv
 * touch pkg/libuv/dev_volatile
 * Run build with DEV=1
