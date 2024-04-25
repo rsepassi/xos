@@ -36,6 +36,6 @@ IO.run(["ln", "-s", "%(env["XOS_BUILD_CACHE"])/pkg/%(pkgid_prefix)/%(pkgid)/out"
 
 // log the dynamic dependency
 var depargs_str = JSON.encode(depargs)
-var depline = "%(pkgid)  %(name)  %(pkg)  %(JSON.encode(depargs))"
+var depline = "%(pkgid)  %(name)  %(pkg)  %(JSON.encode(depargs))\n"
 var outf = "%(env["XOS_BUILD_OUT"])/%(txt)"
-IO.run(["sh", "-c", "echo '%(depline)' >> %(outf)"])
+IO.append(outf, depline)
