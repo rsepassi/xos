@@ -135,6 +135,4 @@ pub const File = struct {
     // utime
     // chmod
     // datasync
-    // truncate
-    // sendfile
 };
