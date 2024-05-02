@@ -8,13 +8,21 @@ unzip $(realpath $BUILD_DEPS/sqlite.zip)
 src="$src/sqlite-amalgamation-3450000"
 cd $src
 
+# SQLITE_TRANSIENT is set to -1, but that's an invalid pointer, so it breaks
+# Zig's C header import. Since the SQLite code only ever tests equality of
+# this constant, and since we're always statically linking, replace it here
+# with a value that doesn't break Zig.
+sed -i '/^#define SQLITE_TRANSIENT/s/.*/#define SQLITE_TRANSIENT   ((sqlite3_destructor_type)8)/' sqlite3.h
+sed -i '/^#define SQLITE_TRANSIENT/s/.*/#define SQLITE_TRANSIENT   ((sqlite3_destructor_type)8)/' sqlite3.c
+
 # lib
-cc --target=$TARGET -o sqlite3.o -c sqlite3.c -lc
-ar rcs $(zigi lib sqlite3) sqlite3.o
+zig build-lib -target $TARGET -O $OPT_ZIG \
+  -DSQLITE_ENABLE_FTS5 \
+  sqlite3.c -lc
 
 # install
 cd "$BUILD_OUT"
 mkdir lib include
 cp $src/*.h include
-cp $src/$(zigi lib sqlite3) lib
+mv $src/$(zigi lib sqlite3) lib
 pkg-config --gendefault sqlite3
