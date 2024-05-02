@@ -192,7 +192,6 @@ pub const Statement = struct {
                     .Static => c.SQLITE_STATIC,
                     .Transient => c.SQLITE_TRANSIENT,
                 } else c.SQLITE_TRANSIENT;
-                std.debug.print("{*}\n", .{lifetime});
                 if (opts.blob) |b| {
                     switch (b) {
                         .data => {
