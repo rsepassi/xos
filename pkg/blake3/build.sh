@@ -11,3 +11,4 @@ cp $BUILD_PKG/build.zig .
 zig build -Dtarget=$TARGET -Doptimize=$OPT_ZIG
 mv $PWD/zig-out/include $BUILD_OUT
 mv $PWD/zig-out/lib $BUILD_OUT
+pkg-config --gendefault blake3

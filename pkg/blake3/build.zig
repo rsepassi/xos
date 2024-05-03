@@ -52,8 +52,8 @@ pub fn build(b: *std.Build) void {
     }
     lib.linkLibC();
 
-    const h1 = b.addInstallHeaderFile("c/blake3.h", "blake3.h");
-    const h2 = b.addInstallHeaderFile("c/blake3_impl.h", "blake3_impl.h");
+    const h1 = b.addInstallHeaderFile(b.path("c/blake3.h"), "blake3.h");
+    const h2 = b.addInstallHeaderFile(b.path("c/blake3_impl.h"), "blake3_impl.h");
     b.default_step.dependOn(&h1.step);
     b.default_step.dependOn(&h2.step);
 
