@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const blake3 = struct {
     pub const c = @cImport({
@@ -7,7 +8,8 @@ const blake3 = struct {
 
     hasher: c.blake3_hasher,
 
-    const Hash = [32]u8;
+    const digest_length = 32;
+    const Digest = [digest_length]u8;
 
     pub fn init() @This() {
         var out: @This() = undefined;
@@ -15,8 +17,8 @@ const blake3 = struct {
         return out;
     }
 
-    pub fn finalize(self: *@This()) Hash {
-        var out: [32]u8 = undefined;
+    pub fn final(self: *@This()) Digest {
+        var out: [digest_length]u8 = undefined;
         c.blake3_hasher_finalize(&self.hasher, @ptrCast(&out), out.len);
         return out;
     }
@@ -25,7 +27,7 @@ const blake3 = struct {
         c.blake3_hasher_update(&self.hasher, data.ptr, data.len);
     }
 
-    pub fn hashReader(reader: anytype, comptime bufsize: usize) !Hash {
+    pub fn hashReader(reader: anytype, comptime bufsize: usize) !Digest {
         var hasher = init();
         var buf: [bufsize]u8 = undefined;
         var nread: usize = 1;
@@ -33,20 +35,20 @@ const blake3 = struct {
             nread = try reader.read(&buf);
             hasher.update(buf[0..nread]);
         }
-        return hasher.finalize();
+        return hasher.final();
     }
 
-    pub fn hash(data: []const u8) Hash {
+    pub fn hash(data: []const u8) Digest {
         var hasher = init();
         hasher.update(data);
-        return hasher.finalize();
+        return hasher.final();
     }
 
-    pub fn deriveKey(context: []const u8, sk: [32]u8) Hash {
+    pub fn deriveKey(context: []const u8, sk: [digest_length]u8) Digest {
         var hasher: @This() = undefined;
         c.blake3_hasher_init_derive_key_raw(&hasher.hasher, context.ptr, context.len);
         hasher.update(&sk);
-        return hasher.finalize();
+        return hasher.final();
     }
 };
 
@@ -55,6 +57,21 @@ const monocypher = struct {
         @cInclude("monocypher.h");
         @cInclude("monocypher-ed25519.h");
     });
+
+    fn eql(comptime n: usize, a: [n]u8, b: [n]u8) bool {
+        switch (n) {
+            16 => {
+                return monocypher.c.crypto_verify16(&a, &b) == 0;
+            },
+            32 => {
+                return monocypher.c.crypto_verify32(&a, &b) == 0;
+            },
+            64 => {
+                return monocypher.c.crypto_verify64(&a, &b) == 0;
+            },
+            else => @compileError("unsupported comparison length"),
+        }
+    }
 };
 
 const mbedtls = struct {
@@ -63,10 +80,92 @@ const mbedtls = struct {
     });
 };
 
+fn mlock(buf: []const u8) !void {
+    const mlock_sig = *const fn (addr: ?*anyopaque, len: usize) callconv(.C) c_int;
+    const mlock_fn = switch (builtin.os.tag) {
+        .linux, .macos => @extern(mlock_sig, .{
+            .name = "mlock",
+        }),
+        .windows => @extern(mlock_sig, .{
+            .name = "VirtualLock",
+        }),
+        else => @compileError("no mlock"),
+    };
+
+    const rc = mlock_fn(@ptrCast(@constCast(buf.ptr)), buf.len);
+    if (rc != 0) return error.MlockFailed;
+}
+
 const crypt = struct {
+    const SecretAllocator = struct {
+        end_index: usize,
+        buf: []u8,
+
+        fn init(buf: []align(std.mem.page_size) u8) !@This() {
+            if (buf.len % std.mem.page_size != 0) @panic("SecretAllocator page-aligned buffer must be a multiple of the page size");
+            try mlock(buf);
+            return .{
+                .end_index = 0,
+                .buf = buf,
+            };
+        }
+
+        fn allocator(self: *@This()) std.mem.Allocator {
+            return .{
+                .ptr = self,
+                .vtable = &.{
+                    .alloc = alloc,
+                    .resize = resize,
+                    .free = free,
+                },
+            };
+        }
+
+        fn alloc(ctx: *anyopaque, n: usize, log2_ptr_align: u8, ra: usize) ?[*]u8 {
+            _ = ra;
+            const self: *@This() = @ptrCast(@alignCast(ctx));
+            const ptr_align = @as(usize, 1) << @as(std.mem.Allocator.Log2Align, @intCast(log2_ptr_align));
+            const adjust_off = std.mem.alignPointerOffset(self.buf.ptr + self.end_index, ptr_align) orelse return null;
+            const adjusted_index = self.end_index + adjust_off;
+            const new_end_index = adjusted_index + n;
+            if (new_end_index > self.buf.len) return null;
+            self.end_index = new_end_index;
+            return self.buf.ptr + adjusted_index;
+        }
+
+        fn resize(
+            ctx: *anyopaque,
+            buf: []u8,
+            log2_buf_align: u8,
+            new_size: usize,
+            return_address: usize,
+        ) bool {
+            _ = ctx;
+            _ = buf;
+            _ = log2_buf_align;
+            _ = new_size;
+            _ = return_address;
+            return false;
+        }
+
+        fn free(
+            ctx: *anyopaque,
+            buf: []u8,
+            log2_buf_align: u8,
+            ra: usize,
+        ) void {
+            _ = ctx;
+            _ = log2_buf_align;
+            _ = ra;
+            wipe(buf);
+        }
+    };
+
     // TODO: possibly use mlock + equivalents to lock secret pages in memory
     // (i.e. not spill to swap). Maybe have a SecretAllocator that only
     // generates into locked pages and wipes on free.
+    // int mlock(const void *addr, size_t len);
+    // BOOL VirtualLock([in] LPVOID lpAddress, [in] SIZE_T dwSize);
     fn Secret(T: type) type {
         const I = @typeInfo(T);
         const comptime_len: ?comptime_int = if (I == .Array) I.Array.len else null;
@@ -84,21 +183,7 @@ const crypt = struct {
                 if (comptime_len == null) @compileError("eql requires comptime-known length");
                 if (comptime_len != @TypeOf(other_secret).len) @compileError("secrets are of different length");
 
-                const this = self.slice();
-                const other = other_secret.slice();
-
-                switch (comptime_len.?) {
-                    16 => {
-                        return monocypher.c.crypto_verify16(this.ptr, other.ptr) == 0;
-                    },
-                    32 => {
-                        return monocypher.c.crypto_verify32(this.ptr, other.ptr) == 0;
-                    },
-                    64 => {
-                        return monocypher.c.crypto_verify64(this.ptr, other.ptr) == 0;
-                    },
-                    else => @compileError("unsupported size"),
-                }
+                return monocypher.eql(comptime_len.?, self.bytes, other_secret.bytes);
             }
 
             inline fn slice(self: @This()) []const u8 {
@@ -115,9 +200,20 @@ const crypt = struct {
     pub const PrivateKey = Secret([32]u8);
     pub const PublicKey = [32]u8;
     pub const Signature = [64]u8;
+
     pub const SigningKey = struct {
         // first half is sk, second half is pk
         fullkey: Secret([64]u8),
+
+        pub fn init(seed: PrivateKey) @This() {
+            var out: @This() = .{
+                .fullkey = Secret([64]u8){ .bytes = undefined },
+            };
+            var tmpsk: [32]u8 = seed.bytes;
+            var tmppk: PublicKey = undefined;
+            monocypher.c.crypto_eddsa_key_pair(&out.fullkey.bytes, &tmppk, &tmpsk);
+            return out;
+        }
 
         fn deinit(self: @This()) void {
             self.fullkey.deinit();
@@ -135,7 +231,7 @@ const crypt = struct {
             return self.signHash(blake3.hash(message));
         }
 
-        fn signHash(self: @This(), hash: blake3.Hash) Signature {
+        fn signHash(self: @This(), hash: blake3.Digest) Signature {
             var out: Signature = undefined;
             monocypher.c.crypto_eddsa_sign(&out, self.sk(), &hash, hash.len);
             return out;
@@ -148,25 +244,13 @@ const crypt = struct {
     };
 
     pub fn newprivkey() PrivateKey {
-        var buf: [32]u8 = undefined;
-        random(&buf);
-        return .{ .bytes = buf };
+        return .{ .bytes = randomN(32) };
     }
 
     pub fn pubkey(sk: PrivateKey) PublicKey {
         var pk: PublicKey = undefined;
         monocypher.c.crypto_x25519_public_key(@ptrCast(&pk), @ptrCast(&sk.bytes));
         return pk;
-    }
-
-    pub fn newsignkey() SigningKey {
-        var out: SigningKey = .{
-            .fullkey = Secret([64]u8){ .bytes = undefined },
-        };
-        var seed = randomN(32);
-        var tmppk: PublicKey = undefined;
-        monocypher.c.crypto_eddsa_key_pair(&out.fullkey.bytes, &tmppk, &seed);
-        return out;
     }
 
     pub fn random(buf: []u8) void {
@@ -373,7 +457,10 @@ fn printHex(writer: anytype, title: []const u8, contents: anytype) !void {
     try writer.print("\n", .{});
 }
 
-fn base64EncodeAlloc(alloc: std.mem.Allocator, buf: []const u8) !struct { buf: []u8, encoded: []const u8 } {
+fn base64EncodeAlloc(
+    alloc: std.mem.Allocator,
+    buf: []const u8,
+) !struct { buf: []u8, encoded: []const u8 } {
     const encoder = std.base64.Base64Encoder.init(std.base64.url_safe_alphabet_chars, '=');
     const enc = try alloc.alloc(u8, encoder.calcSize(buf.len));
     const enc2 = encoder.encode(enc, buf);
@@ -389,9 +476,19 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const alloc = gpa.allocator();
 
+    const secret_buf = try alloc.alignedAlloc(u8, std.mem.page_size, 32 * 1024);
+    var secret_alloc = try crypt.SecretAllocator.init(secret_buf);
+    const alloc_sec = secret_alloc.allocator();
+
+    {
+        const s1 = try alloc_sec.alloc(u8, 32);
+        defer alloc_sec.free(s1);
+    }
+
     const stdout = std.io.getStdOut().writer();
 
     const sk1 = crypt.newprivkey();
+    try mlock(&sk1.bytes);
     defer sk1.deinit();
     const pk1 = crypt.pubkey(sk1);
 
@@ -407,7 +504,7 @@ pub fn main() !void {
     const shared2 = crypt.keyx(sk2, pk1);
     defer shared2.deinit();
 
-    const signk1 = crypt.newsignkey();
+    const signk1 = crypt.SigningKey.init(sk1);
     defer signk1.deinit();
 
     const m1 = "hello world";
@@ -449,7 +546,7 @@ pub fn main() !void {
     defer f.close();
     const f_hash = try blake3.hashReader(f.reader(), 2048);
 
-    const f_hash2: blake3.Hash = blk: {
+    const f_hash2: blake3.Digest = blk: {
         const f2 = try std.fs.cwd().openFile("readme.md", .{});
         defer f2.close();
         var stream1 = crypt.StreamCrypt.init(sk1, null);
@@ -468,7 +565,7 @@ pub fn main() !void {
             const plain_message = try stream2.authDecrypt(buf2[0..n], stream_message);
             hasher.update(plain_message);
         }
-        break :blk hasher.finalize();
+        break :blk hasher.final();
     };
 
     try printHex(stdout, "sk1", sk1.bytes);
