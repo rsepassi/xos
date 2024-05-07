@@ -56,9 +56,46 @@ pub fn build(b: *std.Build) void {
     libtls.defineCMacro("_FILE_OFFSET_BITS", "64");
     libtls.linkLibC();
 
+    const libtest = b.addStaticLibrary(.{
+        .name = "mbedtest",
+        .target = target,
+        .optimize = optimize,
+    });
+    libtest.addCSourceFiles(.{ .files = &testlib_src_files });
+    libtest.addIncludePath(.{ .path = "library" });
+    libtest.addIncludePath(.{ .path = "include" });
+    libtest.addIncludePath(.{ .path = "tests/include" });
+    libtest.defineCMacro("_FILE_OFFSET_BITS", "64");
+    libtest.linkLibC();
+
+    const gen_key = b.addExecutable(.{
+        .name = "gen_key",
+        .target = target,
+        .optimize = optimize,
+    });
+    gen_key.addCSourceFiles(.{ .files = &.{"programs/pkey/gen_key.c"} });
+    gen_key.addIncludePath(.{ .path = "include" });
+    gen_key.linkLibrary(libcrypto);
+    gen_key.linkLibC();
+
+    const cert_write = b.addExecutable(.{
+        .name = "cert_write",
+        .target = target,
+        .optimize = optimize,
+    });
+    cert_write.addCSourceFiles(.{ .files = &.{"programs/x509/cert_write.c"} });
+    cert_write.addIncludePath(.{ .path = "include" });
+    cert_write.addIncludePath(.{ .path = "tests/include" });
+    cert_write.linkLibrary(libcrypto);
+    cert_write.linkLibrary(libx509);
+    cert_write.linkLibrary(libtest);
+    cert_write.linkLibC();
+
     b.installArtifact(libcrypto);
     b.installArtifact(libx509);
     b.installArtifact(libtls);
+    b.installArtifact(gen_key);
+    b.installArtifact(cert_write);
 }
 
 const crypto_src_files = [_][]const u8{
@@ -179,4 +216,16 @@ const tls_src_files = [_][]const u8{
     "library/ssl_tls13_client.c",
     "library/ssl_tls13_server.c",
     "library/ssl_tls13_generic.c",
+};
+
+const testlib_src_files = [_][]const u8{
+    "tests/src/asn1_helpers.c",
+    "tests/src/bignum_helpers.c",
+    "tests/src/certs.c",
+    "tests/src/fake_external_rng_for_test.c",
+    "tests/src/helpers.c",
+    "tests/src/psa_crypto_helpers.c",
+    "tests/src/psa_exercise_key.c",
+    "tests/src/random.c",
+    "tests/src/threading_helpers.c",
 };
