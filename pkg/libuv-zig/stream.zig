@@ -13,7 +13,7 @@ pub const Stream = struct {
         return .{ .context = self };
     }
 
-    pub fn write(self: @This(), buf: []const u8) Error!void {
+    pub fn write(self: @This(), buf: []const u8) Error!usize {
         const Data = struct {
             frame: coro.Frame,
             status: ?c_int = null,
@@ -22,7 +22,8 @@ pub const Stream = struct {
                 return .{ .frame = coro.xframe() };
             }
             fn cb(req: [*c]uv.uv_write_t, status: c_int) callconv(.C) void {
-                var data = uv.getHandleData(req.handle, @This());
+                log.debug("stream write cb", .{});
+                var data = uv.getHandleData(req.*.handle, @This());
                 data.status = status;
                 coro.xresume(data.frame);
             }
@@ -35,7 +36,8 @@ pub const Stream = struct {
         uv.setHandleData(self.handle, &data);
         try uv.check(uv.uv_write(&req, self.handle, &uvbuf, 1, Data.cb));
         coro.xsuspend();
-        try uv.check(data.status);
+        try uv.check(data.status.?);
+        return buf.len;
     }
 
     const Reader = std.io.Reader(@This(), Error, read);
@@ -43,7 +45,7 @@ pub const Stream = struct {
         return .{ .context = self };
     }
 
-    fn read(self: @This(), buf: []u8) Error!usize {
+    pub fn read(self: @This(), buf: []u8) Error!usize {
         const Data = struct {
             frame: coro.Frame,
             userbuf: []u8,
@@ -111,6 +113,30 @@ pub const Stream = struct {
         uv.setHandleData(&self.handle, &data);
 
         try uv.check(uv.uv_shutdown(&req, self.handle, Data.cb));
+        coro.xsuspend();
+        try uv.check(data.status.?);
+    }
+
+    pub fn listen(self: @This(), backlog: c_int) !void {
+        const Data = struct {
+            frame: coro.Frame,
+            status: c_int = 0,
+
+            fn init() @This() {
+                return .{ .frame = coro.xframe() };
+            }
+
+            fn cb(s: [*c]uv.uv_stream_t, status: c_int) callconv(.C) void {
+                var data = uv.getHandleData(s, @This());
+                data.status = status;
+                coro.xresume(data.frame);
+            }
+        };
+
+        var data = Data.init();
+        uv.setHandleData(&self.handle, &data);
+
+        try uv.check(uv.uv_listen(&self.handle, backlog, Data.cb));
         coro.xsuspend();
         try uv.check(data.status);
     }
@@ -200,7 +226,7 @@ pub const Pipe = struct {
         uv.setHandleData(&self.handle, &data);
         try uv.uv_pipe_connect2(&req, &self.handle, name.ptr, name.len, 0, Data.cb);
         coro.xsuspend();
-        try uv.check(data.status);
+        try uv.check(data.status.?);
     }
 
     const PipePairOpts = struct {
@@ -241,7 +267,7 @@ pub const TCP = struct {
         };
     }
 
-    pub fn connect(self: *@This(), sockaddr: std.posix.sockaddr) !void {
+    pub fn connect(self: *@This(), sockaddr: *uv.sockaddr) !void {
         const Data = struct {
             frame: coro.Frame,
             status: ?c_int = null,
@@ -250,7 +276,7 @@ pub const TCP = struct {
                 return .{ .frame = coro.xframe() };
             }
             fn cb(req: [*c]uv.uv_connect_t, status: c_int) callconv(.C) void {
-                var data = uv.getHandleData(req.handle, @This());
+                var data = uv.getHandleData(req.*.handle, @This());
                 data.status = status;
                 coro.xresume(data.frame);
             }
@@ -259,9 +285,9 @@ pub const TCP = struct {
         var req = uv.uv_connect_t{};
         var data = Data.init();
         uv.setHandleData(&self.handle, &data);
-        try uv.uv_tcp_connect(&req, &self.handle, &sockaddr, Data.cb);
+        try uv.check(uv.uv_tcp_connect(&req, &self.handle, sockaddr, Data.cb));
         coro.xsuspend();
-        try uv.check(data.status);
+        try uv.check(data.status.?);
     }
 
     const SocketPairOpts = struct {
