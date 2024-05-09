@@ -5,3 +5,10 @@ cd $src
 
 cp "$BUILD_PKG/options.zig" $src/src
 ln -s $src/src "$BUILD_OUT/zig"
+cat <<EOF > "$BUILD_OUT/zig/zigcoro.pc"
+ZRoot: \${rootdir}/zig/main.zig
+ZLocalRequires: libcoro_options=opts
+EOF
+cat <<EOF > "$BUILD_OUT/zig/opts.pc"
+ZRoot: \${rootdir}/zig/options.zig
+EOF

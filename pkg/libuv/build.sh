@@ -140,3 +140,7 @@ Cflags: -I\${rootdir}/include
 Libs: \${rootdir}/lib/$(zigi lib uv) $ldflags
 EOF
 cp "$BUILD_PKG"/cimport.zig zig/uv.zig
+cat <<EOF > zig/uv.pc
+ZRoot: \${rootdir}/zig/uv.zig
+Libs: \${rootdir}/lib/$(zigi lib uv) $ldflags
+EOF
