@@ -99,8 +99,7 @@ class ProcessBuilder {
   }
   test() {
     var out = IO.run_wrap_(_args, _env, true, "/dev/null", "/dev/null")
-    if (out is Num) return out
-    return false
+    return out == 0
   }
 }
 

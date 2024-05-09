@@ -98,63 +98,21 @@ fn runCoroSafe(vm: *wren.VM) !void {
     defer if (env) |e| alloc.free(e);
 
     const return_code = vm.getSlot(Slots.rc.i(), .Bool);
+    const stdout_info = try getVmIO(alloc, vm, Slots.stdout.i(), true);
+    defer stdout_info.deinit();
+    const stderr_info = try getVmIO(alloc, vm, Slots.stderr.i(), false);
+    defer stderr_info.deinit();
 
-    var stdout: struct {
-        opts: ?uv.coro.Process.StdioOpts = null,
-        state: ?union(enum) {
-            file: uv.coro.File,
-            pipe: uv.coro.Pipe,
-        } = null,
-    } = .{ .opts = null, .state = null };
-    switch (vm.getSlot(Slots.stdout.i(), .Type)) {
-        .Num => {
-            const fd: i32 = @intFromFloat(vm.getSlot(Slots.stdout.i(), .Num));
-            log.debug("stdout redirect fd={d}", .{fd});
-            stdout = .{ .opts = .{ .inherit_fd = fd } };
-        },
-        .String => {
-            const path = vm.getSlot(Slots.stdout.i(), .String);
-
-            if (std.mem.eql(u8, path, "/dev/null")) {} else {
-                const file = try uv.coro.File.open(loop, path, uv.File.Flags.TRUNC | uv.File.Flags.WRONLY | uv.File.Flags.CREAT, 0o664);
-                log.debug("stdout redirect path={s}", .{path});
-                stdout = .{
-                    .opts = .{ .inherit_fd = file.fd },
-                    .state = .{ .file = file },
-                };
-            }
-        },
-        .Null => {
-            log.debug("stdout will be read", .{});
-            stdout.state = .{ .pipe = undefined };
-
-            var pipe = &stdout.state.?.pipe;
-            try pipe.init(loop, false);
-
-            stdout.opts = .{ .create_pipe = .{ .pipe = stdout.state.?.pipe.stream().handle, .flow = .WO } };
-        },
-        else => {
-            return error.UnsupportedType;
-        },
-    }
-    defer {
-        if (stdout.state) |*state| {
-            switch (state.*) {
-                .file => |f| {
-                    log.debug("file close {d}", .{&state.file.fd});
-                    f.close();
-                },
-                .pipe => |p| {
-                    _ = p;
-                    log.debug("pipe close {*}", .{&state.pipe.handle});
-                    state.pipe.close();
-                },
-            }
-        }
-    }
+    var stdout = Stdio{};
+    try stdout.init(stdout_info, loop, Slots.stdout.i());
+    defer stdout.deinit();
+    var stderr = Stdio{};
+    try stderr.init(stderr_info, loop, Slots.stderr.i());
+    defer stderr.deinit();
 
     if (stdout.state != null and stdout.state.? == .pipe) {
-        const pframe = try coro.xasync(prun, .{ loop, alloc, args, env, stdout.opts }, 1 << 15);
+        log.debug("spawning async process run", .{});
+        const pframe = try coro.xasync(prun, .{ loop, alloc, args, env, stdout.opts, stderr.opts }, 1 << 15);
         defer pframe.deinit();
 
         var stream = stdout.state.?.pipe.stream();
@@ -163,18 +121,19 @@ fn runCoroSafe(vm: *wren.VM) !void {
         defer alloc.free(contents);
 
         const out = try coro.xawait(pframe);
-        if (out.exit_status != 0) {
-            if (return_code) {
-                vm.ensureSlots(2);
-                vm.setSlot(1, out.exit_status);
-            }
-            return error.ProcessFailed;
-        } else {
+        if (return_code) {
             vm.ensureSlots(2);
-            vm.setSlot(1, contents);
+            vm.setSlot(1, out.exit_status);
+        } else {
+            if (out.exit_status != 0) {
+                return error.ProcessFailed;
+            } else {
+                vm.ensureSlots(2);
+                vm.setSlot(1, contents);
+            }
         }
     } else {
-        const out = try prun(loop, alloc, args, env, stdout.opts);
+        const out = try prun(loop, alloc, args, env, stdout.opts, stderr.opts);
         vm.ensureSlots(2);
         vm.setSlot(1, out.exit_status);
     }
@@ -186,10 +145,116 @@ fn prun(
     args: [][:0]const u8,
     env: ?[][:0]const u8,
     stdout: ?uv.coro.Process.StdioOpts,
+    stderr: ?uv.coro.Process.StdioOpts,
 ) !uv.coro.Process.Status {
     const out = try uv.coro.Process.run(loop, alloc, args, .{
         .env = env,
-        .stdio = .{ null, stdout, null },
+        .stdio = .{ null, stdout, stderr },
     });
     return out;
 }
+
+const VmIO = struct {
+    alloc: std.mem.Allocator,
+    io: union(enum) {
+        inherit: i32,
+        path: [:0]const u8,
+        read: void,
+        ignore: void,
+    },
+
+    fn deinit(self: @This()) void {
+        if (self.io == .path) {
+            self.alloc.free(self.io.path);
+        }
+    }
+};
+fn getVmIO(alloc: std.mem.Allocator, vm: *wren.VM, slot: usize, isout: bool) !VmIO {
+    var out = VmIO{ .alloc = alloc, .io = undefined };
+    switch (vm.getSlot(slot, .Type)) {
+        .Num => {
+            const fd: i32 = @intFromFloat(vm.getSlot(Slots.stdout.i(), .Num));
+            out.io = .{ .inherit = fd };
+        },
+        .String => {
+            const path = vm.getSlot(Slots.stdout.i(), .String);
+
+            if (std.mem.eql(u8, path, "/dev/null")) {
+                out.io = .{ .ignore = void{} };
+            } else {
+                const p = try alloc.allocSentinel(u8, path.len, 0);
+                std.mem.copyForwards(u8, p, path);
+                p[p.len] = 0;
+                out.io = .{ .path = p };
+            }
+        },
+        .Null => {
+            if (isout) {
+                out.io = .{ .read = void{} };
+            } else {
+                out.io = .{ .inherit = 2 };
+            }
+        },
+        else => {
+            return error.UnsupportedType;
+        },
+    }
+    return out;
+}
+
+const Stdio = struct {
+    opts: ?uv.coro.Process.StdioOpts = null,
+    state: ?union(enum) {
+        file: uv.coro.File,
+        pipe: uv.coro.Pipe,
+    } = null,
+
+    fn init(
+        stdout: *@This(),
+        vmio: VmIO,
+        loop: *uv.uv_loop_t,
+        slot: usize,
+    ) !void {
+        switch (vmio.io) {
+            .ignore => {},
+            .inherit => |fd| {
+                log.debug("stdout redirect fd={d}", .{fd});
+                stdout.* = .{ .opts = .{ .inherit_fd = fd } };
+            },
+            .path => |path| {
+                log.debug("stdout redirect path={s}", .{path});
+                const file = try uv.coro.File.open(loop, path, uv.File.Flags.TRUNC | uv.File.Flags.WRONLY | uv.File.Flags.CREAT, 0o664);
+                stdout.* = .{
+                    .opts = .{ .inherit_fd = file.fd },
+                    .state = .{ .file = file },
+                };
+            },
+            .read => {
+                log.debug("stdout will be read", .{});
+                stdout.state = .{ .pipe = undefined };
+
+                var pipe = &stdout.state.?.pipe;
+                try pipe.init(loop, false);
+
+                stdout.opts = .{ .create_pipe = .{ .pipe = pipe.stream().handle, .flow = .WO } };
+            },
+        }
+    }
+
+    fn deinit(self: *const @This()) void {
+        var s: *@This() = @constCast(self);
+        if (s.state) |*state| {
+            switch (state.*) {
+                .file => |f| {
+                    log.debug("file close {d}", .{state.file.fd});
+                    f.close();
+                },
+                .pipe => |p| {
+                    _ = p;
+                    state.pipe.close();
+                    log.debug("pipe close {*}", .{&state.pipe.handle});
+                },
+            }
+        }
+    }
+};
