@@ -4,8 +4,8 @@ const coro = @import("zigcoro");
 
 const log = std.log.scoped(.uvzig);
 
-pub fn sleep(loop: *uv.uv_loop_t, timeout: usize) !void {
-    log.debug("sleep {d}", .{timeout});
+pub fn sleep(loop: *uv.uv_loop_t, duration_ms: usize) !void {
+    log.debug("sleep {d}", .{duration_ms});
     var handle = uv.uv_timer_t{};
     defer {
         uv.uv_close(@ptrCast(&handle), Data.xresume2);
@@ -15,7 +15,7 @@ pub fn sleep(loop: *uv.uv_loop_t, timeout: usize) !void {
     uv.setHandleData(&handle, &data);
 
     try uv.check(uv.uv_timer_init(loop, &handle));
-    try uv.check(uv.uv_timer_start(&handle, Data.xresume, timeout, 0));
+    try uv.check(uv.uv_timer_start(&handle, Data.xresume, duration_ms, 0));
     coro.xsuspend();
     log.debug("sleep done", .{});
 }

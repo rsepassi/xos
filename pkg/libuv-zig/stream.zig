@@ -110,35 +110,41 @@ pub const Stream = struct {
 
         var req = uv.uv_shutdown_t{};
         var data = Data.init();
-        uv.setHandleData(&self.handle, &data);
+        uv.setHandleData(self.handle, &data);
 
         try uv.check(uv.uv_shutdown(&req, self.handle, Data.cb));
         coro.xsuspend();
         try uv.check(data.status.?);
     }
 
-    pub fn listen(self: @This(), backlog: c_int) !void {
-        const Data = struct {
-            frame: coro.Frame,
-            status: c_int = 0,
+    const Listener = struct {
+        parent: Stream,
+        backlog: c_int,
+        frame: ?coro.Frame = null,
+        status: ?c_int = 0,
 
-            fn init() @This() {
-                return .{ .frame = coro.xframe() };
+        pub fn next(self: *@This()) !?void {
+            if (self.frame == null) {
+                self.frame = coro.xframe();
+                uv.setHandleData(self.parent.handle, self);
+                try uv.check(uv.uv_listen(self.parent.handle, self.backlog, cb));
+                log.debug("listen begin", .{});
             }
+            while (self.status == null) coro.xsuspend();
+            if (self.status != 0) return error.StreamConnectFailed;
+            log.debug("new connection", .{});
+            self.status = null;
+        }
 
-            fn cb(s: [*c]uv.uv_stream_t, status: c_int) callconv(.C) void {
-                var data = uv.getHandleData(s, @This());
-                data.status = status;
-                coro.xresume(data.frame);
-            }
-        };
+        fn cb(s: [*c]uv.uv_stream_t, status: c_int) callconv(.C) void {
+            var self = uv.getHandleData(s, @This());
+            self.status = status;
+            coro.xresume(self.frame.?);
+        }
+    };
 
-        var data = Data.init();
-        uv.setHandleData(&self.handle, &data);
-
-        try uv.check(uv.uv_listen(&self.handle, backlog, Data.cb));
-        coro.xsuspend();
-        try uv.check(data.status);
+    pub fn listener(self: @This(), backlog: c_int) Listener {
+        return .{ .parent = self, .backlog = backlog };
     }
 };
 
@@ -250,9 +256,6 @@ pub const TCP = struct {
     handle: uv.uv_tcp_t,
 
     pub fn init(self: *@This(), loop: *uv.uv_loop_t) !void {
-        self.* = .{
-            .handle = .{},
-        };
         try uv.check(uv.uv_tcp_init(loop, &self.handle));
     }
 
@@ -300,6 +303,50 @@ pub const TCP = struct {
             uv.uv_socketpair(stype, 0, &out, if (opts.sock0_nonblock) uv.UV_NONBLOCK_PIPE else 0, if (opts.sock1_nonblock) uv.UV_NONBLOCK_PIPE else 0),
         );
         return out;
+    }
+
+    const IpPort = struct {
+        ip: []const u8,
+        port: c_ushort,
+    };
+    pub fn getpeername(self: *@This(), addr_storage: *uv.sockaddr_storage) !?IpPort {
+        return try self.getxname(addr_storage, .peer);
+    }
+
+    pub fn getsockname(self: *@This(), addr_storage: *uv.sockaddr_storage) !?IpPort {
+        return try self.getxname(addr_storage, .sock);
+    }
+
+    pub fn getxname(self: *@This(), addr_storage: *uv.sockaddr_storage, xtype: enum { peer, sock }) !?IpPort {
+        var addr_size: c_int = @sizeOf(uv.sockaddr_storage);
+        switch (xtype) {
+            .peer => try uv.check(uv.uv_tcp_getpeername(&self.handle, @ptrCast(addr_storage), &addr_size)),
+            .sock => try uv.check(uv.uv_tcp_getsockname(&self.handle, @ptrCast(addr_storage), &addr_size)),
+        }
+
+        if (addr_storage.ss_family == uv.AF_INET) {
+            const addr: *uv.sockaddr_in = @ptrCast(@alignCast(addr_storage));
+            var ipbuf: [201:0]u8 = undefined;
+            try uv.check(uv.uv_ip4_name(addr, &ipbuf, ipbuf.len));
+            const iplen = std.mem.len(@as([*:0]u8, @ptrCast(&ipbuf)));
+            const ip = ipbuf[0..iplen];
+
+            const port = std.mem.bigToNative(c_ushort, addr.sin_port);
+
+            return .{ .ip = ip, .port = port };
+        } else if (addr_storage.ss_family == uv.AF_INET6) {
+            const addr: *uv.sockaddr_in6 = @ptrCast(@alignCast(addr_storage));
+            var ipbuf: [201:0]u8 = undefined;
+            try uv.check(uv.uv_ip6_name(addr, &ipbuf, ipbuf.len));
+            const iplen = std.mem.len(@as([*:0]u8, @ptrCast(&ipbuf)));
+            const ip = ipbuf[0..iplen];
+
+            const port = std.mem.bigToNative(c_ushort, addr.sin6_port);
+
+            return .{ .ip = ip, .port = port };
+        } else {
+            return null;
+        }
     }
 };
 
