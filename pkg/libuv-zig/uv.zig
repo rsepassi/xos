@@ -6,6 +6,7 @@ pub const coro = struct {
     pub usingnamespace @import("process.zig");
     pub usingnamespace @import("timer.zig");
     pub usingnamespace @import("stream.zig");
+    pub usingnamespace @import("udp.zig");
 };
 
 /// A `uv` error
