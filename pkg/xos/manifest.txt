@@ -8,6 +8,7 @@ src/ld
 src/need
 src/needtool
 src/pkg-config
+src/pkg-config-zig.wren
 src/rc
 src/sha256sum.zig
 src/system

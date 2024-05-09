@@ -15,18 +15,25 @@ pub fn main() !void {
         return;
     }
 
+    if (args.len == 2 and std.mem.eql(u8, args[1], "-")) {
+        const stdin = std.io.getStdIn().reader();
+        const hash = try getHash(stdin);
+        try printEntry(stdout, hash, "-");
+        return;
+    } else if (args.len == 3 and std.mem.eql(u8, args[1], "-c")) {
+        var stream = std.io.fixedBufferStream(args[2]);
+        const reader = stream.reader();
+        const hash = try getHash(reader);
+        try printEntry(stdout, hash, "-");
+        return;
+    }
+
     for (args[1..]) |arg| {
-        if (arg.len == 1 and arg[0] == '-') {
-            const stdin = std.io.getStdIn().reader();
-            const hash = try getHash(stdin);
-            try printEntry(stdout, hash, "-");
-        } else {
-            // file
-            var file = try std.fs.cwd().openFile(arg, .{});
-            const reader = file.reader();
-            const hash = try getHash(reader);
-            try printEntry(stdout, hash, arg);
-        }
+        var file = try std.fs.cwd().openFile(arg, .{});
+        defer file.close();
+        const reader = file.reader();
+        const hash = try getHash(reader);
+        try printEntry(stdout, hash, arg);
     }
 }
 

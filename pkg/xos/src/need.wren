@@ -13,7 +13,7 @@ var name = args.count > 3 ? (args[3] == "--" ? pkg : args[3]) : pkg
 
 var dst = "%(deps)/%(name)"
 
-if (!IO.Process(["ls", dst]).test()) {
+if (IO.Process(["ls", dst]).test()) {
   System.print("error in need: destination already exists. consider passing a name.")
   System.print("dst=%(dst)")
   IO.exit(1)

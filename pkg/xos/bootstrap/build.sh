@@ -80,7 +80,7 @@ if [ "$TARGET_OS" = "macos" ]
 then
   cat <<EOF > "$tools/nproc"
 #!/usr/bin/env sh
-exec system sysctl -n hw.logicalcpu
+exec /usr/sbin/sysctl -n hw.logicalcpu
 EOF
   chmod +x "$tools/nproc"
 fi
@@ -132,6 +132,7 @@ TARGET_OS=$TARGET_OS \
 BUILD_DEPS="$tmp" \
 BUILD_TOOLS="$tmp" \
 XOS_BUILD_CACHE="$cache" \
+XDG_CACHE_HOME="$cache" \
 BUILD_OUT="$tmp/busybox" \
 sh -ex "$xosroot/pkg/busybox/build.sh"
 cp "$tmp/busybox/bin/busybox" "$tools"

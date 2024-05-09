@@ -64,6 +64,10 @@ do
     gen_pkg_config "$@"
     exit 0
     ;;
+  --zig)
+    shift
+    exec wrensh "$XOS_ROOT/tools/scripts/pkg-config-zig.wren" "$@"
+    ;;
   --*)
     >&2 echo "unrecognized flag $1"
     exit 1

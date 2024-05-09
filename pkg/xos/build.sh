@@ -54,6 +54,7 @@ cc
 ld
 rc
 pkg-config
+pkg-config-zig.wren
 zigi
 windres
 fetch

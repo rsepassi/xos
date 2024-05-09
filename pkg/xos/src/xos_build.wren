@@ -1,18 +1,34 @@
 #!/usr/bin/env wrensh
 
-class FS {
-  static exists(f) {
-    return !IO.Process(["ls", f]).test()
+var Gctx
+
+class V {
+  static log(s) {
+    logn(s, 1)
+  }
+  static log2(s) {
+    logn(s, 2)
+  }
+  static log3(s) {
+    logn(s, 3)
+  }
+
+  static logn(s, n) {
+    var v = Gctx.v
+    if (v > 0 && v >= n) {
+      System.print(s)
+    }
   }
 }
 
-var iserror = Fn.new { |c|
-  return (c is Num && c != 0)
+class FS {
+  static exists(f) {
+    return IO.Process(["ls", f]).test()
+  }
 }
 
 var sha256 = Fn.new { |val|
-  var out = IO.run(["sh", "-c", "echo \"%(val)\" | sha256sum"])
-  return out.split(" ")[0]
+  return IO.run(["sha256sum", "-c", val]).split(" ")[0]
 }
 
 var argsquote = Fn.new { |args|
@@ -269,7 +285,7 @@ var getPkg = Fn.new { |ctx|
     "ARGS": argsquote.call(ctx.pkg_args),
   })
   var pkgid = sha256.call(pkgid_text)
-  if (ctx.v > 1) System.print("building %(ctx.pkg) %(pkgid)")
+  V.log("building %(ctx.pkg) %(pkgid)")
 
   var build_out = "%(ctx.cache_root)/pkg/%(pkgid[0...2])/%(pkgid)"
 
@@ -310,7 +326,7 @@ var dryMode = Fn.new { |ctx, pkg, buildcheck|
 var build = Fn.new { |ctx, pkg|
   IO.run(["rm", "-rf", pkg.outdir])
   IO.run(["mkdir", "-p", "%(pkg.outdir)/out", "%(pkg.outdir)/tmp"])
-  IO.Process(["echo", pkg.id_text]).stdout("%(pkg.outdir)/pkgid").run()
+  IO.write("%(pkg.outdir)/pkgid", pkg.id_text)
 
   // pkg-specific tools
   var pkg_tools_dir = "%(pkg.outdir)/tools"
@@ -319,7 +335,7 @@ var build = Fn.new { |ctx, pkg|
 set -e
 xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
 "
-  IO.Process(["echo", mktemp]).stdout("%(pkg_tools_dir)/mktemp").run()
+  IO.write("%(pkg_tools_dir)/mktemp", mktemp)
   IO.run(["chmod", "+x", "%(pkg_tools_dir)/mktemp"])
 
   // setup log and interrupt/fail fns
@@ -371,12 +387,15 @@ xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
   }
   IO.chdir("%(pkg.outdir)/tmp")
   var script = "%(pkg.srcdir)/build.sh"
+  V.log("running build script %(script)")
+  V.log3(build_env)
   var out = IO.Process(["sh", "-e", script] + ctx.pkg_args)
     .env(build_env)
     .stdout(logfile)
     .runc()
+  V.log("build script exit code %(out)")
   trap.cancel()
-  if (iserror.call(out)) fail.call()
+  if (out != 0) fail.call()
 }
 
 var main = Fn.new {
@@ -385,6 +404,8 @@ var main = Fn.new {
   var ctx = getCtx.call(
     parseArgs.call(IO.args()),
     IO.env())
+  Gctx = ctx
+  V.log3(ctx)
 
   var pkg = getPkg.call(ctx)
 
