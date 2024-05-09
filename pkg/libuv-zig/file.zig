@@ -136,3 +136,66 @@ pub const File = struct {
     // chmod
     // datasync
 };
+
+pub const fs = struct {
+    pub fn mkdir(loop: *uv.uv_loop_t, path: [:0]const u8, mode: c_int) !void {
+        var req: uv_fs_cb = undefined;
+        req.init();
+        defer req.deinit();
+        try uv.check(uv.uv_fs_mkdir(loop, &req.req, path.ptr, mode, uv_fs_cb.cb));
+        coro.xsuspend();
+    }
+
+    pub fn mkdtemp(loop: *uv.uv_loop_t, tpl: [:0]const u8, out: []u8) ![:0]const u8 {
+        var req: uv_fs_cb = undefined;
+        req.init();
+        defer req.deinit();
+        try uv.check(uv.uv_fs_mkdtemp(loop, &req.req, tpl.ptr, uv_fs_cb.cb));
+        coro.xsuspend();
+        const n = std.mem.len(req.req.path);
+        if (n >= out.len) return error.BufTooSmall;
+        std.mem.copyForwards(u8, out, req.req.path[0..n]);
+        out[n] = 0;
+        return out[0..n :0];
+    }
+
+    const TmpFileInfo = struct {
+        path: ?[:0]const u8,
+        fd: uv.uv_file,
+    };
+    pub fn mkstemp(loop: *uv.uv_loop_t, tpl: [:0]const u8, out: ?[]u8) !TmpFileInfo {
+        var req: uv_fs_cb = undefined;
+        req.init();
+        defer req.deinit();
+        try uv.check(uv.uv_fs_mkstemp(loop, &req.req, tpl.ptr, uv_fs_cb.cb));
+        coro.xsuspend();
+        var info = TmpFileInfo{ .path = null, .fd = @intCast(req.req.result) };
+        if (out) |buf| {
+            const n = std.mem.len(req.req.path);
+            if (n >= buf.len) return error.BufTooSmall;
+            std.mem.copyForwards(u8, buf, req.req.path[0..n]);
+            buf[n] = 0;
+            info.path = buf[0..n :0];
+        }
+        return info;
+    }
+};
+
+const uv_fs_cb = struct {
+    frame: coro.Frame,
+    req: uv.uv_fs_t,
+
+    fn init(self: *@This()) void {
+        uv.setReqData(&self.req, self);
+        self.frame = coro.xframe();
+    }
+
+    fn deinit(self: @This()) void {
+        uv.uv_fs_req_cleanup(@constCast(&self.req));
+    }
+
+    fn cb(req: [*c]uv.uv_fs_t) callconv(.C) void {
+        const self = uv.getReqData(req, @This());
+        coro.xresume(self.frame);
+    }
+};

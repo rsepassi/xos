@@ -7,6 +7,18 @@ const wrensh = @cImport(@cInclude("wrensh.h"));
 const log = std.log.scoped(.wrensh_fs);
 const stack_size = 1 << 15;
 
+const Method = *const fn (vm: ?*wren.c.WrenVM) callconv(.C) void;
+
+pub fn bindMethod(signature: []const u8) ?Method {
+    if (std.mem.eql(u8, signature, "read_(_,_)")) return readFile;
+    if (std.mem.eql(u8, signature, "write_(_,_,_)")) return writeFile;
+    if (std.mem.eql(u8, signature, "append_(_,_,_)")) return appendFile;
+    if (std.mem.eql(u8, signature, "mkdir_(_,_,_)")) return mkdir;
+    if (std.mem.eql(u8, signature, "mkdtemp_(_,_)")) return mkdtemp;
+    if (std.mem.eql(u8, signature, "mkstemp_(_,_)")) return mkstemp;
+    return null;
+}
+
 pub fn readFile(vm: ?*wren.c.WrenVM) callconv(.C) void {
     readFileSafe(wren.VM.get(vm)) catch {};
 }
@@ -17,6 +29,18 @@ pub fn writeFile(vm: ?*wren.c.WrenVM) callconv(.C) void {
 
 pub fn appendFile(vm: ?*wren.c.WrenVM) callconv(.C) void {
     appendFileSafe(wren.VM.get(vm)) catch {};
+}
+
+pub fn mkdir(vm: ?*wren.c.WrenVM) callconv(.C) void {
+    _ = coro.xasync(mkdirCoro, .{wren.VM.get(vm)}, stack_size) catch {};
+}
+
+pub fn mkdtemp(vm: ?*wren.c.WrenVM) callconv(.C) void {
+    _ = coro.xasync(mkdtempCoro, .{wren.VM.get(vm)}, stack_size) catch {};
+}
+
+pub fn mkstemp(vm: ?*wren.c.WrenVM) callconv(.C) void {
+    _ = coro.xasync(mkstempCoro, .{wren.VM.get(vm)}, stack_size) catch {};
 }
 
 fn readFileSafe(vm: *wren.VM) !void {
@@ -56,6 +80,89 @@ fn appendFileCoro(vm: *wren.VM) void {
         return;
     };
     coro.xsuspendBlock(finalize, .{ vm, coro.xframe() });
+}
+
+fn mkdirCoro(vm: *wren.VM) void {
+    mkdirCoroSafe(vm) catch |err| {
+        log.debug("mkdir coro err", .{});
+        vm.abortFiber("mkdir failed err={any}", .{err});
+        return;
+    };
+    coro.xsuspendBlock(finalize, .{ vm, coro.xframe() });
+}
+
+fn mkdtempCoro(vm: *wren.VM) void {
+    mkdtempCoroSafe(vm) catch |err| {
+        log.debug("mkdtemp coro err", .{});
+        vm.abortFiber("mkdtemp failed err={any}", .{err});
+        return;
+    };
+    coro.xsuspendBlock(finalize, .{ vm, coro.xframe() });
+}
+
+fn mkstempCoro(vm: *wren.VM) void {
+    mkstempCoroSafe(vm) catch |err| {
+        log.debug("mkstemp coro err", .{});
+        vm.abortFiber("mkstemp failed err={any}", .{err});
+        return;
+    };
+    coro.xsuspendBlock(finalize, .{ vm, coro.xframe() });
+}
+
+fn mkdirCoroSafe(vm: *wren.VM) !void {
+    const ctx = vm.getUser(wrensh.Ctx);
+    const loop: *uv.uv_loop_t = @ptrCast(@alignCast(ctx.loop));
+
+    const handle = vm.getSlot(1, .Handle);
+    defer handle.deinit();
+
+    const path = vm.getSlot(2, .String);
+
+    const mode: c_int = switch (vm.getSlot(3, .Type)) {
+        .Null => 0o775,
+        .Num => @intFromFloat(vm.getSlot(3, .Num)),
+        else => return error.WrongType,
+    };
+
+    try uv.coro.fs.mkdir(loop, path, mode);
+
+    vm.ensureSlots(2);
+    vm.setSlot(0, handle);
+    vm.setSlot(1, 0);
+}
+
+fn mkdtempCoroSafe(vm: *wren.VM) !void {
+    const ctx = vm.getUser(wrensh.Ctx);
+    const loop: *uv.uv_loop_t = @ptrCast(@alignCast(ctx.loop));
+
+    const handle = vm.getSlot(1, .Handle);
+    defer handle.deinit();
+
+    const template = vm.getSlot(2, .String);
+
+    var buf: [std.fs.max_path_bytes]u8 = undefined;
+    const path = try uv.coro.fs.mkdtemp(loop, template, &buf);
+
+    vm.ensureSlots(2);
+    vm.setSlot(0, handle);
+    vm.setSlot(1, path);
+}
+
+fn mkstempCoroSafe(vm: *wren.VM) !void {
+    const ctx = vm.getUser(wrensh.Ctx);
+    const loop: *uv.uv_loop_t = @ptrCast(@alignCast(ctx.loop));
+
+    const handle = vm.getSlot(1, .Handle);
+    defer handle.deinit();
+
+    const template = vm.getSlot(2, .String);
+
+    var buf: [std.fs.max_path_bytes]u8 = undefined;
+    const info = try uv.coro.fs.mkstemp(loop, template, &buf);
+
+    vm.ensureSlots(2);
+    vm.setSlot(0, handle);
+    vm.setSlot(1, info.path.?);
 }
 
 fn readFileCoroSafe(vm: *wren.VM) !void {

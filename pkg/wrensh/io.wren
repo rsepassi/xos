@@ -183,6 +183,33 @@ class IO {
     return Fiber.yield()
   }
 
+  static mkdir(path) {
+    mkdir(path, null)
+  }
+
+  static mkdir(path, mode) {
+    mkdir_(Fiber.current, path, mode)
+    Fiber.yield()
+  }
+
+  static mkdtemp() {
+    return mkdtemp("/tmp/tmpXXXXXX")
+  }
+
+  static mkdtemp(template) {
+    mkdtemp_(Fiber.current, template)
+    return Fiber.yield()
+  }
+
+  static mkstemp() {
+    return mkstemp("/tmp/tmpXXXXXX")
+  }
+
+  static mkstemp(template) {
+    mkstemp_(Fiber.current, template)
+    return Fiber.yield()
+  }
+
   static write(s) {
     if (!(s is String)) s = "%(s)"
     write_(Fiber.current, s)
@@ -258,6 +285,9 @@ class IO {
   foreign static write_(f, s)
   foreign static write_(f, file, contents)
   foreign static append_(f, file, contents)
+  foreign static mkdir_(f, path, mode)
+  foreign static mkdtemp_(f, path)
+  foreign static mkstemp_(f, path)
   foreign static sleep_(f, n)
   foreign static exec_(args, env)
   foreign static run_(f, args, env, rc, stdout, stderr)

@@ -104,10 +104,10 @@ fn runCoroSafe(vm: *wren.VM) !void {
     defer stderr_info.deinit();
 
     var stdout = Stdio{};
-    try stdout.init(stdout_info, loop, Slots.stdout.i());
+    try stdout.init(stdout_info, loop);
     defer stdout.deinit();
     var stderr = Stdio{};
-    try stderr.init(stderr_info, loop, Slots.stderr.i());
+    try stderr.init(stderr_info, loop);
     defer stderr.deinit();
 
     if (stdout.state != null and stdout.state.? == .pipe) {
@@ -213,7 +213,6 @@ const Stdio = struct {
         stdout: *@This(),
         vmio: VmIO,
         loop: *uv.uv_loop_t,
-        slot: usize,
     ) !void {
         switch (vmio.io) {
             .ignore => {},
