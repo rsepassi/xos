@@ -1,5 +1,5 @@
-url="https://github.com/vstakhov/libucl/archive/refs/tags/0.9.0.tar.gz"
-hash="87b233048bca7d307b14cffb882d3c198dc3fff96b19e0c3515428f027b3ebfe"
+url="https://github.com/vstakhov/libucl/archive/refs/tags/0.9.2.tar.gz"
+hash="f63ddee1d7f5217cac4f9cdf72b9c5e8fe43cfe5725db13f1414b0d8a369bbe0"
 file="ucl.tar.gz"
 src=$(fetch_untar "$url" "$file" "$hash")
 cd $src
