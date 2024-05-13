@@ -182,13 +182,25 @@ var getHostTargetInfo = Fn.new { |host, target|
   var host_parts = host.split("-")
   var target_parts = target.split("-")
 
+  var host_abi = "none"
+  if (host_parts.count > 2) {
+    host_abi = host_parts[2].split(".")[0]
+  }
+
+  var target_abi = "none"
+  if (target_parts.count > 2) {
+    target_abi = target_parts[2].split(".")[0]
+  }
+
   return {
     "host": host,
     "target": target,
     "host_arch": host_parts[0],
     "host_os": host_parts[1].split(".")[0],
+    "host_abi": host_abi,
     "target_arch": target_parts[0],
     "target_os": target_parts[1].split(".")[0],
+    "target_abi": target_abi,
   }
 }
 
@@ -375,9 +387,11 @@ xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
     "HOST": ctx.target["host"],
     "HOST_OS": ctx.target["host_os"],
     "HOST_ARCH": ctx.target["host_arch"],
+    "HOST_ABI": ctx.target["host_abi"],
     "TARGET": ctx.target["target"],
     "TARGET_OS": ctx.target["target_os"],
     "TARGET_ARCH": ctx.target["target_arch"],
+    "TARGET_ABI": ctx.target["target_abi"],
     "OPT": ctx.opt["c"],
     "OPT_ZIG": ctx.opt["zig"],
     "BUILD_OUT": "%(pkg.outdir)/out",
