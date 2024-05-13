@@ -1,5 +1,34 @@
 #import <Cocoa/Cocoa.h>
-#import <WebKit/WebKit.h>
+
+@interface MyCustomView : NSView
+@end
+
+@implementation MyCustomView
+
+- (void)drawRect:(NSRect)dirtyRect {
+    [super drawRect:dirtyRect];
+
+    // Drawing code here.
+    NSString *text = @"Hello, World!";
+
+    NSFont *font = [NSFont systemFontOfSize:24];
+    NSDictionary *attributes = @{
+        NSFontAttributeName: font,
+        NSForegroundColorAttributeName: [NSColor whiteColor]
+    };
+
+    NSAttributedString *attrString = [[NSAttributedString alloc] initWithString:text attributes:attributes];
+    NSSize textSize = attrString.size;
+
+    NSRect textRect = NSMakeRect((NSWidth(self.bounds) - textSize.width)/2,
+                                 (NSHeight(self.bounds) - textSize.height)/2,
+                                 textSize.width,
+                                 textSize.height);
+
+    [attrString drawInRect:textRect];
+}
+
+@end
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 @property (strong) NSWindow *window;
@@ -18,16 +47,10 @@
     ];
     [self.window setTitle:@"Hello World!"];
     [self.window makeKeyAndOrderFront:nil];
+		[self.window setBackgroundColor:[NSColor blueColor]];
 
-    // Create the web view
-    WKWebView *webView = [[WKWebView alloc] initWithFrame:[
-      [self.window contentView] bounds]
-    ];
-    [self.window setContentView:webView];
-
-    // Load HTML string into the web view
-    NSString *htmlString = @"<html><body><h1>Hello, world!</h1></body></html>";
-    [webView loadHTMLString:htmlString baseURL:nil];
+		MyCustomView *customView = [[MyCustomView alloc] initWithFrame:[self.window contentRectForFrameRect:self.window.frame]];
+		[self.window setContentView:customView];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     [NSApp activateIgnoringOtherApps:YES];

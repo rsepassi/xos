@@ -1,12 +1,13 @@
 need macossdk
-sdk="$BUILD_DEPS/macossdk/sdk"
-cc -target $TARGET -O$OPT \
-  -fobjc-arc \
+
+zig build-exe -target $TARGET -O $OPT_ZIG \
   $(pkg-config --cflags macossdk) \
+  -cflags \
+  -fobjc-arc \
   -mmacosx-version-min=13.0 \
-  -framework Cocoa -framework WebKit \
-  -Wno-everything \
-  -o hello "$BUILD_PKG"/hello.m
+  -- \
+  -framework Cocoa \
+  "$BUILD_PKG"/hello.m
 
 root=Hello.app/Contents
 mkdir -p $root/MacOS $root/Resources
