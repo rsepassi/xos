@@ -31,8 +31,12 @@ then
   exit 1
 fi
 
-sdk='/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.2.sdk'
-sdk='/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator17.2.sdk'
+if [ "$TARGET_ABI" = "simulator" ]
+then
+  sdk='/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator17.2.sdk'
+else
+  sdk='/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.2.sdk'
+fi
 sdk_frameworks="$sdk/System/Library/Frameworks"
 sdk_includes="$sdk/usr/include"
 sdk_libs="$sdk/usr/lib"
