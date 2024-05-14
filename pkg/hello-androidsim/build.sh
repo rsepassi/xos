@@ -3,9 +3,17 @@ needtool android-template
 
 . $BUILD_TOOLS/androidsdk/env.sh
 
+zig build-lib -dynamic -target aarch64-linux-android -O $OPT_ZIG \
+  -I$ANDROID_HOME/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include \
+  --name hello \
+  $BUILD_PKG/native.zig
+
 # create new project
 $BUILD_TOOLS/android-template/bin/new_project xos.hello Hello
 cd Hello
+
+mkdir -p app/src/main/jniLibs/arm64-v8a
+mv $HOME/libhello.so app/src/main/jniLibs/arm64-v8a
 
 # build
 ./gradlew assembleRelease

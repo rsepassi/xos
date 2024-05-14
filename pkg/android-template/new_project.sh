@@ -31,9 +31,6 @@ sed -i \
 sed -i \
   "s/xos_pkg_name/$pkg/g" \
   app/build.gradle
-sed -i \
-  "s/xos_pkg_name/$pkg/g" \
-  app/src/main/cpp/CMakeLists.txt
 
 sed -i \
   "s/xos-app-name/$appname/g" \
@@ -41,10 +38,6 @@ sed -i \
 sed -i \
   "s/xos-app-name/$appname/g" \
   app/src/main/res/values/strings.xml
-
-sed -i \
-  "s/Java_com_xos_1org_xos_1pkg_1name_MainActivity_stringFromJNI/Java_com_${org}_${pkg}_MainActivity_stringFromJNI/g" \
-  app/src/main/cpp/native-lib.cpp
 
 mv \
   app/src/main/java/com/xos_org/xos_pkg_name \
