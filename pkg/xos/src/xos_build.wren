@@ -1,5 +1,7 @@
 #!/usr/bin/env wrensh
 
+var DEBUG = IO.env("DEBUG") == "1"
+
 var Gctx
 
 class V {
@@ -351,22 +353,23 @@ xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
   IO.run(["chmod", "+x", "%(pkg_tools_dir)/mktemp"])
 
   // setup log and interrupt/fail fns
-  var logfile = "%(pkg.outdir)/build.log"
+  var logfile = DEBUG ? 2 : "%(pkg.outdir)/build.log"
 
   var fail = Fn.new {
-    IO.Process(["cat", logfile]).stdout(2).run()
+    if (!DEBUG) IO.Process(["cat", logfile]).stdout(2).run()
     System.print("failed building pkg %(ctx.pkg) %(pkg.id)")
     IO.exit(1)
   }
 
   var trap = IO.trap(2, Fn.new {
-    IO.Process(["cat", logfile]).stdout(2).run()
+    if (!DEBUG) IO.Process(["cat", logfile]).stdout(2).run()
     System.print("interrupted building pkg %(ctx.pkg) %(pkg.id)")
     IO.exit(1)
   })
 
   // run build script
   var build_env = {
+    "DEBUG": DEBUG ? 1 : 0,
     // generic
     "PATH": "%(pkg_tools_dir):%(ctx.PATH)",
     "HOME": "%(pkg.outdir)/tmp",
