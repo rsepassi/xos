@@ -87,8 +87,7 @@ const App = struct {
             .FILES_DROPPED,
             .NUM,
             => {
-                const stderr = std.io.getStdErr().writer();
-                try stderr.print("event {s}\n", .{@tagName(event.type)});
+                log.debug("event {s}\n", .{@tagName(event.type)});
             },
         }
     }

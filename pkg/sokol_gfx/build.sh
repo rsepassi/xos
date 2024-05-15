@@ -33,11 +33,16 @@ then
   backend="SOKOL_METAL"
   defs="-x objective-c"
   need iossdk
-  libs="$(pkg-config --cflags iossdk) -framework Foundation -framework Metal"
+  libs="$(pkg-config --cflags iossdk)
+  -framework Foundation
+  -framework Metal
+  -framework UIKit
+  -framework MetalKit
+  "
 elif [ "$TARGET_OS" = "windows" ]
 then
   backend="SOKOL_D3D11"
-  libs="-lc"
+  libs="--subsystem windows -lkernel32 -luser32 -ldxgi -ld3d11 -lole32 -lgdi32 -lc"
 elif [ "$TARGET_OS" = "linux" ]
 then
   if [ "$TARGET_ABI" = "android" ]
@@ -57,6 +62,7 @@ cat sokol_gfx.h >> sokol_gfx2.h
 mv sokol_gfx2.h sokol_gfx.h
 
 cat <<EOF > sokol_gfx.c
+#define SOKOL_WIN32_FORCE_MAIN
 #define SOKOL_GFX_IMPL
 #include "sokol_gfx.h"
 EOF
@@ -74,5 +80,5 @@ cp $src/sokol_gfx.h include
 mv $src/$(zigi lib sokol_gfx) lib
 cat <<EOF > pkgconfig/sokol_gfx.pc
 Cflags: -I\${rootdir}/include -D$backend $(echo $libs)
-Libs: \${rootdir}/lib/libsokol_gfx.a $(echo $libs)
+Libs: \${rootdir}/lib/$(zigi lib sokol_gfx) $(echo $libs)
 EOF

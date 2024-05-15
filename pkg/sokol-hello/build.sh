@@ -9,6 +9,14 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   -Mmain="$BUILD_PKG/app.zig" \
   $(pkg-config --zig sokol_zig)
 
+# todo:
+# android + ios sims
+# android + ios real
+
+# for iOS:
+# need iossdk
+# $(zigi libc iossdk)
+
 touch hello.c
 zig build-exe -target $TARGET -O $OPT_ZIG \
   hello.c \
@@ -19,3 +27,4 @@ zig build-exe -target $TARGET -O $OPT_ZIG \
 cd "$BUILD_OUT"
 mkdir -p bin
 mv "$HOME"/$(zigi exe hello) bin
+
