@@ -1,6 +1,7 @@
 if [ "$TARGET_OS" = "macos" ]
 then
-  defs="-DSOKOL_METAL -x objective-c"
+  backend="SOKOL_METAL"
+  defs="-x objective-c"
   need macossdk
   libs="$(pkg-config --cflags macossdk)
   -framework Metal
@@ -23,34 +24,45 @@ then
   "
 elif [ "$TARGET_OS" = "ios" ]
 then
-  defs="-DSOKOL_METAL -x objective-c"
+  backend="SOKOL_METAL"
+  defs="-x objective-c"
   need iossdk
   libs="$(pkg-config --cflags iossdk) -framework Foundation -framework Metal"
 elif [ "$TARGET_OS" = "windows" ]
 then
-  defs="-DSOKOL_D3D11"
+  backend="SOKOL_D3D11"
   libs="-lc"
 elif [ "$TARGET_OS" = "linux" ]
 then
   if [ "$TARGET_ABI" = "android" ]
   then
+    backend="SOKOL_GLES3"
     needtool androidsdk
-    . $BUILD_TOOLS/androidsdk/env.sh
-    defs="-DSOKOL_GLES3 -I$ANDROID_HOME/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include -I$ANDROID_HOME/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/aarch64-linux-android -lc"
+    libs="$(PC_DEPS_DIR=$BUILD_TOOLS pkg-config --cflags androidsdk) -lc"
   else
-    defs="-DSOKOL_GLES3"
+    backend="SOKOL_GLES3"
     need linuxsdk -- alpine mesa-dev,libxi-dev,libxcursor-dev GL,EGL,X11,Xi,Xcursor
     libs="$(pkg-config --cflags --libs linuxsdk) -lGL -lEGL -lX11 -lXi -lXcursor -lc"
   fi
 fi
 
+echo "#define $backend 1" > sokol_gfx.h
+cat $BUILD_PKG/sokol_gfx.h >> sokol_gfx.h
+
+cp $BUILD_PKG/sokol_gfx.c .
+
 zig build-lib -target $TARGET -O $OPT_ZIG \
+  -D${backend} \
+  -I $BUILD_PKG \
   $defs \
-  $BUILD_PKG/sokol_gfx.c \
+  sokol_gfx.c \
   $libs
 
 cd $BUILD_OUT
-mkdir include lib
-cp $BUILD_PKG/sokol_gfx.h include
+mkdir include lib pkgconfig
+cp $HOME/sokol_gfx.h include
 mv $HOME/$(zigi lib sokol_gfx) lib
-pkg-config --gendefault sokol_gfx
+cat <<EOF > pkgconfig/sokol-gfx.pc
+Cflags: -I\${rootdir}/include $(echo $libs)
+Libs: \${rootdir}/libsokol_gfx.a $(echo $libs)
+EOF
