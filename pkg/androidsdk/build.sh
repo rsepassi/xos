@@ -42,5 +42,9 @@ then
 fi
 
 cd $BUILD_OUT
+mkdir pkgconfig
 ln -s $XDG_CACHE_HOME/android .
 cp $BUILD_PKG/env.sh .
+cat <<EOF > pkgconfig/androidsdk.pc
+Cflags: -I$ANDROID_HOME/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include -I$ANDROID_HOME/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/aarch64-linux-android
+EOF
