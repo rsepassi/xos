@@ -9,6 +9,12 @@ case $1 in
     [ "$TARGET_OS" = "windows" ] && name="$lib.lib"
     echo $name
     ;;
+  dylib)
+    lib=$2
+    name="lib$lib".so
+    [ "$TARGET_OS" = "windows" ] && name="$lib.lib"
+    echo $name
+    ;;
   exe)
     bin=$2
     name="$bin"
