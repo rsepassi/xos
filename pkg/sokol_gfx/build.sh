@@ -1,3 +1,9 @@
+src=$(fetch_untar "https://api.github.com/repos/floooh/sokol-zig/tarball/864422a" \
+  sokol-zig.tar.gz \
+  "a110c5e5f3a9f9a4aabbff31dc75ab70e31ff50e0b0f8f12e7f94dc5ae567d77")
+src=$src/src/sokol/c
+cd $src
+
 if [ "$TARGET_OS" = "macos" ]
 then
   backend="SOKOL_METAL"
@@ -46,10 +52,14 @@ then
   fi
 fi
 
-echo "#define $backend 1" > sokol_gfx.h
-cat $BUILD_PKG/sokol_gfx.h >> sokol_gfx.h
+echo "#define $backend" > sokol_gfx2.h
+cat sokol_gfx.h >> sokol_gfx2.h
+mv sokol_gfx2.h sokol_gfx.h
 
-cp $BUILD_PKG/sokol_gfx.c .
+cat <<EOF > sokol_gfx.c
+#define SOKOL_GFX_IMPL
+#include "sokol_gfx.h"
+EOF
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
   -D${backend} \
@@ -60,9 +70,9 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
 
 cd $BUILD_OUT
 mkdir include lib pkgconfig
-cp $HOME/sokol_gfx.h include
-mv $HOME/$(zigi lib sokol_gfx) lib
-cat <<EOF > pkgconfig/sokol-gfx.pc
-Cflags: -I\${rootdir}/include $(echo $libs)
-Libs: \${rootdir}/libsokol_gfx.a $(echo $libs)
+cp $src/sokol_gfx.h include
+mv $src/$(zigi lib sokol_gfx) lib
+cat <<EOF > pkgconfig/sokol_gfx.pc
+Cflags: -I\${rootdir}/include -D$backend $(echo $libs)
+Libs: \${rootdir}/lib/libsokol_gfx.a $(echo $libs)
 EOF
