@@ -7,24 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		94E1A8922BF2898400D56D98 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 94E1A8912BF2898400D56D98 /* main.m */; };
-		94E1A8972BF28D0900D56D98 /* libxos.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 94E1A8962BF28D0900D56D98 /* libxos.a */; };
+		94FF66882BF58A4D00C12787 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 94FF66822BF57DC200C12787 /* main.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		94E1A8722BF2790600D56D98 /* xos-app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "xos-app.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		94E1A8812BF2790800D56D98 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		94E1A8862BF2790800D56D98 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		94E1A8912BF2898400D56D98 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		94E1A8962BF28D0900D56D98 /* libxos.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libxos.a; path = "xos-app/libxos.a"; sourceTree = "<group>"; };
+		94FF66822BF57DC200C12787 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		94E1A86F2BF2790600D56D98 /* Frameworks */ = {
+		94FF66892BF58A5200C12787 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				94E1A8972BF28D0900D56D98 /* libxos.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -51,9 +48,9 @@
 		94E1A8742BF2790600D56D98 /* xos-app */ = {
 			isa = PBXGroup;
 			children = (
+				94FF66822BF57DC200C12787 /* main.m */,
 				94E1A8812BF2790800D56D98 /* Assets.xcassets */,
 				94E1A8862BF2790800D56D98 /* Info.plist */,
-				94E1A8912BF2898400D56D98 /* main.m */,
 			);
 			path = "xos-app";
 			sourceTree = "<group>";
@@ -61,7 +58,6 @@
 		94E1A88E2BF2890B00D56D98 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				94E1A8962BF28D0900D56D98 /* libxos.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -73,8 +69,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 94E1A88B2BF2790800D56D98 /* Build configuration list for PBXNativeTarget "xos-app" */;
 			buildPhases = (
-				94E1A86E2BF2790600D56D98 /* Sources */,
-				94E1A86F2BF2790600D56D98 /* Frameworks */,
+				94FF66872BF58A4700C12787 /* Sources */,
+				94FF66892BF58A5200C12787 /* Frameworks */,
 				94E1A8702BF2790600D56D98 /* Resources */,
 			);
 			buildRules = (
@@ -129,11 +125,11 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		94E1A86E2BF2790600D56D98 /* Sources */ = {
+		94FF66872BF58A4700C12787 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				94E1A8922BF2898400D56D98 /* main.m in Sources */,
+				94FF66882BF58A4D00C12787 /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -261,7 +257,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V39ZP95M68;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -275,8 +272,11 @@
 				);
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/xos-app";
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.istudios.xos-app.hello";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "xos-app bundle";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -287,7 +287,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V39ZP95M68;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -301,8 +302,11 @@
 				);
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/xos-app";
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.istudios.xos-app.hello";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "xos-app bundle";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

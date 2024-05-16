@@ -49,7 +49,9 @@ then
   then
     backend="SOKOL_GLES3"
     needtool androidsdk
-    libs="$(PC_DEPS_DIR=$BUILD_TOOLS pkg-config --cflags androidsdk) -lc"
+    libs="$(BUILD_DEPS=$BUILD_TOOLS pkg-config --cflags androidsdk)
+    $(BUILD_DEPS=$BUILD_TOOLS zigi libc androidsdk)
+    "
   else
     backend="SOKOL_GLES3"
     need linuxsdk -- alpine mesa-dev,libxi-dev,libxcursor-dev GL,EGL,X11,Xi,Xcursor
@@ -62,13 +64,11 @@ cat sokol_gfx.h >> sokol_gfx2.h
 mv sokol_gfx2.h sokol_gfx.h
 
 cat <<EOF > sokol_gfx.c
-#define SOKOL_WIN32_FORCE_MAIN
 #define SOKOL_GFX_IMPL
 #include "sokol_gfx.h"
 EOF
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
-  -D${backend} \
   -I $BUILD_PKG \
   $defs \
   sokol_gfx.c \

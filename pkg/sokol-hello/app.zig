@@ -33,8 +33,16 @@ const App = struct {
 
     fn onFrame(self: @This()) !void {
         _ = self;
-        const str = "hello world";
+
+        const screen_size: struct { w: f32, h: f32 } = .{
+            .w = @floatFromInt(c.app.sapp_width()),
+            .h = @floatFromInt(c.app.sapp_height()),
+        };
+
+        const str = "hello world!";
+        c.debugtext.sdtx_canvas(screen_size.w / 2.0, screen_size.h / 2.0);
         c.debugtext.sdtx_color3b(0, 0, 0);
+        c.debugtext.sdtx_origin(8, 2);
         c.debugtext.sdtx_puts(str);
 
         // Render pass
@@ -156,6 +164,15 @@ fn SokolApp(comptime AppT: type) type {
             log.debug("sokol_main", .{});
             _ = argc;
             _ = argv;
+            return appDesc();
+        }
+
+        fn xos_sokol_run() callconv(.C) void {
+            log.debug("sokol run", .{});
+            c.app.run(appDesc());
+        }
+
+        fn appDesc() c.app.Desc {
             var ctx: *AppT = std.heap.c_allocator.create(AppT) catch @panic("alloc failed");
             if (@hasDecl(AppT, "init")) {
                 ctx.init() catch |err| {
@@ -183,6 +200,7 @@ fn SokolApp(comptime AppT: type) type {
 
         pub fn declare() void {
             @export(sokol_main, .{ .name = "sokol_main", .linkage = .strong });
+            @export(xos_sokol_run, .{ .name = "xos_sokol_run", .linkage = .strong });
         }
     };
 
