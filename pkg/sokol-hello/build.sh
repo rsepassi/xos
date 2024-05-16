@@ -8,7 +8,7 @@ then
   pcarg="--libs"
 fi
 
-zig build-lib $buildarg -target $TARGET -O $OPT_ZIG \
+zig build-lib $buildarg -target $TARGET -O $OPT_ZIG -fPIC \
   --name app \
   $(pkg-config --cflags $pcarg sokol_debugtext sokol_app) \
   --dep sokol_zig \
@@ -80,6 +80,20 @@ then
   # emulator -avd testEmulator -wipe-data -no-boot-anim -netdelay none -no-snapshot
   # adb install build/out/apk/app-release-unsigned.apk
   # adb shell am start -n com.xos.hello/android.app.NativeActivity
+
+  # Ideally we could do this, but it doesn't work because of something with
+  # fPIC: https://github.com/ziglang/zig/issues/17575
+  # cat <<EOF > app2.c
+  # #include <android/native_activity.h>
+  # extern void ANativeActivity_onCreate(ANativeActivity*, void*, size_t);
+  # void xos_dummy_fn() {
+  #   ANativeActivity_onCreate(NULL, NULL, 0);
+  # }
+  # EOF
+  # zig build-lib -dynamic -target $TARGET -O $OPT_ZIG \
+  #   app2.c \
+  #   libapp.a \
+  #   $(pkg-config --cflags --libs sokol_debugtext sokol_app)
 else
   touch app.c
   zig build-exe -target $TARGET -O $OPT_ZIG \

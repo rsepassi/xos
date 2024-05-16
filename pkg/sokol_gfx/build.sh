@@ -69,7 +69,7 @@ cat <<EOF > sokol_gfx.c
 #include "sokol_gfx.h"
 EOF
 
-zig build-lib -target $TARGET -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG -fPIC \
   -I $BUILD_PKG \
   $defs \
   sokol_gfx.c \

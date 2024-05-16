@@ -42,7 +42,7 @@ cat <<EOF > sokol_app.c
 #include "sokol_app.h"
 EOF
 
-zig build-lib -target $TARGET -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG -fPIC \
   $defs \
   sokol_app.c \
   $libs

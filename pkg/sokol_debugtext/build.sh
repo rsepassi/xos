@@ -17,7 +17,7 @@ cat <<EOF > sokol_debugtext.c
 #include "sokol_debugtext.h"
 EOF
 
-zig build-lib -target $TARGET -O $OPT_ZIG \
+zig build-lib -target $TARGET -O $OPT_ZIG -fPIC \
   $(pkg-config --cflags sokol_gfx) \
   sokol_debugtext.c
 
