@@ -49,8 +49,9 @@ then
   then
     backend="SOKOL_GLES3"
     needtool androidsdk
-    libs="$(BUILD_DEPS=$BUILD_TOOLS pkg-config --cflags androidsdk)
+    libs="$(BUILD_DEPS=$BUILD_TOOLS pkg-config --cflags --libs androidsdk)
     $(BUILD_DEPS=$BUILD_TOOLS zigi libc androidsdk)
+    -landroid -lEGL -lGLESv3
     "
   else
     backend="SOKOL_GLES3"

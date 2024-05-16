@@ -38,7 +38,9 @@ cp $BUILD_PKG/debug.keystore $ANDROID_HOME/keystore
 mkdir -p $ANDROID_AVD_HOME
 if [ ! -f "$ANDROID_AVD_HOME/testEmulator.ini" ]
 then
-  echo no | avdmanager create avd -n testEmulator -k "system-images;android-29;google_apis;arm64-v8a"
+  echo no | avdmanager create avd -n testEmulator \
+    -k "system-images;android-29;google_apis;arm64-v8a" \
+    --device "pixel_7"
 fi
 
 cd $BUILD_OUT
@@ -46,6 +48,7 @@ mkdir pkgconfig share
 ln -s $XDG_CACHE_HOME/android sdk
 cp $BUILD_PKG/env.sh .
 cat <<EOF > pkgconfig/androidsdk.pc
-Cflags: -I$ANDROID_HOME/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include -I$ANDROID_HOME/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/aarch64-linux-android
+Cflags: -I\${rootdir}/sdk/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include -I\${rootdir}/sdk/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/aarch64-linux-android
+Libs: -L\${rootdir}/sdk/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/29
 EOF
 cp $BUILD_PKG/libc.txt share

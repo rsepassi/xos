@@ -20,14 +20,8 @@ cd $appname
 
 sed -i \
   "s/xos_org/$org/g" \
-  app/src/main/java/com/xos_org/xos_pkg_name/MainActivity.java
-sed -i \
-  "s/xos_org/$org/g" \
   app/build.gradle
 
-sed -i \
-  "s/xos_pkg_name/$pkg/g" \
-  app/src/main/java/com/xos_org/xos_pkg_name/MainActivity.java
 sed -i \
   "s/xos_pkg_name/$pkg/g" \
   app/build.gradle
@@ -38,10 +32,3 @@ sed -i \
 sed -i \
   "s/xos-app-name/$appname/g" \
   app/src/main/res/values/strings.xml
-
-mv \
-  app/src/main/java/com/xos_org/xos_pkg_name \
-  app/src/main/java/com/xos_org/$pkg
-mv \
-  app/src/main/java/com/xos_org \
-  app/src/main/java/com/$org

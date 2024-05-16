@@ -121,4 +121,5 @@ do
         ;;
     esac
   done < "$pc"
+  echo ""
 done

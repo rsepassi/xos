@@ -26,7 +26,7 @@ then
   if [ "$TARGET_ABI" = "android" ]
   then
     needtool androidsdk
-    defs="$(PC_DEPS_DIR=$BUILD_TOOLS pkg-config --cflags androidsdk)"
+    defs="$(BUILD_DEPS=$BUILD_TOOLS pkg-config --cflags androidsdk)"
   else
     need linuxsdk -- alpine mesa-dev,libxi-dev,libxcursor-dev GL,EGL,X11,Xi,Xcursor
     libs="$(pkg-config --cflags --libs linuxsdk) -lGL -lEGL -lX11 -lXi -lXcursor -lc"

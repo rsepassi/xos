@@ -167,11 +167,6 @@ fn SokolApp(comptime AppT: type) type {
             return appDesc();
         }
 
-        fn xos_sokol_run() callconv(.C) void {
-            log.debug("sokol run", .{});
-            c.app.run(appDesc());
-        }
-
         fn appDesc() c.app.Desc {
             var ctx: *AppT = std.heap.c_allocator.create(AppT) catch @panic("alloc failed");
             if (@hasDecl(AppT, "init")) {
@@ -200,7 +195,6 @@ fn SokolApp(comptime AppT: type) type {
 
         pub fn declare() void {
             @export(sokol_main, .{ .name = "sokol_main", .linkage = .strong });
-            @export(xos_sokol_run, .{ .name = "xos_sokol_run", .linkage = .strong });
         }
     };
 
