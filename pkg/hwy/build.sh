@@ -13,6 +13,7 @@ srcs=$(find . -type f -name '*.cc')
 
 zig build-lib -target $TARGET -O $OPT_ZIG \
   --name hwy \
+  -cflags -mavx2 -- \
   -I. \
   $srcs \
   -lc++
