@@ -14,6 +14,11 @@ var parse_pkg_str = Fn.new { |arg|
     }
 }
 
+var get_pc_path = Fn.new { |depsdir, pkg, lib|
+    var path = "%(depsdir)/%(pkg)/pkgconfig/%(lib).pc"
+    return IO.run(["realpath", path]).trim()
+}
+
 var parse_pc_file = Fn.new { |pc_path, pkgparse, depsdir, deps_depsdir|
   var info = {}
   for (line in IO.read(pc_path).split("\n")) {
@@ -29,8 +34,7 @@ var parse_pc_file = Fn.new { |pc_path, pkgparse, depsdir, deps_depsdir|
       info["zig_deps"] = []
       for (dep in line[10..-1].trim().split(" ")) {
         var p = parse_pkg_str.call(dep)
-        p["pc"] = "%(deps_depsdir)/%(p["pkg"])/zig/%(p["lib"]).pc"
-        p["pc"] = IO.run(["realpath", p["pc"]]).trim()
+        p["pc"] = get_pc_path.call(deps_depsdir, p["pkg"], p["lib"])
         info["zig_deps"].add(p)
       }
     } else if (line.startsWith("ZLocalRequires:")) {
@@ -38,8 +42,7 @@ var parse_pc_file = Fn.new { |pc_path, pkgparse, depsdir, deps_depsdir|
       for (dep in line[15..-1].trim().split(" ")) {
         var p = parse_pkg_str.call(dep)
         p["pkg"] = pkgparse["pkg"]
-        p["pc"] = "%(depsdir)/%(p["pkg"])/zig/%(p["lib"]).pc"
-        p["pc"] = IO.run(["realpath", p["pc"]]).trim()
+        p["pc"] = get_pc_path.call(depsdir, p["pkg"], p["lib"])
         info["zig_local_deps"].add(p)
       }
     }
@@ -54,7 +57,7 @@ var Emit_module_args = Fn.new { |pkgparse, depsdir, module_prefix|
   var pkg = pkgparse["pkg"]
   var module = pkgparse["module"]
 
-  var pc_path = pkgparse["pc"] || IO.run(["realpath", "%(depsdir)/%(pkg)/zig/%(lib).pc"]).trim()
+  var pc_path = pkgparse["pc"] || get_pc_path.call(depsdir, pkg, lib)
   if (All_modules.containsKey(pc_path)) {
     return
   }
@@ -108,5 +111,6 @@ var main = Fn.new {
     var pkgparse = parse_pkg_str.call(arg)
     Emit_module_args.call(pkgparse, depsdir, module_prefix)
   }
+  IO.write("\n")
 }
 main.call()

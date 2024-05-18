@@ -406,7 +406,7 @@ xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
   var script = "%(pkg.srcdir)/build.sh"
   V.log("running build script %(script)")
   V.log3(build_env)
-  var out = IO.Process(["sh", "-e", script] + ctx.pkg_args)
+  var out = IO.Process(["sh", DEBUG ? "-ex" : "-e", script] + ctx.pkg_args)
     .env(build_env)
     .stdout(logfile)
     .runc()

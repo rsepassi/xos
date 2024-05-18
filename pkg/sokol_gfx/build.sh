@@ -6,10 +6,11 @@ cd $src
 
 if [ "$TARGET_OS" = "macos" ]
 then
-  backend="SOKOL_METAL"
-  defs="-x objective-c"
   need macossdk
-  libs="$(pkg-config --cflags macossdk)
+
+  backend="SOKOL_METAL"
+  defs="$(pkg-config --cflags macossdk) -x objective-c"
+  libs="$(pkg-config --libs macossdk)
   -framework Metal
   -framework MetalKit
   -framework Cocoa
@@ -69,7 +70,7 @@ cat <<EOF > sokol_gfx.c
 #include "sokol_gfx.h"
 EOF
 
-zig build-lib -target $TARGET -O $OPT_ZIG -fPIC \
+zig build-lib -target $TARGET -O $OPT_ZIG \
   -I $BUILD_PKG \
   $defs \
   sokol_gfx.c \

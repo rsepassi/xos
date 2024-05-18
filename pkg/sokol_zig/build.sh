@@ -4,8 +4,8 @@ src=$(fetch_untar "https://api.github.com/repos/floooh/sokol-zig/tarball/864422a
 cd $src
 
 cd $BUILD_OUT
-mkdir zig
+mkdir zig pkgconfig
 cp $src/src/sokol/*.zig zig/
-cat <<EOF > zig/sokol_zig.pc
+cat <<EOF > pkgconfig/sokol_zig.pc
 ZRoot: \${rootdir}/zig/sokol.zig
 EOF

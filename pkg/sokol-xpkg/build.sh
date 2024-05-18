@@ -1,19 +1,24 @@
+userpkg=$1
+need $userpkg
+need sokol_gfx
 need sokol_app
-need sokol_debugtext
 need sokol_zig
 
+finallinkargs="$(pkg-config --libs $userpkg) $(pkg-config --libs sokol_gfx sokol_app)"
 if [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ABI" = "android" ]
 then
   buildarg="-dynamic"
   pcarg="--libs"
+  linkarg="$finallinkargs"
 fi
 
-zig build-lib $buildarg -target $TARGET -O $OPT_ZIG -fPIC \
+zig build-lib $buildarg -target $TARGET -O $OPT_ZIG \
   --name app \
-  $(pkg-config --cflags $pcarg sokol_debugtext sokol_app) \
   --dep sokol_zig \
-  -Mmain="$BUILD_PKG/app.zig" \
-  $(pkg-config --zig sokol_zig) \
+  --dep app=$userpkg \
+  -Mmain="$BUILD_PKG/app_wrap.zig" \
+  $(pkg-config --zig sokol_zig $userpkg) \
+  $linkarg \
   -lc
 
 # todo:
@@ -28,12 +33,6 @@ then
     platform=iphoneos
   fi
 
-  genlinkflags() {
-    echo "$HOME/$(zigi lib app)"
-    pkg-config --cflags --libs sokol_debugtext sokol_app
-  }
-  linkflags=$(genlinkflags)
-
   need xcodeproj
   cp -r $BUILD_DEPS/xcodeproj/xos-app .
 
@@ -45,7 +44,7 @@ then
     -arch arm64 \
     -sdk ${platform}17.2 \
     -project ./xos-app/xos-app.xcodeproj \
-    "OTHER_LDFLAGS=$linkflags" \
+    "OTHER_LDFLAGS=$HOME/$(zigi lib app) $finallinkargs" \
     build
 
   appdir=$PWD/xos-app/build/$config-$platform/xos-app.app
@@ -54,16 +53,19 @@ then
   # appid=com.istudios.xos-app.hello
   #
   # Device
-  # xcrun devicectl device uninstall app --device ryansiphone $appid
-  # xcrun devicectl device install app --device ryansiphone build/out/xos-app.app
-  # xcrun devicectl device process launch --device ryansiphone $appid
+  # did=ryansiphone
+  # xcrun devicectl device uninstall app --device $did $appid
+  # xcrun devicectl device install app --device $did build/out/xos-app.app
+  # xcrun devicectl device process launch --device $did $appid
   #
   # Sim
+  # open /Applications/Xcode.app/Contents/Developer/Applications/Simulator.app
   # xcrun simctl uninstall booted $appid
   # xcrun simctl install booted build/out/xos-app.app
   # xcrun simctl launch booted $appid
 elif [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ABI" = "android" ]
 then
+  # For Android, everything must have been linked into a shared object file.
   needtool androidsdk
   needtool android-template
 
@@ -77,29 +79,17 @@ then
     app/build/outputs/apk/release/app-release-unsigned.apk
   ln -s $PWD/app/build/outputs/apk/release $BUILD_OUT/apk
 
+  # export XDG_CACHE_HOME=$PWD/build/cache/xdg
+  # . ./pkg/androidsdk/env.sh
   # emulator -avd testEmulator -wipe-data -no-boot-anim -netdelay none -no-snapshot
   # adb install build/out/apk/app-release-unsigned.apk
   # adb shell am start -n com.xos.hello/android.app.NativeActivity
-
-  # Ideally we could do this, but it doesn't work because of something with
-  # fPIC: https://github.com/ziglang/zig/issues/17575
-  # cat <<EOF > app2.c
-  # #include <android/native_activity.h>
-  # extern void ANativeActivity_onCreate(ANativeActivity*, void*, size_t);
-  # void xos_dummy_fn() {
-  #   ANativeActivity_onCreate(NULL, NULL, 0);
-  # }
-  # EOF
-  # zig build-lib -dynamic -target $TARGET -O $OPT_ZIG \
-  #   app2.c \
-  #   libapp.a \
-  #   $(pkg-config --cflags --libs sokol_debugtext sokol_app)
 else
   touch app.c
   zig build-exe -target $TARGET -O $OPT_ZIG \
     app.c \
     $(zigi lib app) \
-    $(pkg-config --cflags --libs sokol_debugtext sokol_app)
+    $finallinkargs
   cd $BUILD_OUT
   mkdir bin
   mv $HOME/$(zigi exe app) bin

@@ -1,7 +1,8 @@
 genpkgconfig() {
   mkdir -p "$BUILD_OUT/pkgconfig"
   cat <<EOF > $BUILD_OUT/pkgconfig/macossdk.pc
-Cflags: -I\${rootdir}/sdk/usr/include -L\${rootdir}/sdk/usr/lib -F\${rootdir}/sdk/System/Library/Frameworks -DTARGET_OS_OSX=1
+Cflags: -I\${rootdir}/sdk/usr/include -F\${rootdir}/sdk/System/Library/Frameworks -DTARGET_OS_OSX=1
+Libs: -L\${rootdir}/sdk/usr/lib -F\${rootdir}/sdk/System/Library/Frameworks
 EOF
 }
 
