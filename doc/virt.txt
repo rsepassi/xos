@@ -1,4 +1,0 @@
-On an Apple M1
-MacOS: https://tart.run/quick-start
-Windows: https://docs.getutm.app/guides/windows/
-Linux: https://podman.io/docs/installation

@@ -1,5 +1,0 @@
-[x] webview
-[ ] xterm.js
-[ ] comms
-[ ] pty
-[ ] termbox

@@ -1,0 +1,24 @@
+For build:
+DEBUG=1
+
+
+For segfaults (but only in C code, not zig):
+-finstrument-functions
+
+void __cyg_profile_func_enter(void *this_fn, void *call_site)
+                                __attribute__((no_instrument_function));
+                                void __cyg_profile_func_enter(void *this_fn, void *call_site) {
+                                    printf("__FTRACEO: %p\n", this_fn);
+                                } /* __cyg_profile_func_enter */
+
+void __cyg_profile_func_exit(void *this_fn, void *call_site)
+                               __attribute__((no_instrument_function));
+                               void __cyg_profile_func_exit(void *this_fn, void *call_site) {
+                                   printf("__FTRACEX: %p\n", this_fn);
+                               } /* __cyg_profile_func_enter */
+
+
+get the function names from nm:
+
+binname=run
+nm -anUW $binname
