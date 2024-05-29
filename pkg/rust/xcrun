@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+
+# Some cargo projects try to find the ios sdk by running xcrun
+# This is a dummy standin that assumes the pkg has "need iossdk"
+# and that the caller is running
+#   xcrun --sdk iphoneos --show-sdk-path
+
+if [ $1 = "--sdk" ] && [ $2 = "iphoneos" ] && [ $3 = "--show-sdk-path" ]
+then
+  echo "$BUILD_DEPS/iossdk/sdk"
+fi

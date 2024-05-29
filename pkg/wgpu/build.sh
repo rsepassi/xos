@@ -21,6 +21,10 @@ then
 elif [ "$TARGET_OS" = "windows" ]
 then
   ldflags="-lunwind -ldxgi -ld3d11 -lkernel32 -luser32 -L$XOS_SYSTEM_HOME/winsdk -ld3dcompiler"
+elif [ "$TARGET_OS" = "ios" ]
+then
+  need iossdk
+  export SDKROOT="$BUILD_DEPS/iossdk/sdk"
 fi
 
 sed -i 's/"cdylib",//g' Cargo.toml

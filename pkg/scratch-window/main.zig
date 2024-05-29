@@ -3,13 +3,6 @@ const builtin = @import("builtin");
 
 const log = std.log.scoped(.app);
 
-const Ctx = struct {
-    adapter: wgpu.c.WGPUAdapter = null,
-    device: wgpu.c.WGPUDevice = null,
-    config: wgpu.c.WGPUSurfaceConfiguration = .{},
-    surface: wgpu.c.WGPUSurface = null,
-};
-
 const wgpu = struct {
     const c = @cImport({
         @cInclude("webgpu.h");
@@ -46,7 +39,12 @@ fn handleRequestAdapter(status: wgpu.c.WGPURequestAdapterStatus, adapter: wgpu.c
     }
 }
 
-fn handleRequestDevice(status: wgpu.c.WGPURequestDeviceStatus, device: wgpu.c.WGPUDevice, message: [*c]const u8, userdata: ?*anyopaque) callconv(.C) void {
+fn handleRequestDevice(
+    status: wgpu.c.WGPURequestDeviceStatus,
+    device: wgpu.c.WGPUDevice,
+    message: [*c]const u8,
+    userdata: ?*anyopaque,
+) callconv(.C) void {
     if (status == wgpu.c.WGPURequestDeviceStatus_Success) {
         var ctx: *Ctx = @ptrCast(@alignCast(userdata));
         ctx.device = device;
@@ -86,24 +84,48 @@ fn loadShader(device: wgpu.c.WGPUDevice, name: [:0]const u8, buf: [:0]const u8) 
     }) orelse return error.WgpuShader;
 }
 
+const AppGlfw = struct {
+    const Self = @This();
+
+    window: *glfw.c.GLFWwindow,
+
+    fn init() !Self {
+        _ = glfw.c.glfwSetErrorCallback(errorCallback);
+        if (glfw.c.glfwInit() != glfw.c.GLFW_TRUE) return error.GlfwInit;
+        glfw.c.glfwWindowHint(glfw.c.GLFW_CLIENT_API, glfw.c.GLFW_NO_API);
+        const window = glfw.c.glfwCreateWindow(640, 480, "Hello", null, null) orelse return error.GlfwWindow;
+        return .{ .window = window };
+    }
+
+    fn deinit(self: Self) void {
+        glfw.c.glfwDestroyWindow(self.window);
+        glfw.c.glfwTerminate();
+    }
+
+    fn getSurface(self: Self, gpu: wgpu.c.WGPUInstance) !wgpu.c.WGPUSurface {
+        var surface: wgpu.c.WGPUSurface = undefined;
+        if (initGlfwWgpuSurface(gpu, self.window, &surface) != 0) return error.Glue;
+        return surface;
+    }
+};
+
+const Ctx = struct {
+    adapter: wgpu.c.WGPUAdapter = null,
+    device: wgpu.c.WGPUDevice = null,
+    config: wgpu.c.WGPUSurfaceConfiguration = .{},
+    surface: wgpu.c.WGPUSurface = null,
+};
+
 pub fn main() !void {
     var ctx: Ctx = .{};
-
-    _ = glfw.c.glfwSetErrorCallback(errorCallback);
-
-    if (glfw.c.glfwInit() != glfw.c.GLFW_TRUE) return error.GlfwInit;
-    defer glfw.c.glfwTerminate();
 
     const gpu = wgpu.c.wgpuCreateInstance(null);
     defer wgpu.c.wgpuInstanceRelease(gpu);
 
-    glfw.c.glfwWindowHint(glfw.c.GLFW_CLIENT_API, glfw.c.GLFW_NO_API);
-    const window = glfw.c.glfwCreateWindow(640, 480, "Hello", null, null) orelse return error.GlfwWindow;
-    defer glfw.c.glfwDestroyWindow(window);
+    const app = try AppGlfw.init();
+    defer app.deinit();
 
-    glfw.c.glfwSetWindowUserPointer(window, &ctx);
-
-    if (initGlfwWgpuSurface(gpu, window, &ctx.surface) != 0) return error.Glue;
+    ctx.surface = try app.getSurface(gpu);
     defer wgpu.c.wgpuSurfaceRelease(ctx.surface);
 
     const adapter_options = wgpu.c.WGPURequestAdapterOptions{
@@ -168,15 +190,17 @@ pub fn main() !void {
         .alphaMode = surface_capabilities.alphaModes[0],
     };
 
-    updateWindowSize(window, &ctx);
+    updateWindowSize(app.window, &ctx);
 
-    _ = glfw.c.glfwSetFramebufferSizeCallback(window, handleGlfwFramebufferSize);
-
-    while (glfw.c.glfwWindowShouldClose(window) == glfw.c.GLFW_FALSE) {
+    glfw.c.glfwSetWindowUserPointer(app.window, &ctx);
+    _ = glfw.c.glfwSetFramebufferSizeCallback(app.window, handleGlfwFramebufferSize);
+    while (glfw.c.glfwWindowShouldClose(app.window) == glfw.c.GLFW_FALSE) {
         glfw.c.glfwPollEvents();
 
         var maybe_texture: wgpu.c.WGPUSurfaceTexture = undefined;
         wgpu.c.wgpuSurfaceGetCurrentTexture(ctx.surface, &maybe_texture);
+        defer if (maybe_texture.texture) |tex| wgpu.c.wgpuTextureRelease(tex);
+
         switch (maybe_texture.status) {
             wgpu.c.WGPUSurfaceGetCurrentTextureStatus_Success => {},
             wgpu.c.WGPUSurfaceGetCurrentTextureStatus_Timeout,
@@ -184,8 +208,7 @@ pub fn main() !void {
             wgpu.c.WGPUSurfaceGetCurrentTextureStatus_Lost,
             => {
                 // Skip this frame, and re-configure surface.
-                if (maybe_texture.texture) |tex| wgpu.c.wgpuTextureRelease(tex);
-                updateWindowSize(window, &ctx);
+                updateWindowSize(app.window, &ctx);
                 continue;
             },
             wgpu.c.WGPUSurfaceGetCurrentTextureStatus_OutOfMemory,
@@ -198,7 +221,6 @@ pub fn main() !void {
             else => unreachable,
         }
         const texture = maybe_texture.texture orelse return error.WgpuTexture;
-        defer wgpu.c.wgpuTextureRelease(texture);
 
         const frame = wgpu.c.wgpuTextureCreateView(texture, null) orelse return error.WgpuFrame;
         defer wgpu.c.wgpuTextureViewRelease(frame);

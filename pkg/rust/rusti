@@ -24,8 +24,18 @@ elif [ "$TARGET_OS" = "windows" ] && [ "$TARGET_ARCH" = "x86_64" ]
 then
   triple="x86_64-pc-windows-gnu"
   linker="CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"
+elif [ "$TARGET_OS" = "ios" ] && [ "$TARGET_ARCH" = "aarch64" ]
+then
+  if [ "$TARGET_ABI" = "simulator" ]
+  then
+    triple="aarch64-apple-ios-sim"
+    linker="CARGO_TARGET_AARCH64_IOS_SIM_LINKER"
+  else
+    triple="aarch64-apple-ios"
+    linker="CARGO_TARGET_AARCH64_IOS_LINKER"
+  fi
 else
-  >&2 echo "unsupported arch $TARGET_ARCH $TARGET_OS for rust"
+  >&2 echo "unsupported rust triple $TARGET_ARCH $TARGET_OS for rust"
   exit 1
 fi
 
@@ -54,8 +64,14 @@ get_zig_triple() {
     aarch64-apple-darwin|aarch64-macos*)
       triple="aarch64-macos"
       ;;
+    aarch64-apple-ios-sim|aarch64-ios*-simulator)
+      triple="aarch64-ios-simulator"
+      ;;
+    aarch64-apple-ios|aarch64-ios*)
+      triple="aarch64-ios"
+      ;;
     *)
-      >&2 echo "unsupported arch $TARGET for rust"
+      >&2 echo "unsupported zig triple $TARGET for rust"
       ;;
   esac
   echo $triple

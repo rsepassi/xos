@@ -5,6 +5,10 @@ if [ "$TARGET_OS" = "macos" ]
 then
   sdk="$BUILD_DEPS/macossdk/sdk"
   cflags="--sysroot=$sdk -I$sdk/usr/include -L$sdk/usr/lib -F$sdk/System/Library/Frameworks -DTARGET_OS_OSX=1"
+elif [ "$TARGET_OS" = "ios" ]
+then
+  sdk="$BUILD_DEPS/iossdk/sdk"
+  cflags="--sysroot=$sdk -I$sdk/usr/include -L$sdk/usr/lib -F$sdk/System/Library/Frameworks -DTARGET_OS_IOS=1 -Wno-availability -Wno-nullability-completeness -Wno-undef-prefix"
 fi
 
 filtered_args=""
