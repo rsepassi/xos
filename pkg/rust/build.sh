@@ -28,25 +28,34 @@ file=$(zigi exe rustup-init)
 url="https://static.rust-lang.org/rustup/archive/$rustupversion/$triple/$file"
 
 fetch $url $file $hash
-rustup="$BUILD_DEPS/$file"
+rustupinit="$BUILD_DEPS/$file"
 
 targets="
-x86_64-unknown-linux-musl,\
-aarch64-unknown-linux-musl,\
-aarch64-apple-darwin,\
-x86_64-apple-darwin,\
+x86_64-unknown-linux-musl
+aarch64-unknown-linux-musl
+aarch64-apple-darwin
+x86_64-apple-darwin
+aarch64-apple-ios-sim
+aarch64-apple-ios
+aarch64-linux-android
 x86_64-pc-windows-gnu
 "
 
-chmod +x "$rustup"
+chmod +x "$rustupinit"
 mkdir -p "$XDG_CACHE_HOME/rust"
-HOME="$XDG_CACHE_HOME/rust" "$rustup" \
+2>rustupinit.log HOME="$XDG_CACHE_HOME/rust" "$rustupinit" \
   -y -q \
   --default-host $triple \
   --default-toolchain "$rustversion" \
-  --target $targets \
   --no-modify-path \
   --profile minimal
+
+PATH="$XDG_CACHE_HOME/rust/.cargo/bin:$PATH"
+for target in $targets
+do
+  2>>rustuptarget.log HOME="$XDG_CACHE_HOME/rust" rustup target add $target
+done
+
 
 ln -s "$XDG_CACHE_HOME/rust/.cargo" "$BUILD_OUT/.cargo"
 ln -s "$XDG_CACHE_HOME/rust/.rustup" "$BUILD_OUT/.rustup"
