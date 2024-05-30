@@ -3,11 +3,43 @@ const builtin = @import("builtin");
 
 const log = std.log.scoped(.app);
 
+pub const std_options = .{
+    .log_level = .debug,
+    .logFn = androidLogFn,
+};
+
+extern fn doAndroidLog(msg: [*:0]const u8) void;
+var android_log_fn_buf: [2048]u8 = undefined;
+pub fn androidLogFn(
+    comptime level: std.log.Level,
+    comptime scope: @TypeOf(.EnumLiteral),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    _ = level;
+    _ = scope;
+    const msg = std.fmt.bufPrintZ(&android_log_fn_buf, format, args) catch "<log message too long>";
+    doAndroidLog(msg);
+}
+
 const wgpu = struct {
     const c = @cImport({
         @cInclude("webgpu.h");
         @cInclude("wgpu.h");
     });
+
+    const LogLevel = enum(u32) {
+        off = 0,
+        err,
+        warn,
+        info,
+        debug,
+        trace,
+
+        fn wrap(i: u32) LogLevel {
+            return @enumFromInt(i);
+        }
+    };
 };
 
 fn handleRequestAdapter(status: wgpu.c.WGPURequestAdapterStatus, adapter: wgpu.c.WGPUAdapter, message: [*c]const u8, userdata: ?*anyopaque) callconv(.C) void {
@@ -75,32 +107,34 @@ const Ctx = struct {
     }
 };
 
-var iosglobal: *iOSGlobal = undefined;
-const iOSGlobal = struct {
+var ctxglobal: *CtxGlobal = undefined;
+const CtxGlobal = struct {
     ctx: Ctx,
 };
 
-const ios = struct {
-    fn provideMetalLayer(layer: *anyopaque, width: f64, height: f64) callconv(.C) void {
-        iosglobal = std.heap.c_allocator.create(iOSGlobal) catch @panic("can't alloc");
-        const ctx = &iosglobal.ctx;
-        ctx.gpu = wgpu.c.wgpuCreateInstance(null) orelse @panic("can't init wgpu");
+fn wgpuLogCallback(level: wgpu.c.WGPULogLevel, message: [*c]const u8, userdata: ?*anyopaque) callconv(.C) void {
+    _ = userdata;
+    log.info("[wgpu {s}]: {s}", .{ @tagName(wgpu.LogLevel.wrap(level)), message });
+}
 
-        var desc = wgpu.c.WGPUSurfaceDescriptorFromMetalLayer{
-            .chain = .{
-                .sType = wgpu.c.WGPUSType_SurfaceDescriptorFromMetalLayer,
-            },
-            .layer = layer,
+const android = struct {
+    fn provideNativeWindow(window: *anyopaque, width: i32, height: i32) callconv(.C) c_int {
+        provideNativeWindowSafe(window, width, height) catch |err| {
+            log.err("provideNativeWindow failed: {any}", .{err});
+            return 1;
         };
-        ctx.surface = wgpu.c.wgpuInstanceCreateSurface(ctx.gpu, &.{
-            .nextInChain = @ptrCast(&desc),
-        }) orelse @panic("ios surface create fail");
+        return 0;
+    }
 
-        setupCtx(ctx) catch @panic("setup failed");
+    fn provideNativeWindowSafe(window: *anyopaque, width: i32, height: i32) !void {
+        wgpu.c.wgpuSetLogLevel(wgpu.c.WGPULogLevel_Trace);
+        wgpu.c.wgpuSetLogCallback(wgpuLogCallback, null);
 
-        ctx.config.width = @intFromFloat(width);
-        ctx.config.height = @intFromFloat(height);
-        wgpu.c.wgpuSurfaceConfigure(ctx.surface, &ctx.config);
+        ctxglobal = try std.heap.c_allocator.create(CtxGlobal);
+        const ctx = &ctxglobal.ctx;
+
+        try setupCtx(ctx, window, width, height);
+        try xonFrame();
     }
 
     fn onFrame() callconv(.C) void {
@@ -109,19 +143,46 @@ const ios = struct {
 };
 
 comptime {
-    @export(ios.provideMetalLayer, .{ .name = "_xos_ios_provide_metal_layer" });
-    @export(ios.onFrame, .{ .name = "_xos_ios_frame" });
+    @export(android.provideNativeWindow, .{ .name = "_xos_android_provide_native_window" });
+    @export(android.onFrame, .{ .name = "_xos_android_frame" });
 }
 
 // TODO: errdefers?
-fn setupCtx(ctx: *Ctx) !void {
+fn setupCtx(ctx: *Ctx, window: *anyopaque, width: i32, height: i32) !void {
+    var instance_desc = wgpu.c.WGPUInstanceExtras{
+        .chain = .{
+            .sType = wgpu.c.WGPUSType_InstanceExtras,
+        },
+        //.backends = wgpu.c.WGPUInstanceBackend_GL,
+        .flags = wgpu.c.WGPUInstanceFlag_Debug | wgpu.c.WGPUInstanceFlag_Validation,
+    };
+    ctx.gpu = wgpu.c.wgpuCreateInstance(&.{
+        .nextInChain = @ptrCast(&instance_desc),
+    }) orelse return error.WgpuInit;
+    log.debug("wgpu created", .{});
+
+    var surface_desc = wgpu.c.WGPUSurfaceDescriptorFromAndroidNativeWindow{
+        .chain = .{
+            .sType = wgpu.c.WGPUSType_SurfaceDescriptorFromAndroidNativeWindow,
+        },
+        .window = window,
+    };
+    ctx.surface = wgpu.c.wgpuInstanceCreateSurface(ctx.gpu, &.{
+        .nextInChain = @ptrCast(&surface_desc),
+    }) orelse return error.WgpuSurface;
+    log.debug("surface created", .{});
+
     const adapter_options = wgpu.c.WGPURequestAdapterOptions{
         .compatibleSurface = ctx.surface,
     };
     wgpu.c.wgpuInstanceRequestAdapter(ctx.gpu, &adapter_options, handleRequestAdapter, ctx);
     if (ctx.adapter == null) return error.WgpuAdapter;
 
-    wgpu.c.wgpuAdapterRequestDevice(ctx.adapter, null, handleRequestDevice, ctx);
+    wgpu.c.wgpuAdapterRequestDevice(ctx.adapter, &.{
+        .requiredLimits = &.{
+            .limits = defaultLimits(),
+        },
+    }, handleRequestDevice, ctx);
     if (ctx.device == null) return error.WgpuDevice;
 
     ctx.queue = wgpu.c.wgpuDeviceGetQueue(ctx.device) orelse return error.WgpuQueue;
@@ -168,10 +229,16 @@ fn setupCtx(ctx: *Ctx) !void {
         .presentMode = wgpu.c.WGPUPresentMode_Fifo,
         .alphaMode = ctx.surface_capabilities.alphaModes[0],
     };
+
+    ctx.config.width = @intCast(width);
+    ctx.config.height = @intCast(height);
+    wgpu.c.wgpuSurfaceConfigure(ctx.surface, &ctx.config);
+    log.debug("surface configured", .{});
 }
 
 fn xonFrame() !void {
-    const ctx = &iosglobal.ctx;
+    const ctx = &ctxglobal.ctx;
+
     var maybe_texture: wgpu.c.WGPUSurfaceTexture = undefined;
     wgpu.c.wgpuSurfaceGetCurrentTexture(ctx.surface, &maybe_texture);
     defer if (maybe_texture.texture) |tex| wgpu.c.wgpuTextureRelease(tex);
@@ -237,4 +304,47 @@ fn xonFrame() !void {
 
     wgpu.c.wgpuQueueSubmit(ctx.queue, 1, &command_buffer);
     wgpu.c.wgpuSurfacePresent(ctx.surface);
+}
+
+fn defaultLimits() wgpu.c.WGPULimits {
+    return .{
+        .maxTextureDimension1D = 8192,
+        .maxTextureDimension2D = 8192,
+        .maxTextureDimension3D = 2048,
+        .maxTextureArrayLayers = 256,
+        .maxBindGroups = 4,
+        .maxBindingsPerBindGroup = 1000,
+        .maxDynamicUniformBuffersPerPipelineLayout = 8,
+        .maxDynamicStorageBuffersPerPipelineLayout = 4,
+        .maxSampledTexturesPerShaderStage = 16,
+        .maxSamplersPerShaderStage = 16,
+        .maxStorageBuffersPerShaderStage = 8,
+        .maxStorageTexturesPerShaderStage = 4,
+        .maxUniformBuffersPerShaderStage = 12,
+        .maxUniformBufferBindingSize = 64 << 10, // (64 KiB)
+        .maxStorageBufferBindingSize = 128 << 20, // (128 MiB)
+        .minUniformBufferOffsetAlignment = 256,
+        .minStorageBufferOffsetAlignment = 256,
+        .maxVertexBuffers = 8,
+        .maxBufferSize = 256 << 20, // (256 MiB)
+        .maxVertexAttributes = 16,
+        .maxVertexBufferArrayStride = 2048,
+        .maxInterStageShaderComponents = 60,
+        .maxColorAttachments = 8,
+        .maxColorAttachmentBytesPerSample = 32,
+        .maxComputeWorkgroupStorageSize = 16384,
+        .maxComputeInvocationsPerWorkgroup = 256,
+        .maxComputeWorkgroupSizeX = 256,
+        .maxComputeWorkgroupSizeY = 256,
+        .maxComputeWorkgroupSizeZ = 64,
+        .maxComputeWorkgroupsPerDimension = 65535,
+
+        // not specified in the rust code
+        // .maxBindGroupsPlusVertexBuffers
+        // .maxInterStageShaderVariables
+
+        // not listed in the c code
+        // max_push_constant_size: 0,
+        // max_non_sampler_bindings: 1_000_000,
+    };
 }

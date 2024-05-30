@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-exec env \
+2>&1 exec env \
   RUSTUP_HOME="$BUILD_TOOLS/rust/.rustup" \
   CARGO_HOME="$BUILD_TOOLS/rust/.cargo" \
   CC="rustcc" \

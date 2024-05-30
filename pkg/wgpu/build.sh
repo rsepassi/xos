@@ -17,7 +17,12 @@ then
   ldflags="$(pkg-config --libs macossdk) -framework Metal -framework QuartzCore"
 elif [ "$TARGET_OS" = "linux" ]
 then
-  ldflags="-lunwind"
+  if [ "$TARGET_ABI" = "android" ]
+  then
+    ldflags=""
+  else
+    ldflags="-lunwind"
+  fi
 elif [ "$TARGET_OS" = "windows" ]
 then
   ldflags="-lunwind -ldxgi -ld3d11 -lkernel32 -luser32 -L$XOS_SYSTEM_HOME/winsdk -ld3dcompiler"
@@ -29,7 +34,12 @@ fi
 
 sed -i 's/"cdylib",//g' Cargo.toml
 
-2>cargo.log xcargo build \
+cat <<EOF >> Cargo.toml
+[profile.release]
+panic = "abort"
+EOF
+
+xcargo build \
   --target $(rusti target) \
   --release \
   --lib

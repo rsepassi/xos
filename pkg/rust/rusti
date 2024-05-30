@@ -14,8 +14,14 @@ then
   linker="CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER"
 elif [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ARCH" = "aarch64" ]
 then
-  triple="aarch64-unknown-linux-musl"
-  linker="CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER"
+  if [ "$TARGET_ABI" = "android" ]
+  then
+    triple="aarch64-linux-android"
+    linker="CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"
+  else
+    triple="aarch64-unknown-linux-musl"
+    linker="CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER"
+  fi
 elif [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ARCH" = "x86_64" ]
 then
   triple="x86_64-unknown-linux-musl"

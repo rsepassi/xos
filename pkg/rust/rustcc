@@ -62,4 +62,4 @@ for arg in "$@"; do
   esac
 done
 
-eval "exec zig cc -target $(rusti zigtarget) -O$OPT $filtered_args $cflags -lunwind"
+eval "exec zig cc -target $(rusti zigtarget) -O$OPT $filtered_args $cflags -fno-exceptions"

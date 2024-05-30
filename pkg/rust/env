@@ -1,0 +1,12 @@
+#!/bin/sh
+# rustup shell setup
+# affix colons on either side of $PATH to simplify matching
+XRUST_HOME="$BUILD_TOOLS/rust"
+case ":${PATH}:" in
+    *:"$XRUST_HOME/.cargo/bin":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed rustc needs to be overridden
+        export PATH="$XRUST_HOME/.cargo/bin:$PATH"
+        ;;
+esac
