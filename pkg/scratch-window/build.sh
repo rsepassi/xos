@@ -57,11 +57,11 @@ EOF
   cat <<EOF > $BUILD_OUT/run.sh
 #!/usr/bin/env sh
 set -ex
-did=\${1:?must provide deviceid}
+did="\${1:?must provide deviceid}"
 appid=com.istudios.xos-app.hello
-xcrun devicectl device uninstall app --device \$did \$appid
-xcrun devicectl device install app --device \$did $BUILD_OUT/xos-app.app
-xcrun devicectl device process launch --device \$did \$appid
+xcrun devicectl device uninstall app --device "\$did" \$appid
+xcrun devicectl device install app --device "\$did" $BUILD_OUT/xos-app.app
+xcrun devicectl device process launch --device "\$did" \$appid
 EOF
   fi
 
@@ -127,7 +127,8 @@ then
   fi
 else
   # this keeps the screen on, not sure how to include it
-  # while true; do adb -d shell input keyevent mouse ; sleep 1 ; done
+  echo 'to keep device on, run this in a separate shell'
+  echo 'while true; do adb -d shell input keyevent mouse ; sleep 1 ; done'
   device="-d"
 fi
 adb \$device uninstall \$appid || echo
