@@ -6,7 +6,7 @@ then
 
   finallinkargs="-framework Foundation -framework UIKit -framework Metal -framework MetalKit $(pkg-config --libs wgpu)"
 
-	zig build-lib -target $TARGET -O $OPT_ZIG \
+  zig build-lib -target $TARGET -O $OPT_ZIG \
     --name app \
     $(pkg-config --cflags iossdk wgpu) \
     $(zigi libc iossdk) \
@@ -69,22 +69,22 @@ EOF
 elif [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ABI" = "android" ]
 then
   need wgpu
-	needtool androidsdk
+  needtool androidsdk
   . $BUILD_TOOLS/androidsdk/env.sh
 
-	cflags="
-		$(BUILD_DEPS=$BUILD_TOOLS pkg-config --cflags --libs androidsdk)
-		$(BUILD_DEPS=$BUILD_TOOLS zigi libc androidsdk)
-		-landroid -lnativewindow -llog -lvulkan
-	"
+  cflags="
+    $(BUILD_DEPS=$BUILD_TOOLS pkg-config --cflags --libs androidsdk)
+    $(BUILD_DEPS=$BUILD_TOOLS zigi libc androidsdk)
+    -landroid -lnativewindow -llog -lvulkan
+  "
 
   zig build-lib -dynamic -target $TARGET -O $OPT_ZIG \
     --name app \
     $(pkg-config --cflags --libs wgpu) \
-		$cflags \
+    $cflags \
     $BUILD_PKG/main-android.zig \
     $BUILD_PKG/android.c \
-		$BUILD_TOOLS/androidsdk/sdk/ndk-bundle/sources/android/native_app_glue/android_native_app_glue.c \
+    $BUILD_TOOLS/androidsdk/sdk/ndk-bundle/sources/android/native_app_glue/android_native_app_glue.c \
     -ldl -lc
 
   # For Android, everything must have been linked into a shared object file.
