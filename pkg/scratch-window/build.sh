@@ -1,3 +1,9 @@
+userlibmodule="
+--dep app=main
+--dep gpu
+--dep appgpu
+-Muserlib=$BUILD_PKG/demoapp/app.zig
+"
 
 if [ "$TARGET_OS" = "ios" ]
 then
@@ -13,10 +19,7 @@ then
     $BUILD_PKG/ios.m \
     --dep userlib=userlib \
     -Mmain=$BUILD_PKG/appwrap.zig \
-    --dep app=main \
-    --dep gpu \
-    --dep appgpu \
-    -Muserlib=$BUILD_PKG/app.zig \
+    $userlibmodule \
     $(pkg-config --cflags wgpu) \
     -Mgpu=$BUILD_PKG/gpu.zig \
     --dep app=main \
@@ -97,10 +100,7 @@ then
     $BUILD_TOOLS/androidsdk/sdk/ndk-bundle/sources/android/native_app_glue/android_native_app_glue.c \
     --dep userlib=userlib \
     -Mmain=$BUILD_PKG/appwrap.zig \
-    --dep app=main \
-    --dep gpu \
-    --dep appgpu \
-    -Muserlib=$BUILD_PKG/app.zig \
+    $userlibmodule \
     $(pkg-config --cflags --libs wgpu) \
     -Mgpu=$BUILD_PKG/gpu.zig \
     --dep app=main \
@@ -168,10 +168,7 @@ else
     $(pkg-config --cflags --libs glfw) \
     --dep userlib=userlib \
     -Mmain=$BUILD_PKG/appwrap.zig \
-    --dep app=main \
-    --dep gpu \
-    --dep appgpu \
-    -Muserlib=$BUILD_PKG/app.zig \
+    $userlibmodule \
     $(pkg-config --cflags --libs wgpu) \
     -Mgpu=$BUILD_PKG/gpu.zig \
     $(pkg-config --cflags --libs wgpu_glfw_glue) \
