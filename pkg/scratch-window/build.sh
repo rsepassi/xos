@@ -8,10 +8,21 @@ then
 
   zig build-lib -target $TARGET -O $OPT_ZIG \
     --name app \
-    $(pkg-config --cflags iossdk wgpu) \
+    $(pkg-config --cflags iossdk) \
     $(zigi libc iossdk) \
     $BUILD_PKG/ios.m \
-    $BUILD_PKG/main-ios.zig
+    --dep userlib=userlib \
+    -Mmain=$BUILD_PKG/appwrap.zig \
+    --dep app=main \
+    --dep gpu \
+    --dep appgpu \
+    -Muserlib=$BUILD_PKG/app.zig \
+    $(pkg-config --cflags wgpu) \
+    -Mgpu=$BUILD_PKG/gpu.zig \
+    --dep app=main \
+    --dep gpu \
+    -Mappgpu=$BUILD_PKG/appgpu.zig \
+    -lc
 
   if [ "$TARGET_ABI" = "simulator" ]
   then
@@ -43,8 +54,9 @@ then
 #!/usr/bin/env sh
 set -ex
 appid=com.istudios.xos-app.hello
-open /Applications/Xcode.app/Contents/Developer/Applications/Simulator.app
 nprocesses=\$(ps ax | grep Simulator.app | wc -l)
+open -a Console
+open /Applications/Xcode.app/Contents/Developer/Applications/Simulator.app
 if [ \$nprocesses -lt 2 ]
 then
   sleep 5

@@ -1,22 +1,16 @@
 #import <UIKit/UIKit.h>
 #import <Metal/MTLDevice.h>
 #import <MetalKit/MetalKit.h>
+#import <os/log.h>
 
 #pragma clang diagnostic ignored "-Wunguarded-availability"
 
-void _xos_ios_frame();
 void _xos_ios_provide_metal_layer(void*, double, double);
 
 @interface OurMetalView : MTKView;
 @end
 
 @implementation OurMetalView
-
-- (void)drawRect:(CGRect)rect {
-    @autoreleasepool {
-      _xos_ios_frame();
-    }
-}
 
 - (BOOL)isOpaque {
     return YES;
@@ -78,12 +72,12 @@ void _xos_ios_provide_metal_layer(void*, double, double);
     self.view = [[OurMetalView alloc] initWithFrame:self.window.bounds device:self.mtl_device];
     self.view.userInteractionEnabled = YES;
     self.view.multipleTouchEnabled = YES;
+    self.view.paused = YES;
 
     self.view_ctrl = [[ViewController alloc] init];
     self.view_ctrl.view = self.view;
-
     CAMetalLayer* layer = (CAMetalLayer*)self.view.layer;
-    _xos_ios_provide_metal_layer(layer, mainScreenBounds.size.width, mainScreenBounds.size.height);
+    _xos_ios_provide_metal_layer(layer, self.window.bounds.size.width, self.window.bounds.size.height);
     
     [self.window setRootViewController:self.view_ctrl];
     [self.window makeKeyAndVisible];
@@ -92,7 +86,12 @@ void _xos_ios_provide_metal_layer(void*, double, double);
 
 @end
 
+void doiOSLog(char* msg) {
+  os_log(OS_LOG_DEFAULT, "%s", msg);
+}
+
 int main(int argc, char** argv) {
+  os_log(OS_LOG_DEFAULT, "%s", "hello world!");
   @autoreleasepool {
     UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
   }

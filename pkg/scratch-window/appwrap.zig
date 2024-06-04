@@ -4,6 +4,14 @@ const builtin = @import("builtin");
 const userlib = @import("userlib");
 const log = std.log.scoped(.approot);
 
+pub const std_options = .{
+    .log_level = userlib.std_options.log_level,
+    .logFn = switch (platform) {
+        .ios => iosApp.logFn,
+        else => std.log.defaultLog,
+    },
+};
+
 // An App has:
 // * Callbacks
 //   * init
@@ -19,26 +27,43 @@ pub const platform: Platform = switch (builtin.os.tag) {
     .macos => .mac,
     .windows => .windows,
     .linux => if (builtin.abi.tag == .android) .android else .linux,
+    else => @compileError("unsupported"),
 };
 pub const Config = struct {
     window_title: [:0]const u8 = "xos",
     window_size: [2]u32 = .{ 640, 480 },
 };
 
-pub const Ctx = struct {
-    app: *const glfw,
+const WindowSize = struct { width: u32, height: u32 };
 
-    pub fn glfwWindow(self: @This()) *glfw.c.GLFWwindow {
-        return self.app.window;
-    }
+pub const Ctx = switch (platform) {
+    .mac, .windows, .linux => struct {
+        app: *const glfw,
 
-    const WindowSize = struct { width: u32, height: u32 };
-    pub fn getWindowSize(self: @This()) WindowSize {
-        var width: c_int = 0;
-        var height: c_int = 0;
-        glfw.c.glfwGetWindowSize(self.app.window, &width, &height);
-        return .{ .width = @intCast(width), .height = @intCast(height) };
-    }
+        pub fn glfwWindow(self: @This()) *glfw.c.GLFWwindow {
+            return self.app.window;
+        }
+
+        pub fn getWindowSize(self: @This()) WindowSize {
+            var width: c_int = 0;
+            var height: c_int = 0;
+            glfw.c.glfwGetWindowSize(self.app.window, &width, &height);
+            return .{ .width = @intCast(width), .height = @intCast(height) };
+        }
+    },
+    .ios => struct {
+        metal_layer: *anyopaque,
+        window_size: [2]f64,
+
+        pub fn getMetalLayer(self: @This()) *anyopaque {
+            return self.metal_layer;
+        }
+
+        pub fn getWindowSize(self: @This()) WindowSize {
+            return .{ .width = @intFromFloat(self.window_size[0]), .height = @intFromFloat(self.window_size[1]) };
+        }
+    },
+    .android => struct {},
 };
 
 const App = AppUser(userlib.App);
@@ -137,6 +162,35 @@ pub const glfw = struct {
     fn errorCallback(error_code: c_int, description: [*c]const u8) callconv(.C) void {
         log.err("glfw error: [{d}] {s}\n", .{ error_code, description });
     }
+
+    fn main() !void {
+        const config = App.getConfig();
+
+        const app = try glfw.init(config);
+        defer app.deinit();
+
+        var ctx: Ctx = .{
+            .app = &app,
+        };
+
+        var userapp = try App.init(&ctx);
+        defer userapp.deinit();
+
+        _ = glfw.c.glfwSetCharCallback(app.window, glfw.onChar);
+
+        glfw.c.glfwSetWindowUserPointer(app.window, @ptrCast(&userapp));
+        // _ = glfw.c.glfwSetFramebufferSizeCallback(app.window, App.Glfw.onFbSize);
+        // _ = glfw.c.glfwSetKeyCallback(app.window, AppGlfw.onKey);
+        // _ = glfw.c.glfwSetCursorPosCallback(window, AppGlfw.onCursorMove);
+        // _ = glfw.c.glfwSetCursorEnterCallback(window, AppGlfw.onCursorEnter);
+        // _ = glfw.c.glfwSetMouseButtonCallback(window, AppGlfw.onClick);
+        // _ = glfw.c.glfwSetScrollCallback(window, AppGlfw.onScroll);
+        // _ = glfw.c.glfwSetDropCallback(window, AppGlfw.onDrop);
+
+        userapp.start();
+        while (glfw.c.glfwWindowShouldClose(app.window) == glfw.c.GLFW_FALSE)
+            glfw.c.glfwWaitEvents();
+    }
 };
 
 //     // glfwSetWindowTitle(window, "My Window");
@@ -177,31 +231,53 @@ pub const glfw = struct {
 //     // void drop_callback(GLFWwindow* window, int count, const char** paths)
 // };
 
-pub fn main() !void {
-    const config = App.getConfig();
+var gctx: Ctx = undefined;
+var gapp: App = undefined;
 
-    const app = try glfw.init(config);
-    defer app.deinit();
+extern fn doiOSLog(msg: [*:0]const u8) void;
 
-    var ctx: Ctx = .{
-        .app = &app,
-    };
+var log_fn_buf: [2048]u8 = undefined;
 
-    var userapp = try App.init(&ctx);
-    defer userapp.deinit();
+const iosApp = struct {
+    fn logFn(
+        comptime level: std.log.Level,
+        comptime scope: @TypeOf(.EnumLiteral),
+        comptime format: []const u8,
+        args: anytype,
+    ) void {
+        _ = level;
+        _ = scope;
+        const msg = std.fmt.bufPrintZ(&log_fn_buf, format, args) catch "<log message too long> format=" ++ format;
+        doiOSLog(msg);
+    }
 
-    _ = glfw.c.glfwSetCharCallback(app.window, glfw.onChar);
+    fn provideMetalLayer(layer: *anyopaque, width: f64, height: f64) callconv(.C) void {
+        log.debug("provideMetalLayer ({d}, {d})", .{ width, height });
+        gctx = .{
+            .metal_layer = layer,
+            .window_size = .{ width, height },
+        };
+        gapp = App.init(&gctx) catch |err| {
+            log.err("App init failed: {any}", .{err});
+            @panic("App init failed");
+        };
+    }
+};
 
-    glfw.c.glfwSetWindowUserPointer(app.window, @ptrCast(&userapp));
-    // _ = glfw.c.glfwSetFramebufferSizeCallback(app.window, App.Glfw.onFbSize);
-    // _ = glfw.c.glfwSetKeyCallback(app.window, AppGlfw.onKey);
-    // _ = glfw.c.glfwSetCursorPosCallback(window, AppGlfw.onCursorMove);
-    // _ = glfw.c.glfwSetCursorEnterCallback(window, AppGlfw.onCursorEnter);
-    // _ = glfw.c.glfwSetMouseButtonCallback(window, AppGlfw.onClick);
-    // _ = glfw.c.glfwSetScrollCallback(window, AppGlfw.onScroll);
-    // _ = glfw.c.glfwSetDropCallback(window, AppGlfw.onDrop);
+pub usingnamespace switch (platform) {
+    .mac, .windows, .linux => struct {
+        pub fn main() !void {
+            try glfw.main();
+        }
+    },
+    .ios, .android => struct {},
+};
 
-    userapp.start();
-    while (glfw.c.glfwWindowShouldClose(app.window) == glfw.c.GLFW_FALSE)
-        glfw.c.glfwWaitEvents();
+comptime {
+    switch (platform) {
+        .mac, .windows, .linux, .android => {},
+        .ios => {
+            @export(iosApp.provideMetalLayer, .{ .name = "_xos_ios_provide_metal_layer" });
+        },
+    }
 }

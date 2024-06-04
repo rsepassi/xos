@@ -6,6 +6,7 @@ pub const c = @cImport({
 });
 
 const log = std.log.scoped(.gpu);
+const do_debug_log = std.log.logEnabled(.debug, .gpu);
 
 pub const TextureUsage = enum(u32) {
     None = 0x00000000,
@@ -56,7 +57,18 @@ pub const Instance = struct {
     ptr: c.WGPUInstance,
 
     pub fn init() !@This() {
-        return .{ .ptr = c.wgpuCreateInstance(null) };
+        if (do_debug_log) c.wgpuSetLogLevel(c.WGPULogLevel_Trace);
+        c.wgpuSetLogCallback(logCallback, null);
+
+        var instance_desc = c.WGPUInstanceExtras{
+            .chain = .{
+                .sType = c.WGPUSType_InstanceExtras,
+            },
+            .flags = if (do_debug_log) c.WGPUInstanceFlag_Debug else 0,
+        };
+        return .{ .ptr = c.wgpuCreateInstance(&.{
+            .nextInChain = @ptrCast(&instance_desc),
+        }) orelse return error.InstanceFail };
     }
 
     pub fn deinit(self: @This()) void {
@@ -381,4 +393,22 @@ fn handleRequestDevice(
         ctx.ptr = null;
         log.err("wgpu request device error: [{any}] {s}", .{ status, message });
     }
+}
+
+const LogLevel = enum(u32) {
+    off = 0,
+    err,
+    warn,
+    info,
+    debug,
+    trace,
+
+    fn fromInt(i: u32) LogLevel {
+        return @enumFromInt(i);
+    }
+};
+
+fn logCallback(level: c.WGPULogLevel, message: [*c]const u8, userdata: ?*anyopaque) callconv(.C) void {
+    _ = userdata;
+    log.info("[wgpu {s}]: {s}", .{ @tagName(LogLevel.fromInt(level)), message });
 }

@@ -118,7 +118,11 @@ pub fn deinit(self: *App) void {
 
 pub fn onEvent(self: *App, event: app.Event) !void {
     _ = self;
-    _ = event;
+    switch (event) {
+        .start,
+        .char,
+        => {},
+    }
 }
 
 fn updateWindowSize(self: *App) void {
