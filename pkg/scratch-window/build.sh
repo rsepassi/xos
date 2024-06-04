@@ -142,11 +142,21 @@ else
   need glfw
   need wgpu_glfw_glue
 
-  # Note: has to be dynamically linked to libc for dlopen to work
   zig build-exe -dynamic -target $TARGET -O $OPT_ZIG \
     --name app \
-    $(pkg-config --cflags --libs glfw wgpu wgpu_glfw_glue) \
-    $BUILD_PKG/main.zig \
+    $(pkg-config --cflags --libs glfw) \
+    --dep userlib=userlib \
+    -Mmain=$BUILD_PKG/appwrap.zig \
+    --dep app=main \
+    --dep gpu \
+    --dep appgpu \
+    -Muserlib=$BUILD_PKG/app.zig \
+    $(pkg-config --cflags --libs wgpu) \
+    -Mgpu=$BUILD_PKG/gpu.zig \
+    $(pkg-config --cflags --libs wgpu_glfw_glue) \
+    --dep app=main \
+    --dep gpu \
+    -Mappgpu=$BUILD_PKG/appgpu.zig \
     -lc
 
   cd $BUILD_OUT

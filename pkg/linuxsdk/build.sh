@@ -35,10 +35,10 @@ then
   arch="arm64"
 fi
 
-id=$(system_export podman run --arch $arch -d alpine:3.19 sleep 10000000)
-system_export podman exec $id apk add $pkgs
-system_export podman export $id -o export.tar.gz
-system_export podman kill $id
+id=$(2>/dev/null system_export podman run --arch $arch -d alpine:3.19 sleep 10000000)
+2>&1 system_export podman exec $id apk add $pkgs
+2>&1 system_export podman export $id -o export.tar.gz
+2>&1 system_export podman kill $id
 
 mkdir export
 tar xf export.tar.gz -C export

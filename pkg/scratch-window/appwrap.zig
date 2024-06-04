@@ -1,0 +1,207 @@
+const std = @import("std");
+const builtin = @import("builtin");
+
+const userlib = @import("userlib");
+const log = std.log.scoped(.approot);
+
+// An App has:
+// * Callbacks
+//   * init
+//   * frame
+//   * cleanup
+//   * event
+// * Window title
+// * Window size
+
+pub const Platform = enum { mac, windows, linux, ios, android };
+pub const platform: Platform = switch (builtin.os.tag) {
+    .ios => .ios,
+    .macos => .mac,
+    .windows => .windows,
+    .linux => if (builtin.abi.tag == .android) .android else .linux,
+};
+pub const Config = struct {
+    window_title: [:0]const u8 = "xos",
+    window_size: [2]u32 = .{ 640, 480 },
+};
+
+pub const Ctx = struct {
+    app: *const glfw,
+
+    pub fn glfwWindow(self: @This()) *glfw.c.GLFWwindow {
+        return self.app.window;
+    }
+
+    const WindowSize = struct { width: u32, height: u32 };
+    pub fn getWindowSize(self: @This()) WindowSize {
+        var width: c_int = 0;
+        var height: c_int = 0;
+        glfw.c.glfwGetWindowSize(self.app.window, &width, &height);
+        return .{ .width = @intCast(width), .height = @intCast(height) };
+    }
+};
+
+const App = AppUser(userlib.App);
+pub const Event = union(enum) {
+    start: void,
+    char: u32,
+};
+
+fn AppUser(comptime T: type) type {
+    return struct {
+        const Self = @This();
+
+        app: *T,
+
+        fn getConfig() Config {
+            return if (@hasDecl(T, "appConfig")) T.appConfig() else .{};
+        }
+
+        fn init(ctx: *Ctx) !Self {
+            const app = try std.heap.c_allocator.create(T);
+            if (@hasDecl(T, "init")) try app.init(ctx);
+
+            return .{
+                .app = app,
+            };
+        }
+
+        fn deinit(self: @This()) void {
+            if (@hasDecl(T, "deinit")) self.app.deinit();
+            defer std.heap.c_allocator.destroy(self.app);
+        }
+
+        fn start(self: @This()) void {
+            self.onEvent(.{ .start = {} });
+        }
+
+        fn onEvent(self: @This(), event: Event) void {
+            self.app.onEvent(event) catch |err| {
+                log.err("event handling failed: {any}", .{err});
+                @panic("event handling failed");
+            };
+        }
+    };
+}
+
+pub const glfw = struct {
+    // https://www.glfw.org/docs/latest/window_guide.html
+    // https://www.glfw.org/docs/latest/input_guide.html
+
+    pub const c = @cImport({
+        @cDefine("GLFW_INCLUDE_NONE", "1");
+        @cInclude("GLFW/glfw3.h");
+        switch (builtin.os.tag) {
+            .macos => @cDefine("GLFW_EXPOSE_NATIVE_COCOA", "1"),
+            .linux => @cDefine("GLFW_EXPOSE_NATIVE_X11", "1"),
+            .windows => @cDefine("GLFW_EXPOSE_NATIVE_WIN32", "1"),
+            else => @compileError("unsupported"),
+        }
+        @cInclude("GLFW/glfw3native.h");
+    });
+
+    window: *c.GLFWwindow,
+
+    fn init(config: Config) !@This() {
+        _ = c.glfwSetErrorCallback(errorCallback);
+        if (c.glfwInit() != c.GLFW_TRUE) return error.GlfwInit;
+        c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
+        const window = c.glfwCreateWindow(
+            @intCast(config.window_size[0]),
+            @intCast(config.window_size[1]),
+            config.window_title,
+            null,
+            null,
+        ) orelse return error.GlfwWindow;
+        return .{ .window = window };
+    }
+
+    fn deinit(self: @This()) void {
+        c.glfwDestroyWindow(self.window);
+        c.glfwTerminate();
+    }
+
+    fn shouldClose(self: @This()) bool {
+        return c.glfwWindowShouldClose(self.window) == glfw.c.GLFW_TRUE;
+    }
+
+    fn onChar(window: ?*c.GLFWwindow, codepoint: c_uint) callconv(.C) void {
+        const app = getApp(window);
+        app.onEvent(.{ .char = codepoint });
+    }
+
+    fn getApp(window: ?*c.GLFWwindow) *App {
+        return @ptrCast(@alignCast(c.glfwGetWindowUserPointer(window)));
+    }
+
+    fn errorCallback(error_code: c_int, description: [*c]const u8) callconv(.C) void {
+        log.err("glfw error: [{d}] {s}\n", .{ error_code, description });
+    }
+};
+
+//     // glfwSetWindowTitle(window, "My Window");
+//     // glfwSetWindowIcon(window, 2, images);
+//     // glfwIconifyWindow(window);
+//     // glfwRestoreWindow(window);
+//     // glfwSetWindowIconifyCallback(window, window_iconify_callback);
+//     // void window_iconify_callback(GLFWwindow* window, int iconified)
+//     // glfwMaximizeWindow(window);
+//     // glfwRestoreWindow(window);
+//     // glfwSetWindowMaximizeCallback(window, window_maximize_callback);
+//     // glfwFocusWindow(window);
+//     // glfwSetWindowFocusCallback(window, window_focus_callback);
+//     // glfwRequestWindowAttention(window);
+//     // glfwSetWindowRefreshCallback(m_handle, window_refresh_callback);
+//
+//     // void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+//     // void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+//     // The action is one of GLFW_PRESS, GLFW_REPEAT or GLFW_RELEASE. Events with GLFW_PRESS and GLFW_RELEASE actions are emitted for every key press. Most keys will also emit events with GLFW_REPEAT actions while a key is held down.
+//     //
+//     // void character_callback(GLFWwindow* window, unsigned int codepoint)
+//     // void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+//
+//     // or query it glfwGetCursorPos(window, &xpos, &ypos);
+//
+//     // void cursor_enter_callback(GLFWwindow* window, int entered)
+//     // or query it glfwGetWindowAttrib(window, GLFW_HOVERED)
+//     //
+//     // void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+//     // The action is one of GLFW_PRESS or GLFW_RELEASE.
+//
+//     // void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+//     //
+//     //
+//     // const char* text = glfwGetClipboardString(NULL);
+//     // glfwSetClipboardString(NULL, "A string with words in it");
+//     //
+//     // void drop_callback(GLFWwindow* window, int count, const char** paths)
+// };
+
+pub fn main() !void {
+    const config = App.getConfig();
+
+    const app = try glfw.init(config);
+    defer app.deinit();
+
+    var ctx: Ctx = .{
+        .app = &app,
+    };
+
+    var userapp = try App.init(&ctx);
+    defer userapp.deinit();
+
+    _ = glfw.c.glfwSetCharCallback(app.window, glfw.onChar);
+
+    glfw.c.glfwSetWindowUserPointer(app.window, @ptrCast(&userapp));
+    // _ = glfw.c.glfwSetFramebufferSizeCallback(app.window, App.Glfw.onFbSize);
+    // _ = glfw.c.glfwSetKeyCallback(app.window, AppGlfw.onKey);
+    // _ = glfw.c.glfwSetCursorPosCallback(window, AppGlfw.onCursorMove);
+    // _ = glfw.c.glfwSetCursorEnterCallback(window, AppGlfw.onCursorEnter);
+    // _ = glfw.c.glfwSetMouseButtonCallback(window, AppGlfw.onClick);
+    // _ = glfw.c.glfwSetScrollCallback(window, AppGlfw.onScroll);
+    // _ = glfw.c.glfwSetDropCallback(window, AppGlfw.onDrop);
+
+    userapp.start();
+    while (glfw.c.glfwWindowShouldClose(app.window) == glfw.c.GLFW_FALSE)
+        glfw.c.glfwWaitEvents();
+}

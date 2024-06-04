@@ -53,7 +53,6 @@ void _xos_ios_provide_metal_layer(void*, double, double);
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    // Do any additional setup after loading the view.
 }
 
 
@@ -61,11 +60,10 @@ void _xos_ios_provide_metal_layer(void*, double, double);
 
 @interface AppDelegate : UIResponder <UIApplicationDelegate>
 
-@property (strong, nonatomic) UIWindow * window;
+@property (strong, nonatomic) UIWindow* window;
 @property (strong, nonatomic) id<MTLDevice> mtl_device;
-@property (strong, nonatomic) OurMetalView * view;
-@property (strong, nonatomic) ViewController * view_ctrl;
-@property (strong, nonatomic) CAMetalLayer * layer;
+@property (strong, nonatomic) OurMetalView* view;
+@property (strong, nonatomic) ViewController* view_ctrl;
 
 @end
 
@@ -84,8 +82,8 @@ void _xos_ios_provide_metal_layer(void*, double, double);
     self.view_ctrl = [[ViewController alloc] init];
     self.view_ctrl.view = self.view;
 
-    self.layer = (CAMetalLayer *)self.view.layer;
-    _xos_ios_provide_metal_layer(self.layer, mainScreenBounds.size.width, mainScreenBounds.size.height);
+    CAMetalLayer* layer = (CAMetalLayer*)self.view.layer;
+    _xos_ios_provide_metal_layer(layer, mainScreenBounds.size.width, mainScreenBounds.size.height);
     
     [self.window setRootViewController:self.view_ctrl];
     [self.window makeKeyAndVisible];
@@ -99,3 +97,11 @@ int main(int argc, char** argv) {
     UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
   }
 }
+
+// UITextInput
+// https://developer.apple.com/documentation/uikit/uitextinput?language=objc
+//
+// https://developer.apple.com/documentation/uikit/mac_catalyst/handling_key_presses_made_on_a_physical_keyboard?language=objc
+// To detect a key press that a person makes on a physical keyboard, override pressesBegan:withEvent: in a responder object of your app such as the app delegate or main view controller.
+//
+// https://developer.apple.com/documentation/uikit/uikeycommand/navigating_an_app_s_user_interface_using_a_keyboard?language=objc
