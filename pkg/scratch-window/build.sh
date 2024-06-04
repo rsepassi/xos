@@ -92,11 +92,20 @@ then
 
   zig build-lib -dynamic -target $TARGET -O $OPT_ZIG \
     --name app \
-    $(pkg-config --cflags --libs wgpu) \
     $cflags \
-    $BUILD_PKG/main-android.zig \
     $BUILD_PKG/android.c \
     $BUILD_TOOLS/androidsdk/sdk/ndk-bundle/sources/android/native_app_glue/android_native_app_glue.c \
+    --dep userlib=userlib \
+    -Mmain=$BUILD_PKG/appwrap.zig \
+    --dep app=main \
+    --dep gpu \
+    --dep appgpu \
+    -Muserlib=$BUILD_PKG/app.zig \
+    $(pkg-config --cflags --libs wgpu) \
+    -Mgpu=$BUILD_PKG/gpu.zig \
+    --dep app=main \
+    --dep gpu \
+    -Mappgpu=$BUILD_PKG/appgpu.zig \
     -ldl -lc
 
   # For Android, everything must have been linked into a shared object file.
@@ -146,7 +155,7 @@ fi
 adb \$device uninstall \$appid || echo
 adb \$device install $BUILD_OUT/apk/app-release-unsigned.apk
 adb \$device shell am start -n \$appid/android.app.NativeActivity
-adb \$device logcat
+adb \$device logcat | grep 'NativeActivity:'
 EOF
   chmod +x $BUILD_OUT/run.sh
 else

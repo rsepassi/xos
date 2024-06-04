@@ -8,6 +8,7 @@ pub const std_options = .{
     .log_level = userlib.std_options.log_level,
     .logFn = switch (platform) {
         .ios => iosApp.logFn,
+        .android => androidApp.logFn,
         else => std.log.defaultLog,
     },
 };
@@ -26,7 +27,7 @@ pub const platform: Platform = switch (builtin.os.tag) {
     .ios => .ios,
     .macos => .mac,
     .windows => .windows,
-    .linux => if (builtin.abi.tag == .android) .android else .linux,
+    .linux => if (builtin.abi == .android) .android else .linux,
     else => @compileError("unsupported"),
 };
 pub const Config = struct {
@@ -63,7 +64,18 @@ pub const Ctx = switch (platform) {
             return .{ .width = @intFromFloat(self.window_size[0]), .height = @intFromFloat(self.window_size[1]) };
         }
     },
-    .android => struct {},
+    .android => struct {
+        native_window: *anyopaque,
+        window_size: [2]i32,
+
+        pub fn getNativeWindow(self: @This()) *anyopaque {
+            return self.native_window;
+        }
+
+        pub fn getWindowSize(self: @This()) WindowSize {
+            return .{ .width = @intCast(self.window_size[0]), .height = @intCast(self.window_size[1]) };
+        }
+    },
 };
 
 const App = AppUser(userlib.App);
@@ -235,6 +247,7 @@ var gctx: Ctx = undefined;
 var gapp: App = undefined;
 
 extern fn doiOSLog(msg: [*:0]const u8) void;
+extern fn doAndroidLog(msg: [*:0]const u8) void;
 
 var log_fn_buf: [2048]u8 = undefined;
 
@@ -264,6 +277,32 @@ const iosApp = struct {
     }
 };
 
+const androidApp = struct {
+    fn logFn(
+        comptime level: std.log.Level,
+        comptime scope: @TypeOf(.EnumLiteral),
+        comptime format: []const u8,
+        args: anytype,
+    ) void {
+        _ = level;
+        _ = scope;
+        const msg = std.fmt.bufPrintZ(&log_fn_buf, format, args) catch "<log message too long> format=" ++ format;
+        doAndroidLog(msg);
+    }
+
+    fn provideNativeWindow(window: *anyopaque, width: i32, height: i32) callconv(.C) void {
+        log.debug("provideNativeWindow ({d}, {d})", .{ width, height });
+        gctx = .{
+            .native_window = window,
+            .window_size = .{ width, height },
+        };
+        gapp = App.init(&gctx) catch |err| {
+            log.err("App init failed: {any}", .{err});
+            @panic("App init failed");
+        };
+    }
+};
+
 pub usingnamespace switch (platform) {
     .mac, .windows, .linux => struct {
         pub fn main() !void {
@@ -275,9 +314,12 @@ pub usingnamespace switch (platform) {
 
 comptime {
     switch (platform) {
-        .mac, .windows, .linux, .android => {},
+        .mac, .windows, .linux => {},
         .ios => {
             @export(iosApp.provideMetalLayer, .{ .name = "_xos_ios_provide_metal_layer" });
+        },
+        .android => {
+            @export(androidApp.provideNativeWindow, .{ .name = "_xos_android_provide_native_window" });
         },
     }
 }

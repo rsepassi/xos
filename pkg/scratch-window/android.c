@@ -14,7 +14,7 @@
 
 #include "android_native_app_glue.h"
 
-int _xos_android_provide_native_window(void*, int32_t, int32_t);
+void _xos_android_provide_native_window(void*, int32_t, int32_t);
 
 #define LOG_TAG "NativeActivity"
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
@@ -85,9 +85,8 @@ static void ctxHandleCmd(struct android_app* app, int32_t cmd) {
     case APP_CMD_INIT_WINDOW:
       LOGI("APP_CMD_INIT_WINDOW");
       LOGI("init display");
-      // if (!ctxInitDisplay(ctx)) fatal("init display failed");
       ANativeWindow* window = ctx->app->window;
-      if (_xos_android_provide_native_window(window, ANativeWindow_getWidth(window), ANativeWindow_getHeight(window)) != 0) fatal("zig init failed");
+      _xos_android_provide_native_window(window, ANativeWindow_getWidth(window), ANativeWindow_getHeight(window));
       break;
     case APP_CMD_START:
       LOGI("APP_CMD_START");

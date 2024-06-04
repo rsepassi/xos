@@ -22,7 +22,15 @@ pub fn getSurface(instance: gpu.Instance, ctx: *app.Ctx) !gpu.Surface {
             }) orelse return error.SurfaceFail };
         },
         .android => {
-            @compileError("unimpl");
+            var desc = gpu.c.WGPUSurfaceDescriptorFromAndroidNativeWindow{
+                .chain = .{
+                    .sType = gpu.c.WGPUSType_SurfaceDescriptorFromAndroidNativeWindow,
+                },
+                .window = ctx.getNativeWindow(),
+            };
+            return .{ .ptr = gpu.c.wgpuInstanceCreateSurface(instance.ptr, &.{
+                .nextInChain = @ptrCast(&desc),
+            }) orelse return error.WgpuSurface };
         },
     }
 }
