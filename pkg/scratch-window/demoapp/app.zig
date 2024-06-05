@@ -28,7 +28,7 @@ pub fn init(self: *App, ctx: *app.Ctx) !void {
     const gfx = try appgpu.defaultGfx(ctx);
     errdefer gfx.deinit();
 
-    const demo_pipeline = try DemoPipeline.init(gfx.device, gfx.queue, @enumFromInt(gfx.surface_config.format));
+    const demo_pipeline = try DemoPipeline.init(gfx.device, gfx.queue, @enumFromInt(gfx.surface_config.format), ctx);
     errdefer demo_pipeline.deinit();
 
     self.* = .{

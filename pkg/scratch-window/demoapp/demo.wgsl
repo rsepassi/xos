@@ -1,9 +1,29 @@
+@group(0) @binding(0) var<uniform> ssize: vec2f;
+
+struct VertexInput {
+    @location(0) pos: vec2f,
+    @location(1) color: vec3f,
+};
+
+struct VertexOutput {
+    @builtin(position) pos: vec4f,
+    @location(0) color: vec3f,
+};
+
 @vertex
-fn vs_main(@location(0) xy: vec2f) -> @builtin(position) vec4f {
-    return vec4f(xy.x, xy.y, 0.0, 1.0);
+fn vs_main(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    out.pos = vec4f(
+        (in.pos.x / ssize.x * 2) - 1,
+        (in.pos.y / ssize.y * 2) - 1,
+        0.0,
+        1.0
+    );
+    out.color = in.color;
+    return out;
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4f {
-    return vec4f(1.0, 0.0, 0.0, 1.0);
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    return vec4f(in.color, 1.0);
 }

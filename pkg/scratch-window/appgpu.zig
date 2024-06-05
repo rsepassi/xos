@@ -114,9 +114,9 @@ pub const Gfx = struct {
                     .storeOp = @intFromEnum(gpu.StoreOp.Store),
                     .depthSlice = gpu.DepthSliceUndefined,
                     .clearValue = .{
-                        .r = 0.0,
-                        .g = 0.0,
-                        .b = 1.0,
+                        .r = 0.05,
+                        .g = 0.05,
+                        .b = 0.05,
                         .a = 1.0,
                     },
                 },

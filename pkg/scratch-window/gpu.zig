@@ -16,6 +16,20 @@ pub const c = @cImport({
 const log = std.log.scoped(.gpu);
 const do_debug_log = std.log.logEnabled(.debug, .gpu);
 
+pub const BufferBindingType = enum(u32) {
+    Undefined = 0x00000000,
+    Uniform = 0x00000001,
+    Storage = 0x00000002,
+    ReadOnlyStorage = 0x00000003,
+};
+
+pub const ShaderStage = enum(u32) {
+    None = 0x00000000,
+    Vertex = 0x00000001,
+    Fragment = 0x00000002,
+    Compute = 0x00000004,
+};
+
 pub const VertexStepMode = enum(u32) {
     Vertex = 0x00000000,
     Instance = 0x00000001,
@@ -454,6 +468,30 @@ pub const Device = extern struct {
     pub fn createBuffer(self: @This(), options: *const c.WGPUBufferDescriptor) !Buffer {
         return .{ .ptr = c.wgpuDeviceCreateBuffer(self.ptr, options) orelse return error.BufferCreate };
     }
+
+    pub fn createBindGroup(self: @This(), options: *const c.WGPUBindGroupDescriptor) BindGroup {
+        return .{ .ptr = c.wgpuDeviceCreateBindGroup(self.ptr, options) };
+    }
+
+    pub fn createBindGroupLayout(self: @This(), options: *const c.WGPUBindGroupLayoutDescriptor) BindGroup.Layout {
+        return .{ .ptr = c.wgpuDeviceCreateBindGroupLayout(self.ptr, options) };
+    }
+};
+
+pub const BindGroup = extern struct {
+    pub const Layout = extern struct {
+        ptr: c.WGPUBindGroupLayout,
+
+        pub fn deinit(self: @This()) void {
+            c.wgpuBindGroupLayoutRelease(self.ptr);
+        }
+    };
+
+    ptr: c.WGPUBindGroup,
+
+    pub fn deinit(self: @This()) void {
+        c.wgpuBindGroupRelease(self.ptr);
+    }
 };
 
 pub const Buffer = extern struct {
@@ -535,6 +573,15 @@ pub const RenderPassEncoder = extern struct {
     };
     pub fn setVertexBuffer(self: @This(), opts: VertexBufferOpts) void {
         c.wgpuRenderPassEncoderSetVertexBuffer(self.ptr, opts.slot, opts.buf.ptr, opts.offset, opts.size);
+    }
+
+    const BindGroupOpts = struct {
+        idx: u32 = 0,
+        group: BindGroup,
+        offsets: []const u32 = &.{},
+    };
+    pub fn setBindGroup(self: @This(), opts: BindGroupOpts) void {
+        c.wgpuRenderPassEncoderSetBindGroup(self.ptr, opts.idx, opts.group.ptr, opts.offsets.len, opts.offsets.ptr);
     }
 };
 
