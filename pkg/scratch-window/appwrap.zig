@@ -113,6 +113,7 @@ fn AppUser(comptime T: type) type {
         }
 
         fn onEvent(self: @This(), event: Event) void {
+            log.debug("event {s}", .{@tagName(event)});
             self.app.onEvent(event) catch |err| {
                 log.err("event handling failed: {any}", .{err});
                 @panic("event handling failed");
@@ -176,6 +177,9 @@ pub const glfw = struct {
     }
 
     fn main() !void {
+        log.debug("hello world!", .{});
+        defer log.debug("goodbye", .{});
+
         const config = App.getConfig();
 
         const app = try glfw.init(config);

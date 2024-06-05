@@ -34,3 +34,114 @@ pub fn getSurface(instance: gpu.Instance, ctx: *app.Ctx) !gpu.Surface {
         },
     }
 }
+
+pub const Gfx = struct {
+    ctx: *app.Ctx,
+    surface: gpu.Surface,
+    surface_config: gpu.Surface.Config,
+    device: gpu.Device,
+    queue: gpu.Queue,
+
+    fn init(ctx: *app.Ctx) !@This() {
+        const gpu_instance = try gpu.Instance.init();
+        defer gpu_instance.deinit();
+        const surface = try getSurface(gpu_instance, ctx);
+        errdefer surface.deinit();
+
+        const adapter = try gpu_instance.requestAdapter(&.{
+            .compatibleSurface = surface.ptr,
+        });
+        defer adapter.deinit();
+
+        const surface_capabilities = surface.getCapabilities(adapter);
+        defer surface_capabilities.deinit();
+
+        const device = try adapter.requestDevice(null);
+        errdefer device.deinit();
+        const queue = try device.getQueue();
+        errdefer queue.deinit();
+
+        const window_size = ctx.getWindowSize();
+        const surface_config = gpu.Surface.Config{
+            .device = device.ptr,
+            .usage = @intFromEnum(gpu.TextureUsage.RenderAttachment),
+            .format = surface_capabilities.formats[0],
+            .presentMode = @intFromEnum(gpu.PresentMode.Fifo),
+            .alphaMode = @intFromEnum(gpu.CompositeAlphaMode.Auto),
+            .width = window_size.width,
+            .height = window_size.height,
+        };
+        surface.configure(&surface_config);
+
+        return .{
+            .ctx = ctx,
+            .surface = surface,
+            .surface_config = surface_config,
+            .device = device,
+            .queue = queue,
+        };
+    }
+
+    pub fn deinit(self: @This()) void {
+        defer self.surface.deinit();
+        defer self.device.deinit();
+        defer self.queue.deinit();
+    }
+
+    pub fn render(self: @This(), pipelines: []const gpu.RenderPipeline.Interface) !void {
+        const texture = try self.surface.getCurrentTexture();
+        defer texture.deinit();
+
+        const view = try texture.createView(&.{
+            .format = @intFromEnum(texture.format()),
+            .dimension = @intFromEnum(gpu.TextureViewDimension.twoD),
+            .mipLevelCount = 1,
+            .arrayLayerCount = 1,
+            .aspect = @intFromEnum(gpu.TextureAspect.All),
+        });
+        defer view.deinit();
+
+        const command_encoder = try self.device.createCommandEncoder(null);
+        defer command_encoder.deinit();
+
+        const pass = try command_encoder.beginRenderPass(
+            &.{
+                .label = "render_pass_encoder",
+                .colorAttachmentCount = 1,
+                .colorAttachments = &.{
+                    .view = view.ptr,
+                    .loadOp = @intFromEnum(gpu.LoadOp.Clear),
+                    .storeOp = @intFromEnum(gpu.StoreOp.Store),
+                    .depthSlice = gpu.DepthSliceUndefined,
+                    .clearValue = .{
+                        .r = 0.0,
+                        .g = 0.0,
+                        .b = 1.0,
+                        .a = 1.0,
+                    },
+                },
+            },
+        );
+        defer pass.deinit();
+
+        for (pipelines) |pipeline| try pipeline.run(pass);
+        pass.end();
+
+        const command_buffer = try command_encoder.finish(null);
+        defer command_buffer.deinit();
+
+        self.queue.submit(&.{command_buffer});
+        self.surface.present();
+    }
+
+    fn updateWindowSize(self: @This()) void {
+        const window_size = self.ctx.getWindowSize();
+        self.surface_config.width = window_size.width;
+        self.surface_config.height = window_size.height;
+        self.surface.configure(&self.surface_config);
+    }
+};
+
+pub fn defaultGfx(ctx: *app.Ctx) !Gfx {
+    return try Gfx.init(ctx);
+}

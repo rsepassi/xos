@@ -119,6 +119,7 @@ static void ctxHandleCmd(struct android_app* app, int32_t cmd) {
 }
 
 void android_main(struct android_app* app) {
+  LOGI("hello world!");
   LOGI("android_main");
   Ctx ctx = {0};
   app->userData = &ctx;
@@ -137,4 +138,5 @@ void android_main(struct android_app* app) {
   }
 
   ctxTermDisplay(&ctx);
+  LOGI("goodbye");
 }

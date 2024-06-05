@@ -95,6 +95,7 @@ int main(int argc, char** argv) {
   @autoreleasepool {
     UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
   }
+  os_log(OS_LOG_DEFAULT, "%s", "goodbye");
 }
 
 // UITextInput
