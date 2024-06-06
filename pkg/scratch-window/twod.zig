@@ -31,6 +31,22 @@ pub const Rect = struct {
         return self.tl.right(self.width());
     }
 
+    pub inline fn down(self: @This(), delta: f32) @This() {
+        return .{ .tl = self.tl.down(delta), .br = self.br.down(delta) };
+    }
+
+    pub inline fn right(self: @This(), delta: f32) @This() {
+        return .{ .tl = self.tl.right(delta), .br = self.br.right(delta) };
+    }
+
+    pub inline fn up(self: @This(), delta: f32) @This() {
+        return .{ .tl = self.tl.up(delta), .br = self.br.up(delta) };
+    }
+
+    pub inline fn left(self: @This(), delta: f32) @This() {
+        return .{ .tl = self.tl.left(delta), .br = self.br.left(delta) };
+    }
+
     pub fn fromSize(size: Size) @This() {
         const tr_ = Point{
             .x = size.width,
