@@ -1,5 +1,7 @@
+const std = @import("std");
 const app = @import("app");
 const gpu = @import("gpu");
+pub const twod = @import("twod.zig");
 
 extern fn initGlfwWgpuSurface(gpu.c.WGPUInstance, *app.glfw.c.GLFWwindow, *gpu.c.WGPUSurface) c_int;
 
@@ -41,6 +43,7 @@ pub const Gfx = struct {
     surface_config: gpu.Surface.Config,
     device: gpu.Device,
     queue: gpu.Queue,
+    screen_size_buf: gpu.Buffer,
 
     fn init(ctx: *app.Ctx) !@This() {
         const gpu_instance = try gpu.Instance.init();
@@ -73,12 +76,29 @@ pub const Gfx = struct {
         };
         surface.configure(&surface_config);
 
+        const ssize_buf = try device.createBuffer(&.{
+            .label = "screen size",
+            .size = @sizeOf(twod.Size),
+            .usage = @intFromEnum(gpu.BufferUsage.CopyDst) | @intFromEnum(gpu.BufferUsage.Uniform),
+            .mappedAtCreation = 0,
+        });
+        errdefer ssize_buf.deinit();
+
+        {
+            const ssize = ctx.getWindowSize();
+            queue.writeBuffer(ssize_buf, 0, &@as([2]f32, @bitCast(twod.Size.init(
+                @floatFromInt(ssize.width),
+                @floatFromInt(ssize.height),
+            ))));
+        }
+
         return .{
             .ctx = ctx,
             .surface = surface,
             .surface_config = surface_config,
             .device = device,
             .queue = queue,
+            .screen_size_buf = ssize_buf,
         };
     }
 
@@ -86,19 +106,52 @@ pub const Gfx = struct {
         defer self.surface.deinit();
         defer self.device.deinit();
         defer self.queue.deinit();
+        defer self.screen_size_buf.deinit();
     }
 
-    pub fn render(self: @This(), pipelines: []const gpu.RenderPipeline.Interface) !void {
-        const texture = try self.surface.getCurrentTexture();
-        defer texture.deinit();
+    pub const PipelineRun = struct {
+        ptr: *const anyopaque,
+        args: *const anyopaque,
+        run_fn: *const fn (self: *const anyopaque, pass: gpu.RenderPassEncoder, args: *const anyopaque) anyerror!void,
 
-        const view = try texture.createView(&.{
-            .format = @intFromEnum(texture.format()),
-            .dimension = @intFromEnum(gpu.TextureViewDimension.twoD),
-            .mipLevelCount = 1,
-            .arrayLayerCount = 1,
-            .aspect = @intFromEnum(gpu.TextureAspect.All),
-        });
+        pub fn run(self: @This(), pass: gpu.RenderPassEncoder) !void {
+            try self.run_fn(self.ptr, pass, self.args);
+        }
+
+        pub fn init(
+            self: anytype,
+            args: anytype,
+            comptime func: *const fn (std.meta.Child(@TypeOf(self)), gpu.RenderPassEncoder, std.meta.Child(@TypeOf(args))) anyerror!void,
+        ) @This() {
+            const SelfT = std.meta.Child(@TypeOf(self));
+            const ArgsT = std.meta.Child(@TypeOf(args));
+
+            return .{
+                .ptr = @ptrCast(self),
+                .args = @ptrCast(args),
+                .run_fn = (struct {
+                    fn call(ptr: *const anyopaque, pass: gpu.RenderPassEncoder, ptr_args: *const anyopaque) !void {
+                        const s: *const SelfT = @ptrCast(@alignCast(ptr));
+                        const a: *const ArgsT = @ptrCast(@alignCast(ptr_args));
+                        try @call(.always_inline, func, .{ s.*, pass, a.* });
+                    }
+                }.call),
+            };
+        }
+    };
+
+    const RenderOpts = struct {
+        load: union(gpu.LoadOp) {
+            Clear: gpu.c.WGPUColor,
+            Load: void,
+        },
+        piperuns: []const PipelineRun,
+    };
+    pub fn render(self: @This(), opts: RenderOpts) !void {
+        const texture = try self.surface.getCurrentTexture();
+        defer texture.release();
+
+        const view = try texture.createView(null);
         defer view.deinit();
 
         const command_encoder = try self.device.createCommandEncoder(null);
@@ -110,21 +163,16 @@ pub const Gfx = struct {
                 .colorAttachmentCount = 1,
                 .colorAttachments = &.{
                     .view = view.ptr,
-                    .loadOp = @intFromEnum(gpu.LoadOp.Clear),
+                    .loadOp = @intFromEnum(opts.load),
                     .storeOp = @intFromEnum(gpu.StoreOp.Store),
                     .depthSlice = gpu.DepthSliceUndefined,
-                    .clearValue = .{
-                        .r = 0.05,
-                        .g = 0.05,
-                        .b = 0.05,
-                        .a = 1.0,
-                    },
+                    .clearValue = if (opts.load == .Clear) opts.load.Clear else .{},
                 },
             },
         );
         defer pass.deinit();
 
-        for (pipelines) |pipeline| try pipeline.run(pass);
+        for (opts.piperuns) |piperun| try piperun.run(pass);
         pass.end();
 
         const command_buffer = try command_encoder.finish(null);

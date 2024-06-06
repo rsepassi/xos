@@ -16,6 +16,22 @@ pub const c = @cImport({
 const log = std.log.scoped(.gpu);
 const do_debug_log = std.log.logEnabled(.debug, .gpu);
 
+pub const SamplerBindingType = enum(u32) {
+    Undefined = 0x00000000,
+    Filtering = 0x00000001,
+    NonFiltering = 0x00000002,
+    Comparison = 0x00000003,
+};
+
+pub const TextureSampleType = enum(u32) {
+    Undefined = 0x00000000,
+    Float = 0x00000001,
+    UnfilterableFloat = 0x00000002,
+    Depth = 0x00000003,
+    Sint = 0x00000004,
+    Uint = 0x00000005,
+};
+
 pub const BufferBindingType = enum(u32) {
     Undefined = 0x00000000,
     Uniform = 0x00000001,
@@ -397,11 +413,27 @@ pub const Texture = extern struct {
     ptr: c.WGPUTexture,
 
     pub fn deinit(self: @This()) void {
+        self.destroy(); // release gpu memory
+        self.release(); // release cpu memory
+    }
+
+    pub fn destroy(self: @This()) void {
+        c.wgpuTextureDestroy(self.ptr);
+    }
+
+    pub fn release(self: @This()) void {
         c.wgpuTextureRelease(self.ptr);
     }
 
     pub fn createView(self: @This(), options: ?*const c.WGPUTextureViewDescriptor) !View {
-        return .{ .ptr = c.wgpuTextureCreateView(self.ptr, options) orelse return error.ViewFailed };
+        const default = c.WGPUTextureViewDescriptor{
+            .format = @intFromEnum(self.format()),
+            .dimension = @intFromEnum(TextureViewDimension.twoD),
+            .mipLevelCount = 1,
+            .arrayLayerCount = 1,
+            .aspect = @intFromEnum(TextureAspect.All),
+        };
+        return .{ .ptr = c.wgpuTextureCreateView(self.ptr, options orelse &default) orelse return error.ViewFailed };
     }
 
     pub fn format(self: @This()) TextureFormat {
@@ -469,12 +501,39 @@ pub const Device = extern struct {
         return .{ .ptr = c.wgpuDeviceCreateBuffer(self.ptr, options) orelse return error.BufferCreate };
     }
 
+    pub fn createTexture(self: @This(), options: *const c.WGPUTextureDescriptor) !Texture {
+        return .{ .ptr = c.wgpuDeviceCreateTexture(self.ptr, options) orelse return error.TextureCreate };
+    }
+
     pub fn createBindGroup(self: @This(), options: *const c.WGPUBindGroupDescriptor) BindGroup {
         return .{ .ptr = c.wgpuDeviceCreateBindGroup(self.ptr, options) };
     }
 
     pub fn createBindGroupLayout(self: @This(), options: *const c.WGPUBindGroupLayoutDescriptor) BindGroup.Layout {
         return .{ .ptr = c.wgpuDeviceCreateBindGroupLayout(self.ptr, options) };
+    }
+
+    pub fn createSampler(self: @This(), options: ?*const c.WGPUSamplerDescriptor) !Sampler {
+        const defaults = c.WGPUSamplerDescriptor{
+            .addressModeU = c.WGPUAddressMode_ClampToEdge,
+            .addressModeV = c.WGPUAddressMode_ClampToEdge,
+            .addressModeW = c.WGPUAddressMode_ClampToEdge,
+            .magFilter = c.WGPUFilterMode_Linear,
+            .minFilter = c.WGPUFilterMode_Nearest,
+            .mipmapFilter = c.WGPUMipmapFilterMode_Linear,
+            .lodMinClamp = 0,
+            .lodMaxClamp = 1,
+            .maxAnisotropy = 1,
+        };
+        return .{ .ptr = c.wgpuDeviceCreateSampler(self.ptr, options orelse &defaults) orelse return error.SamplerCreate };
+    }
+};
+
+pub const Sampler = extern struct {
+    ptr: c.WGPUSampler,
+
+    pub fn deinit(self: @This()) void {
+        c.wgpuSamplerRelease(self.ptr);
     }
 };
 
@@ -599,6 +658,16 @@ pub const Queue = extern struct {
         const u8data = tou8slice(data);
         c.wgpuQueueWriteBuffer(self.ptr, buffer.ptr, offset, u8data.ptr, u8data.len);
     }
+
+    pub fn writeTexture(
+        self: @This(),
+        texture: *const c.WGPUImageCopyTexture,
+        data: []const u8,
+        layout: *const c.WGPUTextureDataLayout,
+        size: *const c.WGPUExtent3D,
+    ) void {
+        c.wgpuQueueWriteTexture(self.ptr, texture, data.ptr, data.len, layout, size);
+    }
 };
 
 pub const ShaderModule = extern struct {
@@ -622,32 +691,6 @@ pub const PipelineLayout = extern struct {
 
 pub const RenderPipeline = extern struct {
     ptr: c.WGPURenderPipeline,
-
-    pub const Interface = struct {
-        ptr: *const anyopaque,
-        run_fn: *const fn (self: *const anyopaque, pass: RenderPassEncoder) anyerror!void,
-
-        pub fn run(self: @This(), pass: RenderPassEncoder) !void {
-            try self.run_fn(self.ptr, pass);
-        }
-
-        pub fn mixin(comptime T: type) type {
-            return struct {
-                pub fn renderPipeline(self: *const T) Interface {
-                    return .{
-                        .ptr = @ptrCast(self),
-                        .run_fn = (struct {
-                            fn call(ptr: *const anyopaque, pass: RenderPassEncoder) !void {
-                                const s: *const T = @ptrCast(@alignCast(ptr));
-                                try s.run(pass);
-                            }
-                        }.call),
-                    };
-                }
-            };
-        }
-    };
-
     pub fn deinit(self: @This()) void {
         c.wgpuRenderPipelineRelease(self.ptr);
     }
@@ -821,8 +864,7 @@ fn tou8slice(x: anytype) []const u8 {
 
 fn tou8sliceInner(comptime T: type, x: []const T) []const u8 {
     if (x.len == 0) return &.{};
-    const C = @typeInfo(@TypeOf(x)).Pointer.child;
-    const len = @sizeOf(C) * x.len;
+    const len = @sizeOf(T) * x.len;
     const ptr: [*]const u8 = @ptrCast(&x[0]);
     return ptr[0..len];
 }
