@@ -4,7 +4,7 @@ const log = std.log.scoped(.image_pipeline);
 const app = @import("app");
 const gpu = @import("gpu");
 const appgpu = @import("appgpu");
-const twod = appgpu.twod;
+const twod = app.twod;
 
 const myapp = @import("app.zig");
 

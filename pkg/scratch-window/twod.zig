@@ -1,3 +1,5 @@
+// "Graph" coordinates: (0,0) is bottom-left, +x=right, +y=up
+
 pub const Size = extern struct {
     width: f32,
     height: f32,
@@ -47,10 +49,17 @@ pub const Rect = struct {
         return .{ .tl = self.tl.left(delta), .br = self.br.left(delta) };
     }
 
-    pub fn fromSize(size: Size) @This() {
+    pub inline fn size(self: @This()) Size {
+        return .{
+            .width = self.br.x - self.tl.x,
+            .height = self.tl.y - self.br.y,
+        };
+    }
+
+    pub fn fromSize(sz: Size) @This() {
         const tr_ = Point{
-            .x = size.width,
-            .y = size.height,
+            .x = sz.width,
+            .y = sz.height,
         };
         return .{
             .tl = tr_.left(tr_.x),
@@ -84,11 +93,16 @@ pub const Point = extern struct {
     }
 };
 
-pub const RGBAf = extern struct {
-    r: f64,
-    g: f64,
-    b: f64,
-    a: f64,
+pub const RGBf = extern struct {
+    r: f32,
+    g: f32,
+    b: f32,
+};
+
+pub const RGB = extern struct {
+    r: u8,
+    g: u8,
+    b: u8,
 };
 
 pub const RGBA = extern struct {
@@ -108,3 +122,46 @@ pub const Image = struct {
         return ptr[0..len];
     }
 };
+
+pub const AlphaImage = struct {
+    data: []const u8,
+    size: Size,
+};
+
+pub fn color(comptime T: type) type {
+    if (!(T == RGBf or T == RGB)) @compileError("must be RGB or RGBf");
+
+    return struct {
+        fn norm(comptime x: RGB) T {
+            if (T == RGB) return x;
+            const val: T = comptime blk: {
+                break :blk .{
+                    .r = @as(f32, @floatFromInt(x.r)) / 255.0,
+                    .g = @as(f32, @floatFromInt(x.g)) / 255.0,
+                    .b = @as(f32, @floatFromInt(x.b)) / 255.0,
+                };
+            };
+            return val;
+        }
+
+        pub fn black() T {
+            return norm(.{ .r = 0, .g = 0, .b = 0 });
+        }
+
+        pub fn white() T {
+            return norm(.{ .r = 255, .g = 255, .b = 255 });
+        }
+
+        pub fn red() T {
+            return norm(.{ .r = 255, .g = 0, .b = 0 });
+        }
+
+        pub fn green() T {
+            return norm(.{ .r = 0, .g = 255, .b = 0 });
+        }
+
+        pub fn blue() T {
+            return norm(.{ .r = 0, .g = 0, .b = 255 });
+        }
+    };
+}

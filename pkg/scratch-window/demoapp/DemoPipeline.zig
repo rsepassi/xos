@@ -1,7 +1,7 @@
 const std = @import("std");
 const app = @import("app");
 const myapp = @import("app.zig");
-const twod = @import("appgpu").twod;
+const twod = app.twod;
 const gpu = @import("gpu");
 const DemoPipeline = @This();
 

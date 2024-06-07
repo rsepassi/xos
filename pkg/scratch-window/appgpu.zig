@@ -1,7 +1,7 @@
 const std = @import("std");
 const app = @import("app");
 const gpu = @import("gpu");
-pub const twod = @import("twod.zig");
+const twod = app.twod;
 
 const log = std.log.scoped(.appgpu);
 

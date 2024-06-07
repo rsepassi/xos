@@ -13,6 +13,8 @@ pub const std_options = .{
     },
 };
 
+pub const twod = @import("twod.zig");
+
 // An App has:
 // * Callbacks
 //   * init

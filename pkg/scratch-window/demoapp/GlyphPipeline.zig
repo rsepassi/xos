@@ -1,5 +1,5 @@
 const std = @import("std");
-const log = std.log.scoped(.sprite_pipeline);
+const log = std.log.scoped(.glyph_pipeline);
 
 const app = @import("app");
 const gpu = @import("gpu");
@@ -8,7 +8,7 @@ const twod = app.twod;
 
 const myapp = @import("app.zig");
 
-const SpritePipeline = @This();
+const GlyphPipeline = @This();
 
 ctx: myapp.PipelineCtx,
 sampler: gpu.Sampler,
@@ -18,112 +18,14 @@ pipeline: gpu.RenderPipeline,
 const Vertex = extern struct {
     pos: twod.Point,
     uv: twod.Point,
-};
-
-pub const SpriteLocs = struct {
-    ctx: myapp.PipelineCtx,
-    vertices: []Vertex,
-    pos: gpu.Buffer,
-    nmax: usize,
-    nvertices: u32 = 0,
-
-    pub fn init(ctx: myapp.PipelineCtx, nmax: usize) !@This() {
-        const nvertices = nmax * vertices_per_sprite;
-
-        const vertices = try ctx.allocator.alloc(Vertex, nvertices);
-        errdefer ctx.allocator.free(vertices);
-
-        const pos = try ctx.gfx.device.createBuffer(&.{
-            .label = "sprite sheet vertices",
-            .size = @sizeOf(Vertex) * nvertices,
-            .usage = @intFromEnum(gpu.BufferUsage.CopyDst) | @intFromEnum(gpu.BufferUsage.Vertex),
-            .mappedAtCreation = 0,
-        });
-        errdefer pos.deinit();
-
-        return .{
-            .ctx = ctx,
-            .vertices = vertices,
-            .pos = pos,
-            .nmax = nmax,
-        };
-    }
-
-    pub fn deinit(self: @This()) void {
-        defer self.ctx.allocator.free(self.vertices);
-        defer self.pos.deinit();
-    }
-
-    pub const Loc = struct {
-        pos: twod.Rect,
-        uv: twod.Rect,
-    };
-    pub fn write(self: *@This(), locs: []const Loc) !void {
-        if (locs.len > self.nmax) return error.TooManyVertices;
-
-        for (locs, 0..) |loc, i| {
-            const start = i * vertices_per_sprite;
-            const end = start + vertices_per_sprite;
-            const verts = self.vertices[start..end];
-
-            const pos_pts: [6]twod.Point = @bitCast(loc.pos.toTriangles());
-            const uv_pts: [6]twod.Point = @bitCast(loc.uv.toTriangles());
-
-            inline for (0..6) |j| {
-                verts[j].pos = pos_pts[j];
-                verts[j].uv = uv_pts[j];
-            }
-        }
-
-        const nvertices = locs.len * vertices_per_sprite;
-        self.ctx.gfx.queue.writeBuffer(self.pos, 0, self.vertices[0..nvertices]);
-        self.nvertices = @intCast(nvertices);
-    }
-};
-
-pub const SpriteSheet = struct {
-    gfx: appgpu.Gfx,
-    tex: gpu.Texture,
-    view: gpu.Texture.View,
-    size_buf: gpu.Buffer,
-
-    pub fn init(gfx: appgpu.Gfx, sheet: twod.Image) !@This() {
-        const tex = try createTexture(gfx.device, sheet.size);
-        errdefer tex.deinit();
-        writeImage(gfx.queue, tex, sheet);
-
-        const view = try tex.createView(null);
-        errdefer view.deinit();
-
-        const size_buf = try gfx.device.createBuffer(&.{
-            .label = "sprite sheet size",
-            .size = @sizeOf(twod.Size),
-            .usage = @intFromEnum(gpu.BufferUsage.CopyDst) | @intFromEnum(gpu.BufferUsage.Uniform),
-            .mappedAtCreation = 0,
-        });
-        errdefer size_buf.deinit();
-        gfx.queue.writeBuffer(size_buf, 0, &@as([2]f32, @bitCast(sheet.size)));
-
-        return .{
-            .gfx = gfx,
-            .tex = tex,
-            .view = view,
-            .size_buf = size_buf,
-        };
-    }
-
-    pub fn deinit(self: @This()) void {
-        defer self.tex.deinit();
-        defer self.view.deinit();
-        defer self.size_buf.deinit();
-    }
+    color: twod.RGBf,
 };
 
 pub fn init(ctx: myapp.PipelineCtx) !@This() {
     const device = ctx.gfx.device;
 
-    const wgsl = @embedFile("sprite.wgsl");
-    const shader = try device.createShaderModule("sprite", .{ .wgsl = wgsl });
+    const wgsl = @embedFile("glyph.wgsl");
+    const shader = try device.createShaderModule("glyph", .{ .wgsl = wgsl });
     defer shader.deinit();
 
     const bind_layout = device.createBindGroupLayout(&.{
@@ -176,7 +78,7 @@ pub fn init(ctx: myapp.PipelineCtx) !@This() {
     defer pipeline_layout.deinit();
 
     const pipeline = try device.createRenderPipeline(&.{
-        .label = "sprite pipeline",
+        .label = "glyph pipeline",
         .layout = pipeline_layout.ptr,
         .vertex = .{
             .module = shader.ptr,
@@ -185,7 +87,7 @@ pub fn init(ctx: myapp.PipelineCtx) !@This() {
             .buffers = &.{
                 .arrayStride = @sizeOf(Vertex),
                 .stepMode = @intFromEnum(gpu.VertexStepMode.Vertex),
-                .attributeCount = 2,
+                .attributeCount = 3,
                 .attributes = &[_]gpu.c.WGPUVertexAttribute{
                     .{
                         .format = @intFromEnum(gpu.VertexFormat.Float32x2),
@@ -196,6 +98,11 @@ pub fn init(ctx: myapp.PipelineCtx) !@This() {
                         .format = @intFromEnum(gpu.VertexFormat.Float32x2),
                         .shaderLocation = 1,
                         .offset = @offsetOf(Vertex, "uv"),
+                    },
+                    .{
+                        .format = @intFromEnum(gpu.VertexFormat.Float32x3),
+                        .shaderLocation = 2,
+                        .offset = @offsetOf(Vertex, "color"),
                     },
                 },
             },
@@ -250,15 +157,139 @@ pub fn deinit(self: @This()) void {
     defer self.pipeline.deinit();
 }
 
-pub fn makeArgs(self: @This(), spritesheet: SpriteSheet, sprite_locs: *const SpriteLocs) SpritePipelineArgs {
-    return SpritePipelineArgs.init(self, spritesheet, sprite_locs);
+pub const GlyphLocs = struct {
+    ctx: myapp.PipelineCtx,
+    vertices: []Vertex,
+    pos: gpu.Buffer,
+    nmax: usize,
+    nvertices: u32 = 0,
+
+    pub fn init(ctx: myapp.PipelineCtx, nmax: usize) !@This() {
+        const nvertices = nmax * vertices_per_glyph;
+
+        const vertices = try ctx.allocator.alloc(Vertex, nvertices);
+        errdefer ctx.allocator.free(vertices);
+
+        const pos = try ctx.gfx.device.createBuffer(&.{
+            .label = "glyph pipeline vertices",
+            .size = @sizeOf(Vertex) * nvertices,
+            .usage = @intFromEnum(gpu.BufferUsage.CopyDst) | @intFromEnum(gpu.BufferUsage.Vertex),
+            .mappedAtCreation = 0,
+        });
+        errdefer pos.deinit();
+
+        return .{
+            .ctx = ctx,
+            .vertices = vertices,
+            .pos = pos,
+            .nmax = nmax,
+        };
+    }
+
+    pub fn deinit(self: @This()) void {
+        defer self.ctx.allocator.free(self.vertices);
+        defer self.pos.deinit();
+    }
+
+    pub const Loc = struct {
+        pos: twod.Rect,
+        uv: twod.Rect,
+        color: twod.RGBf,
+    };
+    pub fn write(self: *@This(), locs: []const Loc) !void {
+        if (locs.len > self.nmax) return error.TooManyVertices;
+
+        for (locs, 0..) |loc, i| {
+            const start = i * vertices_per_glyph;
+            const end = start + vertices_per_glyph;
+            const verts = self.vertices[start..end];
+
+            const pos_pts: [6]twod.Point = @bitCast(loc.pos.toTriangles());
+            const uv_pts: [6]twod.Point = @bitCast(loc.uv.toTriangles());
+
+            for (verts, 0..) |*vert, j| {
+                vert.pos = pos_pts[j];
+                vert.uv = uv_pts[j];
+                vert.color = loc.color;
+            }
+        }
+
+        const nvertices = locs.len * vertices_per_glyph;
+        self.ctx.gfx.queue.writeBuffer(self.pos, 0, self.vertices[0..nvertices]);
+        self.nvertices = @intCast(nvertices);
+    }
+};
+
+// Static atlas
+pub const Atlas = struct {
+    gfx: appgpu.Gfx,
+    tex: gpu.Texture,
+    view: gpu.Texture.View,
+    size_buf: gpu.Buffer,
+
+    pub fn init(gfx: appgpu.Gfx, atlas: twod.AlphaImage) !@This() {
+        const tex = try createTexture(gfx.device, atlas.size);
+        errdefer tex.deinit();
+        writeAlphaImage(gfx.queue, tex, atlas);
+
+        const view = try tex.createView(null);
+        errdefer view.deinit();
+
+        const size_buf = try gfx.device.createBuffer(&.{
+            .label = "glyph atlas size",
+            .size = @sizeOf(twod.Size),
+            .usage = @intFromEnum(gpu.BufferUsage.CopyDst) | @intFromEnum(gpu.BufferUsage.Uniform),
+            .mappedAtCreation = 0,
+        });
+        errdefer size_buf.deinit();
+        gfx.queue.writeBuffer(size_buf, 0, &@as([2]f32, @bitCast(atlas.size)));
+
+        return .{
+            .gfx = gfx,
+            .tex = tex,
+            .view = view,
+            .size_buf = size_buf,
+        };
+    }
+
+    pub fn deinit(self: @This()) void {
+        defer self.tex.deinit();
+        defer self.view.deinit();
+        defer self.size_buf.deinit();
+    }
+};
+
+fn writeAlphaImage(q: gpu.Queue, tex: gpu.Texture, image: twod.AlphaImage) void {
+    q.writeTexture(
+        &.{
+            .texture = tex.ptr,
+            .mipLevel = 0,
+            .origin = .{ .x = 0, .y = 0, .z = 0 },
+            .aspect = @intFromEnum(gpu.TextureAspect.All),
+        },
+        image.data,
+        &.{
+            .offset = 0,
+            .bytesPerRow = @as(u32, @intFromFloat(image.size.width)),
+            .rowsPerImage = @intFromFloat(image.size.height),
+        },
+        &.{
+            .width = @intFromFloat(image.size.width),
+            .height = @intFromFloat(image.size.height),
+            .depthOrArrayLayers = 1,
+        },
+    );
 }
 
-pub const SpritePipelineArgs = struct {
-    bind_group: gpu.BindGroup,
-    locs: *const SpriteLocs,
+pub fn makeArgs(self: @This(), atlas: Atlas, locs: *const GlyphLocs) GlyphPipelineArgs {
+    return GlyphPipelineArgs.init(self, atlas, locs);
+}
 
-    fn init(pipeline: SpritePipeline, spritesheet: SpriteSheet, locs: *const SpriteLocs) @This() {
+pub const GlyphPipelineArgs = struct {
+    bind_group: gpu.BindGroup,
+    locs: *const GlyphLocs,
+
+    fn init(pipeline: GlyphPipeline, atlas: Atlas, locs: *const GlyphLocs) @This() {
         return .{
             .locs = locs,
             .bind_group = pipeline.ctx.gfx.device.createBindGroup(&.{
@@ -273,7 +304,7 @@ pub const SpritePipelineArgs = struct {
                     },
                     .{
                         .binding = 1,
-                        .textureView = spritesheet.view.ptr,
+                        .textureView = atlas.view.ptr,
                     },
                     .{
                         .binding = 2,
@@ -281,7 +312,7 @@ pub const SpritePipelineArgs = struct {
                     },
                     .{
                         .binding = 3,
-                        .buffer = spritesheet.size_buf.ptr,
+                        .buffer = atlas.size_buf.ptr,
                         .offset = 0,
                         .size = @sizeOf(twod.Size),
                     },
@@ -295,8 +326,8 @@ pub const SpritePipelineArgs = struct {
     }
 };
 
-pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: SpritePipelineArgs) !void {
-    log.debug("SpritePipeline.run", .{});
+pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: GlyphPipelineArgs) !void {
+    log.debug("GlyphPipeline.run", .{});
     const nvertices = args.locs.nvertices;
     if (nvertices == 0) log.warn("nvertices=0", .{});
 
@@ -309,31 +340,9 @@ pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: SpritePipelineArgs)
     pass.draw(.{ .vertex_count = nvertices });
 }
 
-fn writeImage(q: gpu.Queue, tex: gpu.Texture, image: twod.Image) void {
-    q.writeTexture(
-        &.{
-            .texture = tex.ptr,
-            .mipLevel = 0,
-            .origin = .{ .x = 0, .y = 0, .z = 0 },
-            .aspect = @intFromEnum(gpu.TextureAspect.All),
-        },
-        image.tou8slice(),
-        &.{
-            .offset = 0,
-            .bytesPerRow = @as(u32, @intFromFloat(image.size.width)) * 4,
-            .rowsPerImage = @intFromFloat(image.size.height),
-        },
-        &.{
-            .width = @intFromFloat(image.size.width),
-            .height = @intFromFloat(image.size.height),
-            .depthOrArrayLayers = 1,
-        },
-    );
-}
-
 fn createTexture(device: gpu.Device, size: twod.Size) !gpu.Texture {
     return try device.createTexture(&.{
-        .label = "sprite sheet",
+        .label = "glyph atlas",
         .usage = @intFromEnum(gpu.TextureUsage.CopyDst) | @intFromEnum(gpu.TextureUsage.TextureBinding),
         .dimension = @intFromEnum(gpu.TextureDimension.twoD),
         .size = .{
@@ -341,10 +350,10 @@ fn createTexture(device: gpu.Device, size: twod.Size) !gpu.Texture {
             .height = @intFromFloat(size.height),
             .depthOrArrayLayers = 1,
         },
-        .format = @intFromEnum(gpu.TextureFormat.RGBA8UnormSrgb),
+        .format = @intFromEnum(gpu.TextureFormat.R8Unorm),
         .mipLevelCount = 1,
         .sampleCount = 1,
     });
 }
 
-const vertices_per_sprite = 6;
+const vertices_per_glyph = 6;

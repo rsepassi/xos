@@ -1,4 +1,4 @@
-const twod = @import("appgpu").twod;
+const twod = @import("app").twod;
 
 pub fn getImageData(comptime which: enum { a, b }) twod.Image {
     // Create image data

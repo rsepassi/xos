@@ -16,22 +16,23 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
-    var uvs = array<vec2f, 6>(
-        vec2f(0.0, 0.0),
-        vec2f(1.0, 0.0),
-        vec2f(0.0, 1.0),
-        vec2f(0.0, 1.0),
-        vec2f(1.0, 0.0),
-        vec2f(1.0, 1.0)
-    );
-
     out.pos = vec4f(
         (in.pos.x / ssize.x * 2) - 1,
-        1 - (in.pos.y / ssize.y * 2),
+        (in.pos.y / ssize.y * 2) - 1,
         0.0,
         1.0
     );
+
+    var uvs = array<vec2f, 6>(
+        vec2f(0.0, 1.0),  // bl
+        vec2f(1.0, 1.0),  // br
+        vec2f(0.0, 0.0),  // tl
+        vec2f(0.0, 0.0),  // tl
+        vec2f(1.0, 1.0),  // br
+        vec2f(1.0, 0.0)   // tr
+    );
     out.uv = uvs[in.i];
+
     return out;
 }
 

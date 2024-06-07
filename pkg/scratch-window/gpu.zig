@@ -13,8 +13,9 @@ pub const c = @cImport({
     @cInclude("wgpu.h");
 });
 
+const log_level = .info;
+
 const log = std.log.scoped(.gpu);
-const do_debug_log = std.log.logEnabled(.debug, .gpu);
 
 pub const SamplerBindingType = enum(u32) {
     Undefined = 0x00000000,
@@ -321,9 +322,9 @@ pub const Instance = extern struct {
     ptr: c.WGPUInstance,
 
     pub fn init() !@This() {
-        if (std.log.logEnabled(.debug, .gpu)) {
+        if (log_level == .debug) {
             c.wgpuSetLogLevel(c.WGPULogLevel_Trace);
-        } else if (std.log.logEnabled(.info, .gpu)) {
+        } else if (log_level == .info) {
             c.wgpuSetLogLevel(c.WGPULogLevel_Info);
         } else {
             c.wgpuSetLogLevel(c.WGPULogLevel_Warn);
@@ -334,7 +335,7 @@ pub const Instance = extern struct {
             .chain = .{
                 .sType = c.WGPUSType_InstanceExtras,
             },
-            .flags = if (do_debug_log) c.WGPUInstanceFlag_Debug else 0,
+            .flags = if (log_level == .debug) c.WGPUInstanceFlag_Debug else 0,
         };
         return .{ .ptr = c.wgpuCreateInstance(&.{
             .nextInChain = @ptrCast(&instance_desc),

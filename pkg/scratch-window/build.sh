@@ -1,8 +1,15 @@
+need freetype
+
 userlibmodule="
+$(pkg-config --cflags freetype)
 --dep app=main
 --dep gpu
 --dep appgpu
 -Muserlib=$BUILD_PKG/demoapp/app.zig
+"
+
+userliblink="
+$(pkg-config --libs freetype)
 "
 
 if [ "$TARGET_OS" = "ios" ]
@@ -19,6 +26,7 @@ then
     $BUILD_PKG/ios.m \
     --dep userlib=userlib \
     -Mmain=$BUILD_PKG/appwrap.zig \
+    $userliblink \
     $userlibmodule \
     $(pkg-config --cflags wgpu) \
     -Mgpu=$BUILD_PKG/gpu.zig \
@@ -100,6 +108,7 @@ then
     $BUILD_TOOLS/androidsdk/sdk/ndk-bundle/sources/android/native_app_glue/android_native_app_glue.c \
     --dep userlib=userlib \
     -Mmain=$BUILD_PKG/appwrap.zig \
+    $userliblink \
     $userlibmodule \
     $(pkg-config --cflags --libs wgpu) \
     -Mgpu=$BUILD_PKG/gpu.zig \
@@ -168,6 +177,7 @@ else
     $(pkg-config --cflags --libs glfw) \
     --dep userlib=userlib \
     -Mmain=$BUILD_PKG/appwrap.zig \
+    $userliblink \
     $userlibmodule \
     $(pkg-config --cflags --libs wgpu) \
     -Mgpu=$BUILD_PKG/gpu.zig \
