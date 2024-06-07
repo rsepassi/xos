@@ -321,7 +321,13 @@ pub const Instance = extern struct {
     ptr: c.WGPUInstance,
 
     pub fn init() !@This() {
-        if (do_debug_log) c.wgpuSetLogLevel(c.WGPULogLevel_Trace);
+        if (std.log.logEnabled(.debug, .gpu)) {
+            c.wgpuSetLogLevel(c.WGPULogLevel_Trace);
+        } else if (std.log.logEnabled(.info, .gpu)) {
+            c.wgpuSetLogLevel(c.WGPULogLevel_Info);
+        } else {
+            c.wgpuSetLogLevel(c.WGPULogLevel_Warn);
+        }
         c.wgpuSetLogCallback(logCallback, null);
 
         var instance_desc = c.WGPUInstanceExtras{
@@ -706,6 +712,7 @@ pub const Adapter = extern struct {
     pub fn limits(self: @This()) !c.WGPULimits {
         var lim: c.WGPUSupportedLimits = undefined;
         if (c.wgpuAdapterGetLimits(self.ptr, &lim) == 0) {
+            log.err("wgpuAdapterGetLimits failed", .{});
             return error.AdapterLimits;
         }
         return lim.limits;
@@ -716,7 +723,7 @@ pub const Adapter = extern struct {
 
         const default_options: c.WGPUDeviceDescriptor = .{
             .requiredLimits = &.{
-                .limits = try self.limits(),
+                .limits = defaultLimits(),
             },
             .deviceLostCallback = handleDeviceLost,
             .deviceLostUserdata = null,
@@ -736,11 +743,12 @@ pub const Adapter = extern struct {
         return device;
     }
 
+    // https://github.com/gfx-rs/wgpu/blob/87576b72b37c6b78b41104eb25fc31893af94092/wgpu-types/src/lib.rs#L1173
     pub fn defaultLimits() c.WGPULimits {
         return .{
-            .maxTextureDimension1D = 8192,
-            .maxTextureDimension2D = 8192,
-            .maxTextureDimension3D = 2048,
+            .maxTextureDimension1D = 2048,
+            .maxTextureDimension2D = 2048,
+            .maxTextureDimension3D = 256,
             .maxTextureArrayLayers = 256,
             .maxBindGroups = 4,
             .maxBindingsPerBindGroup = 1000,
@@ -748,19 +756,19 @@ pub const Adapter = extern struct {
             .maxDynamicStorageBuffersPerPipelineLayout = 4,
             .maxSampledTexturesPerShaderStage = 16,
             .maxSamplersPerShaderStage = 16,
-            .maxStorageBuffersPerShaderStage = 8,
+            .maxStorageBuffersPerShaderStage = 4,
             .maxStorageTexturesPerShaderStage = 4,
             .maxUniformBuffersPerShaderStage = 12,
-            .maxUniformBufferBindingSize = 64 << 10, // (64 KiB)
-            .maxStorageBufferBindingSize = 128 << 20, // (128 MiB)
+            .maxUniformBufferBindingSize = 16 << 10,
+            .maxStorageBufferBindingSize = 128 << 20,
             .maxVertexBuffers = 8,
-            .maxBufferSize = 256 << 20, // (256 MiB)
+            .maxBufferSize = 256 << 20,
             .maxVertexAttributes = 16,
             .maxVertexBufferArrayStride = 2048,
             .minUniformBufferOffsetAlignment = 256,
             .minStorageBufferOffsetAlignment = 256,
             .maxInterStageShaderComponents = 60,
-            .maxComputeWorkgroupStorageSize = 16384,
+            .maxComputeWorkgroupStorageSize = 16352,
             .maxComputeInvocationsPerWorkgroup = 256,
             .maxComputeWorkgroupSizeX = 256,
             .maxComputeWorkgroupSizeY = 256,

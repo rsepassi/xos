@@ -6,6 +6,8 @@
 #pragma clang diagnostic ignored "-Wunguarded-availability"
 
 void _xos_ios_provide_metal_layer(void*, double, double);
+void _xos_ios_handle_resize(double, double);
+void _xos_handle_shutdown(void);
 
 @interface OurMetalView : MTKView;
 @end
@@ -49,6 +51,16 @@ void _xos_ios_provide_metal_layer(void*, double, double);
     [super viewDidLoad];
 }
 
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+    [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+
+    [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        // Before transition
+    } completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        // After transition
+        _xos_ios_handle_resize(size.width, size.height);
+    }];
+}
 
 @end
 
@@ -91,11 +103,12 @@ void doiOSLog(char* msg) {
 }
 
 int main(int argc, char** argv) {
-  os_log(OS_LOG_DEFAULT, "%s", "hello world!");
+  doiOSLog("hello world!");
   @autoreleasepool {
     UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
   }
-  os_log(OS_LOG_DEFAULT, "%s", "goodbye");
+  _xos_handle_shutdown();
+  doiOSLog("goodbye");
 }
 
 // UITextInput

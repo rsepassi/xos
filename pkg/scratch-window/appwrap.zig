@@ -82,6 +82,7 @@ const App = AppUser(userlib.App);
 pub const Event = union(enum) {
     start: void,
     char: u32,
+    resize: void,
 };
 
 fn AppUser(comptime T: type) type {
@@ -168,6 +169,12 @@ pub const glfw = struct {
         app.onEvent(.{ .char = codepoint });
     }
 
+    fn onFbSize(window: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
+        log.debug("resize ({d}, {d})", .{ width, height });
+        const app = getApp(window);
+        app.onEvent(.{ .resize = {} });
+    }
+
     fn getApp(window: ?*c.GLFWwindow) *App {
         return @ptrCast(@alignCast(c.glfwGetWindowUserPointer(window)));
     }
@@ -193,9 +200,9 @@ pub const glfw = struct {
         defer userapp.deinit();
 
         _ = glfw.c.glfwSetCharCallback(app.window, glfw.onChar);
+        _ = glfw.c.glfwSetFramebufferSizeCallback(app.window, glfw.onFbSize);
 
         glfw.c.glfwSetWindowUserPointer(app.window, @ptrCast(&userapp));
-        // _ = glfw.c.glfwSetFramebufferSizeCallback(app.window, App.Glfw.onFbSize);
         // _ = glfw.c.glfwSetKeyCallback(app.window, AppGlfw.onKey);
         // _ = glfw.c.glfwSetCursorPosCallback(window, AppGlfw.onCursorMove);
         // _ = glfw.c.glfwSetCursorEnterCallback(window, AppGlfw.onCursorEnter);
@@ -253,7 +260,7 @@ var gapp: App = undefined;
 extern fn doiOSLog(msg: [*:0]const u8) void;
 extern fn doAndroidLog(msg: [*:0]const u8) void;
 
-var log_fn_buf: [2048]u8 = undefined;
+var log_fn_buf: [if (builtin.mode == .Debug) 16384 else 2048]u8 = undefined;
 
 const iosApp = struct {
     fn logFn(
@@ -264,7 +271,7 @@ const iosApp = struct {
     ) void {
         _ = level;
         _ = scope;
-        const msg = std.fmt.bufPrintZ(&log_fn_buf, format, args) catch "<log message too long> format=" ++ format;
+        const msg = std.fmt.bufPrintZ(&log_fn_buf, format, args) catch "<log message too long>";
         doiOSLog(msg);
     }
 
@@ -278,6 +285,17 @@ const iosApp = struct {
             log.err("App init failed: {any}", .{err});
             @panic("App init failed");
         };
+        gapp.start();
+    }
+
+    fn handleResize(width: f64, height: f64) callconv(.C) void {
+        log.debug("handleResize ({d}, {d})", .{ width, height });
+        gctx.window_size = .{ width, height };
+        gapp.onEvent(.{ .resize = {} });
+    }
+
+    fn handleShutdown() callconv(.C) void {
+        gapp.deinit();
     }
 };
 
@@ -304,6 +322,17 @@ const androidApp = struct {
             log.err("App init failed: {any}", .{err});
             @panic("App init failed");
         };
+        gapp.start();
+    }
+
+    fn handleResize(width: i32, height: i32) callconv(.C) void {
+        log.debug("handleResize ({d}, {d})", .{ width, height });
+        gctx.window_size = .{ width, height };
+        gapp.onEvent(.{ .resize = {} });
+    }
+
+    fn handleShutdown() callconv(.C) void {
+        gapp.deinit();
     }
 };
 
@@ -321,9 +350,13 @@ comptime {
         .mac, .windows, .linux => {},
         .ios => {
             @export(iosApp.provideMetalLayer, .{ .name = "_xos_ios_provide_metal_layer" });
+            @export(iosApp.handleResize, .{ .name = "_xos_ios_handle_resize" });
+            @export(iosApp.handleShutdown, .{ .name = "_xos_handle_shutdown" });
         },
         .android => {
             @export(androidApp.provideNativeWindow, .{ .name = "_xos_android_provide_native_window" });
+            @export(androidApp.handleResize, .{ .name = "_xos_android_handle_resize" });
+            @export(androidApp.handleShutdown, .{ .name = "_xos_handle_shutdown" });
         },
     }
 }

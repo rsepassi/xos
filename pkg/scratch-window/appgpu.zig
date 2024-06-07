@@ -3,6 +3,8 @@ const app = @import("app");
 const gpu = @import("gpu");
 pub const twod = @import("twod.zig");
 
+const log = std.log.scoped(.appgpu);
+
 extern fn initGlfwWgpuSurface(gpu.c.WGPUInstance, *app.glfw.c.GLFWwindow, *gpu.c.WGPUSurface) c_int;
 
 pub fn getSurface(instance: gpu.Instance, ctx: *app.Ctx) !gpu.Surface {
@@ -46,24 +48,33 @@ pub const Gfx = struct {
     screen_size_buf: gpu.Buffer,
 
     fn init(ctx: *app.Ctx) !@This() {
+        log.debug("gpu.Instance", .{});
         const gpu_instance = try gpu.Instance.init();
         defer gpu_instance.deinit();
+
+        log.debug("getSurface", .{});
         const surface = try getSurface(gpu_instance, ctx);
         errdefer surface.deinit();
 
+        log.debug("requestAdapter", .{});
         const adapter = try gpu_instance.requestAdapter(&.{
             .compatibleSurface = surface.ptr,
         });
         defer adapter.deinit();
 
+        log.debug("getCapabilities", .{});
         const surface_capabilities = surface.getCapabilities(adapter);
         defer surface_capabilities.deinit();
 
+        log.debug("requestDevice", .{});
         const device = try adapter.requestDevice(null);
         errdefer device.deinit();
+
+        log.debug("getQueue", .{});
         const queue = try device.getQueue();
         errdefer queue.deinit();
 
+        log.debug("configure surface", .{});
         const window_size = ctx.getWindowSize();
         const surface_config = gpu.Surface.Config{
             .device = device.ptr,
@@ -76,6 +87,7 @@ pub const Gfx = struct {
         };
         surface.configure(&surface_config);
 
+        log.debug("create screen size buffer", .{});
         const ssize_buf = try device.createBuffer(&.{
             .label = "screen size",
             .size = @sizeOf(twod.Size),
@@ -92,6 +104,7 @@ pub const Gfx = struct {
             ))));
         }
 
+        log.debug("Gfx initialized", .{});
         return .{
             .ctx = ctx,
             .surface = surface,
@@ -182,11 +195,15 @@ pub const Gfx = struct {
         self.surface.present();
     }
 
-    fn updateWindowSize(self: @This()) void {
+    pub fn updateWindowSize(self: *@This()) void {
         const window_size = self.ctx.getWindowSize();
         self.surface_config.width = window_size.width;
         self.surface_config.height = window_size.height;
         self.surface.configure(&self.surface_config);
+        self.queue.writeBuffer(self.screen_size_buf, 0, &@as([2]f32, @bitCast(twod.Size.init(
+            @floatFromInt(window_size.width),
+            @floatFromInt(window_size.height),
+        ))));
     }
 };
 

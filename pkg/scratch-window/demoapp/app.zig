@@ -38,14 +38,15 @@ pub fn appConfig() app.Config {
 }
 
 pub fn init(self: *App, appctx: *app.Ctx) !void {
-    var allocator = std.heap.GeneralPurposeAllocator(.{}){};
+    // Assign to self for pointer stability
+    self.allocator = std.heap.GeneralPurposeAllocator(.{}){};
 
     const gfx = try appgpu.defaultGfx(appctx);
     errdefer gfx.deinit();
 
     const pipectx = PipelineCtx{
         .gfx = gfx,
-        .allocator = allocator.allocator(),
+        .allocator = self.allocator.allocator(),
     };
 
     const demo_pipeline = try DemoPipeline.init(pipectx);
@@ -60,7 +61,7 @@ pub fn init(self: *App, appctx: *app.Ctx) !void {
     self.* = .{
         .appctx = appctx,
         .pipectx = pipectx,
-        .allocator = allocator,
+        .allocator = self.allocator,
         .demo_pipeline = demo_pipeline,
         .image_pipeline = image_pipeline,
         .sprite_pipeline = sprite_pipeline,
@@ -80,33 +81,40 @@ pub fn onEvent(self: *App, event: app.Event) !void {
         .start => {
             try self.render();
         },
+        .resize => {
+            self.pipectx.gfx.updateWindowSize();
+            try self.render();
+        },
         .char,
         => {},
     }
 }
 
 fn render(self: *App) !void {
+    log.debug("render", .{});
+
+    log.debug("imageA", .{});
     const imageA = dummydata.getImageData(.a);
     const pipeline_imageA = try ImagePipeline.PipelineImage.init(self.pipectx.gfx, imageA.size);
     defer pipeline_imageA.deinit();
     pipeline_imageA.writeImage(imageA);
     pipeline_imageA.writePos(.{ .x = 0, .y = imageA.size.height });
+    const image_argsA = self.image_pipeline.makeArgs(pipeline_imageA);
+    defer image_argsA.deinit();
 
+    log.debug("imageB", .{});
     const imageB = dummydata.getImageData(.b);
     const pipeline_imageB = try ImagePipeline.PipelineImage.init(self.pipectx.gfx, imageB.size);
     defer pipeline_imageB.deinit();
     pipeline_imageB.writeImage(imageB);
     pipeline_imageB.writePos(.{ .x = 256, .y = imageB.size.height });
-
-    const image_argsA = self.image_pipeline.makeArgs(pipeline_imageA);
-    defer image_argsA.deinit();
     const image_argsB = self.image_pipeline.makeArgs(pipeline_imageB);
     defer image_argsB.deinit();
 
+    log.debug("spritesheet", .{});
     const spritesheet = dummydata.getSpriteSheet();
     const pipeline_spritesheet = try SpritePipeline.SpriteSheet.init(self.pipectx.gfx, spritesheet);
     defer pipeline_spritesheet.deinit();
-
     var sprite_locs = try SpritePipeline.SpriteLocs.init(self.pipectx, 100);
     defer sprite_locs.deinit();
     const box = twod.Rect.fromSize(.{ .width = 100, .height = 100 });
@@ -114,10 +122,10 @@ fn render(self: *App) !void {
         .{ .pos = box, .uv = box },
         .{ .pos = box.up(100), .uv = box.right(200) },
     });
-
     const sprite_args = self.sprite_pipeline.makeArgs(pipeline_spritesheet, sprite_locs);
     defer sprite_args.deinit();
 
+    log.debug("gfx.render", .{});
     try self.pipectx.gfx.render(.{
         .load = .{ .Clear = .{
             .r = 0.05,
@@ -133,9 +141,3 @@ fn render(self: *App) !void {
         },
     });
 }
-
-// TODO:
-// * screen size buffer and onResize updates
-// * Pipelines:
-//   * Text
-//   * Sprite

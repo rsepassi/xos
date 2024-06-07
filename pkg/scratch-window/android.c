@@ -15,6 +15,8 @@
 #include "android_native_app_glue.h"
 
 void _xos_android_provide_native_window(void*, int32_t, int32_t);
+void _xos_android_handle_resize(int32_t, int32_t);
+void _xos_handle_shutdown(void);
 
 #define LOG_TAG "NativeActivity"
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
@@ -70,7 +72,9 @@ static int32_t ctxHandleInput(struct android_app* app, AInputEvent* event) {
   return 0;
 }
 
-static void ctxTermDisplay(Ctx* ctx) {}
+static void ctxTermDisplay(Ctx* ctx) {
+  _xos_handle_shutdown();
+}
 
 static void drawFrame() {}
 
@@ -81,13 +85,13 @@ static void fatal(const char* msg) {
 
 static void ctxHandleCmd(struct android_app* app, int32_t cmd) {
   Ctx* ctx = (Ctx*)app->userData;
+  ANativeWindow* window = ctx->app->window;
   switch (cmd) {
-    case APP_CMD_INIT_WINDOW:
+    case APP_CMD_INIT_WINDOW: {
       LOGI("APP_CMD_INIT_WINDOW");
       LOGI("init display");
-      ANativeWindow* window = ctx->app->window;
       _xos_android_provide_native_window(window, ANativeWindow_getWidth(window), ANativeWindow_getHeight(window));
-      break;
+    } break;
     case APP_CMD_START:
       LOGI("APP_CMD_START");
     case APP_CMD_RESUME:
@@ -96,14 +100,17 @@ static void ctxHandleCmd(struct android_app* app, int32_t cmd) {
     case APP_CMD_GAINED_FOCUS:
       LOGI("APP_CMD_GAINED_FOCUS");
       break;
-    case APP_CMD_TERM_WINDOW:
+    case APP_CMD_TERM_WINDOW: {
       LOGI("APP_CMD_TERM_WINDOW");
       ctxTermDisplay(ctx);
-      break;
-    case APP_CMD_INPUT_CHANGED:
+    } break;
     case APP_CMD_WINDOW_RESIZED:
     case APP_CMD_WINDOW_REDRAW_NEEDED:
-    case APP_CMD_CONTENT_RECT_CHANGED:
+    case APP_CMD_CONTENT_RECT_CHANGED: {
+      LOGI("APP_CMD_ resize %d", cmd);
+      _xos_android_handle_resize(ANativeWindow_getWidth(window), ANativeWindow_getHeight(window));
+    } break;
+    case APP_CMD_INPUT_CHANGED:
     case APP_CMD_LOST_FOCUS:
     case APP_CMD_CONFIG_CHANGED:
     case APP_CMD_LOW_MEMORY:
