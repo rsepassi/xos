@@ -5,6 +5,7 @@ cd $src
 
 rm -rf test
 find . -type f -name '*_test.cpp' | xargs rm
+find 3rdparty/asmjit -type f -name '*.cpp' | xargs rm
 srcs="$(find . -type f -name '*.cpp')"
 
 if [ "$TARGET_ARCH" = "x86_64" ]
@@ -14,6 +15,24 @@ elif [ "$TARGET_ARCH" = "aarch64" ]
 then
   cflags="-DBL_BUILD_OPT_ASIMD"
 fi
+
+if [ "$TARGET_OS" = "linux" ] && [ "$TARGET_ABI" = "android" ]
+then
+  needtool androidsdk
+  cflags="
+    $cflags
+    $(BUILD_DEPS=$BUILD_TOOLS pkg-config --cflags --libs androidsdk)
+    $(BUILD_DEPS=$BUILD_TOOLS zigi libc androidsdk)
+  "
+elif [ "$TARGET_OS" = "ios" ]
+then
+  need iossdk
+  cflags="
+    $(pkg-config --cflags iossdk) \
+    $(zigi libc iossdk) \
+  "
+fi
+
 
 # TODO:
 # * vector extensions
@@ -31,7 +50,8 @@ zig build-lib -target $TARGET -O $OPT_ZIG \
   -lc
 
 cd $BUILD_OUT
-mkdir lib include
+mkdir -p lib include/blend2d
 cp $src/src/*.h include
+cp $src/src/blend2d/*.h include/blend2d
 mv $src/$(zigi lib blend2d) lib
-pkg-config --gendefault blend2d
+pkg-config --gendefault blend2d #--ldflags "-lc++"
