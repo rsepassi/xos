@@ -367,12 +367,14 @@ xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
     IO.exit(1)
   })
 
+  var home = "%(pkg.outdir)/tmp"
+
   // run build script
   var build_env = {
     "DEBUG": DEBUG ? 1 : 0,
     // generic
     "PATH": "%(pkg_tools_dir):%(ctx.PATH)",
-    "HOME": "%(pkg.outdir)/tmp",
+    "HOME": home,
     "XDG_CACHE_HOME": "%(ctx.cache_root)/xdg",
     "V": ctx.v,
     // xos internal use
@@ -411,6 +413,9 @@ xos_internal_mktemp \"$@\" \"%(pkg.outdir)/tmp/tmpXXXXXX\"
     .stdout(logfile)
     .runc()
   V.log("build script exit code %(out)")
+  if (!DEBUG) {
+    IO.run(["rm", "-rf", home, pkg_tools_dir])
+  }
   trap.cancel()
   if (out != 0) fail.call()
 }
