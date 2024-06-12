@@ -240,6 +240,7 @@ fn zigBindForeignMethod(
     // IO
     if (std.mem.eql(u8, className, "IO") and isStatic) {
         if (std.mem.eql(u8, signature, "run_(_,_,_,_,_,_)")) return process.run;
+        if (std.mem.eql(u8, signature, "exec_(_,_)")) return process.exec;
         if (std.mem.eql(u8, signature, "sleep_(_,_)")) return wtimer.sleep;
 
         if (fs.bindMethod(signature)) |f| return f;

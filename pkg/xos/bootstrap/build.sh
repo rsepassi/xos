@@ -50,7 +50,6 @@ TARGET="$TARGET_ARCH-$TARGET_OS-$arch_lib"
 scripts="
 fetch
 fetch_untar
-fetch_urltxt
 cc
 c++
 ar

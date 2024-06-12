@@ -34,7 +34,7 @@ do
 done
 
 # build
-pkgid=$(TARGET=$NEEDTARGET OPT=$NEEDOPT $XOS_ROOT/build $pkg "$@")
+pkgid=$(TARGET=$NEEDTARGET OPT=$NEEDOPT $XOS_ROOT/tools/build $pkg "$@")
 pkgid_prefix=$(echo $pkgid | cut -c1-2)
 
 # link

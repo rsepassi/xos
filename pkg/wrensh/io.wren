@@ -256,8 +256,6 @@ class IO {
   static exec(argv, env) {
     argv = normalize_argv_(argv)
     env = normalize_env_(env)
-    var exe = IO.run(["which", argv[0]]).trim()
-    argv[0] = exe
     exec_(argv, env)
   }
 

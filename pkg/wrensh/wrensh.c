@@ -302,54 +302,6 @@ void wrenshGlob(WrenVM* vm) {
   xglob_free(ctx);
 }
 
-void wrenshExec(WrenVM* vm) {
-  DLOG("wrenshExec");
-  WrenType t = wrenGetSlotType(vm, 1);
-  WREN_CHECK(t == WREN_TYPE_LIST, "must pass a list to exec");
-  int nslots = wrenGetSlotCount(vm);
-
-  wrenEnsureSlots(vm, 4);
-  int argc = wrenGetListCount(vm, 1);
-  const char** argv = malloc((argc + 1) * sizeof(char*));
-
-  CHECK(argv != NULL, "malloc failed");
-  argv[argc] = NULL;
-  for (int i = 0; i < argc; ++i) {
-    wrenGetListElement(vm, 1, i, 3);
-    const char* warg = wrenGetSlotString(vm, 3);
-    argv[i] = warg;
-  }
-
-  const char** env = NULL;
-  bool has_env = wrenGetSlotType(vm, 2) != WREN_TYPE_NULL;
-  if (has_env) {
-    // with env
-    WrenType t = wrenGetSlotType(vm, 2);
-    WREN_CHECK(t == WREN_TYPE_LIST, "must pass a list to exec");
-    int envc = wrenGetListCount(vm, 2);
-    env = malloc((envc + 1) * sizeof(char*));
-    env[envc] = NULL;
-    for (int i = 0; i < envc; ++i) {
-      wrenGetListElement(vm, 2, i, 3);
-      const char* warg = wrenGetSlotString(vm, 3);
-      env[i] = warg;
-    }
-  }
-
-  if (env) {
-    DLOG("execve");
-    dbgArgs(argc, argv);
-    dbgEnv(env);
-    execve(argv[0], (char* const*)argv, (char* const*)env);
-  } else {
-    DLOG("execvp");
-    dbgArgs(argc, argv);
-    execvp(argv[0], (char* const*)argv);
-  }
-
-  WREN_CHECK(false, "exec failed");
-}
-
 void wrenshChdir(WrenVM* vm) {
   DLOG("wrenshChdir");
   WrenType t = wrenGetSlotType(vm, 1);
@@ -568,7 +520,6 @@ WrenForeignMethodFn cBindForeignMethod(
     if (!strcmp(signature, "env()")) return wrenshEnvMap;
     if (!strcmp(signature, "env(_)")) return wrenshEnv;
     if (!strcmp(signature, "exit(_)")) return wrenshExit;
-    if (!strcmp(signature, "exec_(_,_)")) return wrenshExec;
     if (!strcmp(signature, "glob(_)")) return wrenshGlob;
     if (!strcmp(signature, "glob(_,_)")) return wrenshGlob;
     if (!strcmp(signature, "chdir(_)")) return wrenshChdir;

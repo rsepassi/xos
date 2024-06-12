@@ -6,6 +6,48 @@ const wrensh = @cImport(@cInclude("wrensh.h"));
 
 const log = std.log.scoped(.wrensh);
 
+pub fn exec(vm: ?*wren.c.WrenVM) callconv(.C) void {
+    execSafe(wren.VM.get(vm)) catch {};
+}
+
+fn execSafe(vm: *wren.VM) !void {
+    const alloc = vm.args.allocator;
+
+    vm.ensureSlots(4);
+    const scratch_slot = 3;
+
+    // Args
+    const wren_args = vm.getSlot(1, .List);
+    const argc = wren_args.len();
+    var argv = std.ArrayList([]const u8).init(alloc);
+    try argv.ensureTotalCapacity(argc);
+    for (0..argc) |i| {
+        try argv.append(wren_args.get(i, scratch_slot, .Bytes));
+    }
+
+    // Env
+    const has_env = vm.getSlot(2, .Type) == .List;
+    var env = if (has_env)
+        std.process.EnvMap.init(alloc)
+    else
+        try std.process.getEnvMap(alloc);
+    if (has_env) {
+        const wren_env = vm.getSlot(2, .List);
+        const envc = wren_env.len();
+        try env.hash_map.ensureTotalCapacity(@intCast(envc));
+        for (0..envc) |i| {
+            const val = wren_env.get(i, scratch_slot, .Bytes);
+            var kv: [2][]const u8 = undefined;
+            var it = std.mem.splitSequence(u8, val, "=");
+            kv[0] = it.next().?;
+            kv[1] = it.next().?;
+            try env.put(kv[0], kv[1]);
+        }
+    }
+
+    std.process.execve(alloc, argv.items, &env) catch @panic("could not exec");
+}
+
 pub fn run(vm: ?*wren.c.WrenVM) callconv(.C) void {
     runSafe(wren.VM.get(vm)) catch {};
 }

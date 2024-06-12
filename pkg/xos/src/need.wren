@@ -27,7 +27,7 @@ if (sep != -1) {
 
 env["TARGET"] = target
 env["OPT"] = opt
-var pkgid = IO.run(["%(env["XOS_ROOT"])/build", pkg, "--"] + depargs, env).trim()
+var pkgid = IO.run(["%(env["XOS_ROOT"])/tools/build", pkg, "--"] + depargs, env).trim()
 var pkgid_prefix = pkgid[0...2]
 
 // link

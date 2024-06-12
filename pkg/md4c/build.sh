@@ -1,12 +1,10 @@
 # fetch
-fetch_urltxt $BUILD_PKG/url.txt md4c.tar.gz
-
-# untar
-src=$(mktemp -d)
-untar $BUILD_DEPS/md4c.tar.gz $src
+src=$(fetch_untar https://github.com/mity/md4c/archive/refs/tags/release-0.5.1.tar.gz \
+  md4c.tar.gz \
+  "2dca17c6175a7f11182943079c2a4f9adb5071433e3d3d05ba801ff794993f34")
+cd $src/src
 
 # md4c library
-cd $src/src
 zig build-lib -target $TARGET -O $OPT_ZIG md4c.c md4c-html.c entity.c -lc
 lib=$src/src/$(zigi lib md4c)
 

@@ -3,7 +3,6 @@ src/ar
 src/c++
 src/cc
 src/fetch
-src/fetch_urltxt
 src/ld
 src/need
 src/needtool
@@ -16,7 +15,9 @@ src/system_export
 src/untar
 src/usage.txt
 src/windres
+src/xos.zig
 src/xos_build.wren
+src/xos_main.wren
 src/xos_build.zig
 src/xos_internal_build
 src/xos_internal_link_tools

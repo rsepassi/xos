@@ -8,6 +8,7 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(alloc);
     const stdout = std.io.getStdOut().writer();
 
+    // No args - read stdin
     if (args.len == 1) {
         const stdin = std.io.getStdIn().reader();
         const hash = try getHash(stdin);
@@ -15,12 +16,16 @@ pub fn main() !void {
         return;
     }
 
+    // Single arg  - stdin
     if (args.len == 2 and std.mem.eql(u8, args[1], "-")) {
         const stdin = std.io.getStdIn().reader();
         const hash = try getHash(stdin);
         try printEntry(stdout, hash, "-");
         return;
-    } else if (args.len == 3 and std.mem.eql(u8, args[1], "-c")) {
+    }
+
+    // Single arg - hash the argument
+    if (args.len == 3 and std.mem.eql(u8, args[1], "-c")) {
         var stream = std.io.fixedBufferStream(args[2]);
         const reader = stream.reader();
         const hash = try getHash(reader);
@@ -28,6 +33,8 @@ pub fn main() !void {
         return;
     }
 
+    // Hash the files
+    // Single threaded
     for (args[1..]) |arg| {
         var file = try std.fs.cwd().openFile(arg, .{});
         defer file.close();
@@ -42,9 +49,9 @@ fn printEntry(writer: anytype, hash: [Hash.digest_length]u8, file: []const u8) !
     try writer.print("{s}  {s}\n", .{ hex, file });
 }
 
-fn getHash(unbuf: anytype) ![Hash.digest_length]u8 {
+fn getHash(stream: anytype) ![Hash.digest_length]u8 {
     var hash = Hash.init(.{});
-    var reader = std.io.bufferedReaderSize(bufsize, unbuf);
+    var reader = std.io.bufferedReaderSize(bufsize, stream);
     var buf: [bufsize]u8 = undefined;
     while (true) {
         const len = try reader.read(@ptrCast(&buf));

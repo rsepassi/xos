@@ -4,7 +4,7 @@ src=$(fetch_untar "https://api.github.com/repos/rsepassi/zigcoro/tarball/0de259f
 cd $src
 
 cp "$BUILD_PKG/options.zig" $src/src
-ln -s $src/src "$BUILD_OUT/zig"
+cp -r $src/src "$BUILD_OUT/zig"
 cat <<EOF > "$BUILD_OUT/zig/zigcoro.pc"
 ZRoot: \${rootdir}/zig/main.zig
 ZLocalRequires: libcoro_options=opts

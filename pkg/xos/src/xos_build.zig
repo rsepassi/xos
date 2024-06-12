@@ -7,9 +7,6 @@ const str = []const u8;
 const EnvMap = std.process.EnvMap;
 const BuildId = str;
 
-// pub const std_options = .{
-//     .logFn = xosLogFn,
-// };
 const log = std.log.scoped(.xos_build);
 
 pub fn main() !void {
@@ -43,10 +40,6 @@ pub fn main() !void {
     log.debug("XOS_ID={s}", .{xos_id});
 
     const cache_dir = try openMakeDir(build_root, "cache");
-    const tools_all_dir = try openMakeDir(cache_dir, "tools");
-    const tools_dir = try openMakeDir(tools_all_dir, xos_id);
-
-    try linkInternalTools(alloc, xos_root, tools_dir);
 
     const build_id = try runBuild(
         alloc,
@@ -55,7 +48,6 @@ pub fn main() !void {
         xos_root,
         build_root,
         pkg_root,
-        tools_dir,
         xos_id,
     );
     log.debug("build_id={s}", .{build_id});
@@ -143,18 +135,17 @@ fn runBuild(
     xos_root: std.fs.Dir,
     build_root: std.fs.Dir,
     pkg_root: std.fs.Dir,
-    tools_dir: std.fs.Dir,
     xos_id: str,
 ) !BuildId {
     const xos_root_path = try xos_root.realpathAlloc(alloc, ".");
     const build_root_path = try build_root.realpathAlloc(alloc, ".");
     const pkg_root_path = try pkg_root.realpathAlloc(alloc, ".");
-    const tools_dir_path = try tools_dir.realpathAlloc(alloc, ".");
     const xos_tools = try xos_root.realpathAlloc(alloc, "tools");
+    const xos_links = try xos_root.realpathAlloc(alloc, "tools/links");
     const path = try std.fmt.allocPrint(alloc, "{s}:{s}/scripts:{s}", .{
         xos_tools,
         xos_tools,
-        tools_dir_path,
+        xos_links,
     });
 
     try setIfDifferent("XOS_ID", xos_id, env);
@@ -207,7 +198,7 @@ fn getXosRoot(
 ) !std.fs.Dir {
     if (env.get("XOS_ROOT")) |root| return try cwd.openDir(root, .{});
     const dir = try std.fs.selfExeDirPathAlloc(alloc);
-    return try cwd.openDir(dir, .{});
+    return try cwd.openDir(std.fs.path.dirname(dir).?, .{});
 }
 
 fn getBuildRoot(cwd: std.fs.Dir, env: EnvMap) !std.fs.Dir {
@@ -223,58 +214,6 @@ fn openMakeDir(cwd: std.fs.Dir, path: str) !std.fs.Dir {
     };
 }
 
-fn linkInternalTools(
-    alloc: std.mem.Allocator,
-    xos_root: std.fs.Dir,
-    tools_dir: std.fs.Dir,
-) !void {
-    const exists = blk: {
-        tools_dir.access(".ok", .{}) catch break :blk false;
-        break :blk true;
-    };
-    if (exists) return;
-
-    // Link all tools into tools_dir
-    const xos_tools = try xos_root.openDir("tools", .{});
-    const bb = try xos_tools.realpathAlloc(alloc, exename("busybox"));
-    const wrenshbox = try xos_tools.realpathAlloc(alloc, exename("wrenshbox"));
-    const zig = try xos_root.realpathAlloc(
-        alloc,
-        "zig/" ++ comptime exename("zig"),
-    );
-
-    // busybox links
-    inline for (bb_tools) |tool| {
-        try tools_dir.symLink(bb, exename(tool), .{});
-    }
-
-    // wrenshbox links
-    inline for (wrenshbox_tools) |tool| {
-        try tools_dir.symLink(wrenshbox, exename(tool), .{});
-    }
-
-    // nproc
-    if (builtin.os.tag == .macos) {
-        try tools_dir.writeFile2(.{
-            .sub_path = "nproc",
-            .data = macos_nproc,
-            .flags = .{ .mode = exe_mode },
-        });
-    } else {
-        try tools_dir.symLink(bb, exename("nproc"), .{});
-    }
-
-    // zig
-    try tools_dir.symLink(zig, exename("zig"), .{});
-
-    // ok
-    try tools_dir.writeFile2(.{
-        .sub_path = ".ok",
-        .data = "",
-        .flags = .{ .mode = default_mode },
-    });
-}
-
 const default_mode = switch (builtin.os.tag) {
     .windows => 0,
     else => 0o664,
@@ -287,72 +226,4 @@ const exe_mode = switch (builtin.os.tag) {
 
 fn exename(comptime name: str) str {
     return if (builtin.os.tag == .windows) name ++ ".exe" else name;
-}
-
-const wrenshbox_tools = [_]str{
-    "echo",
-    "dirname",
-    "basename",
-    "vlog",
-};
-
-const bb_tools = [_]str{
-    "mkdir",
-    "ls",
-    "rm",
-    "mv",
-    "cp",
-    "ln",
-    "realpath",
-    "tar",
-    "gzip",
-    "unzip",
-    "wget",
-    "cat",
-    "cut",
-    "grep",
-    "head",
-    "tail",
-    "which",
-    "env",
-    "touch",
-    "find",
-    "sed",
-    "sleep",
-    "bzip2",
-    "awk",
-    "wc",
-    "xargs",
-    "sort",
-    "uniq",
-    "diff",
-    "chmod",
-    "sh",
-    "xz",
-    "cmp",
-    "tr",
-    "od",
-    "readlink",
-    "expr",
-    "rmdir",
-    "patch",
-};
-
-const macos_nproc =
-    \\#!/usr/bin/env sh
-    \\exec system sysctl -n hw.logicalcpu
-;
-
-pub fn xosLogFn(
-    comptime level: std.log.Level,
-    comptime scope: @TypeOf(.EnumLiteral),
-    comptime format: []const u8,
-    args: anytype,
-) void {
-    const prefix = std.fmt.comptimePrint("[{s} {s}] ", comptime .{
-        level.asText(),
-        @tagName(scope),
-    });
-    const stderr = std.io.getStdErr().writer();
-    stderr.print(prefix ++ format ++ "\n", args) catch return;
 }
