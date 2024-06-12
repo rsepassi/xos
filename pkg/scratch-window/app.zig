@@ -5,13 +5,16 @@ const gpu = @import("gpu");
 const appgpu = @import("appgpu");
 const twod = app.twod;
 
-const dummydata = @import("data.zig");
+const dummydata = @import("dummydata");
 const text = @import("text.zig");
 
 const DemoPipeline = @import("DemoPipeline.zig");
 const ImagePipeline = @import("ImagePipeline.zig");
 const SpritePipeline = @import("SpritePipeline.zig");
 const GlyphPipeline = @import("GlyphPipeline.zig");
+const VgPipeline = @import("VgPipeline.zig");
+const VgGPU = @import("VgGPU.zig");
+const VgFrame = @import("VgFrame.zig");
 
 // TODO: resources
 const font_path = "/Users/ryan/code/xos/pkg/texthello/CourierPrime-Regular.ttf";
@@ -37,6 +40,9 @@ demo_pipeline: DemoPipeline,
 image_pipeline: ImagePipeline,
 sprite_pipeline: SpritePipeline,
 glyph_pipeline: GlyphPipeline,
+vg_pipeline: VgPipeline,
+// Graphics arguments
+vg_backend: VgGPU,
 // Text
 ft: text.FreeType,
 font: text.Font,
@@ -78,6 +84,14 @@ pub fn init(self: *App, appctx: *app.Ctx) !void {
     const glyph_pipeline = try GlyphPipeline.init(pipectx);
     errdefer glyph_pipeline.deinit();
 
+    log.debug("VgPipeline", .{});
+    const vg_pipeline = try VgPipeline.init(pipectx);
+    errdefer self.vg_pipeline.deinit();
+
+    log.debug("VgBackend", .{});
+    try self.vg_backend.init(vg_pipeline);
+    errdefer self.vg_backend.deinit();
+
     log.debug("FreeType", .{});
     const ft = try text.FreeType.init();
     errdefer ft.deinit();
@@ -98,6 +112,8 @@ pub fn init(self: *App, appctx: *app.Ctx) !void {
         .image_pipeline = image_pipeline,
         .sprite_pipeline = sprite_pipeline,
         .glyph_pipeline = glyph_pipeline,
+        .vg_pipeline = vg_pipeline,
+        .vg_backend = self.vg_backend,
         .ft = ft,
         .font = font,
         .atlas = atlas,
@@ -111,6 +127,8 @@ pub fn deinit(self: *App) void {
     defer self.image_pipeline.deinit();
     defer self.sprite_pipeline.deinit();
     defer self.glyph_pipeline.deinit();
+    defer self.vg_pipeline.deinit();
+    defer self.vg_backend.deinit();
     defer self.ft.deinit();
     defer self.font.deinit();
     defer self.atlas.deinit();
@@ -131,7 +149,7 @@ pub fn onEvent(self: *App, event: app.Event) !void {
 }
 
 fn render(self: *App) !void {
-    log.debug("render", .{});
+    log.debug("-- render", .{});
 
     log.debug("imageA", .{});
     const imageA = dummydata.getImageData(.a);
@@ -187,7 +205,42 @@ fn render(self: *App) !void {
     const glyph_args = self.glyph_pipeline.makeArgs(pipeline_atlas, &glyph_locs);
     defer glyph_args.deinit();
 
+    log.debug("vg", .{});
+
+    {
+        var frame = VgFrame.init(self.vg_backend.ctx);
+        defer frame.deinit();
+
+        {
+            frame.beginPath();
+            defer frame.closePath();
+            frame.roundedRect(250, 250, 100, 40, 5);
+            frame.fillColor(.{ .r = 0, .g = 1, .b = 0, .a = 1 });
+            frame.fill();
+        }
+
+        {
+            frame.beginPath();
+            defer frame.closePath();
+            frame.circle(200, 200, 20);
+            frame.fillColor(.{ .r = 0, .g = 0, .b = 1, .a = 1 });
+            frame.fill();
+        }
+
+        {
+            frame.beginPath();
+            defer frame.closePath();
+            frame.lineCap(.Round);
+            frame.moveTo(10, 50);
+            frame.lineTo(120, 120);
+            frame.strokeColor(.{ .r = 0, .g = 0, .b = 1.0, .a = 1.0 });
+            frame.strokeWidth(5);
+            frame.stroke();
+        }
+    }
+
     log.debug("gfx.render", .{});
+    const Run = appgpu.Gfx.PipelineRun;
     try self.pipectx.gfx.render(.{
         .load = .{ .Clear = .{
             .r = 0.05,
@@ -196,11 +249,13 @@ fn render(self: *App) !void {
             .a = 1,
         } },
         .piperuns = &.{
-            appgpu.Gfx.PipelineRun.init(&self.demo_pipeline, &void{}, DemoPipeline.run),
-            appgpu.Gfx.PipelineRun.init(&self.image_pipeline, &image_argsA, ImagePipeline.run),
-            appgpu.Gfx.PipelineRun.init(&self.image_pipeline, &image_argsB, ImagePipeline.run),
-            appgpu.Gfx.PipelineRun.init(&self.sprite_pipeline, &sprite_args, SpritePipeline.run),
-            appgpu.Gfx.PipelineRun.init(&self.glyph_pipeline, &glyph_args, GlyphPipeline.run),
+            Run.init(&self.demo_pipeline, &void{}, DemoPipeline.run),
+            Run.init(&self.image_pipeline, &image_argsA, ImagePipeline.run),
+            Run.init(&self.image_pipeline, &image_argsB, ImagePipeline.run),
+            Run.init(&self.sprite_pipeline, &sprite_args, SpritePipeline.run),
+            Run.init(&self.glyph_pipeline, &glyph_args, GlyphPipeline.run),
+            Run.init(&self.vg_pipeline, &self.vg_backend.args, VgPipeline.run),
         },
     });
+    log.debug("-- render done", .{});
 }

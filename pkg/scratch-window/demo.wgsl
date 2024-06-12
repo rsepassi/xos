@@ -1,4 +1,4 @@
-@group(0) @binding(0) var<uniform> ssize: vec2f;
+@group(0) @binding(0) var<uniform> view_size: vec2f;
 
 struct VertexInput {
     @location(0) pos: vec2f,
@@ -14,8 +14,7 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.pos = vec4f(
-        (in.pos.x / ssize.x * 2) - 1,
-        (in.pos.y / ssize.y * 2) - 1,
+        (in.pos / view_size * 2) - 1,
         0.0,
         1.0
     );

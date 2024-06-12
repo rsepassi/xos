@@ -112,6 +112,22 @@ pub const RGBA = extern struct {
     a: u8,
 };
 
+pub const RGBAf = extern struct {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+
+    pub fn premul_alpha(self: @This()) @This() {
+        return .{
+            .r = self.r * self.a,
+            .g = self.g * self.a,
+            .b = self.b * self.a,
+            .a = self.a,
+        };
+    }
+};
+
 pub const Image = struct {
     data: []const RGBA,
     size: Size,

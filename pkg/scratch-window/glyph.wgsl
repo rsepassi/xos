@@ -1,4 +1,4 @@
-@group(0) @binding(0) var<uniform> screen_size: vec2f;
+@group(0) @binding(0) var<uniform> view_size: vec2f;
 @group(0) @binding(1) var tex: texture_2d<f32>;
 @group(0) @binding(2) var smp: sampler;
 @group(0) @binding(3) var<uniform> texsize: vec2f;
@@ -20,8 +20,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
     out.pos = vec4f(
-        (in.pos.x / screen_size.x * 2) - 1,
-        (in.pos.y / screen_size.y * 2) - 1,
+        (in.pos / view_size * 2) - 1,
         0.0,
         1.0
     );

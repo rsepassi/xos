@@ -15,6 +15,8 @@ sampler: gpu.Sampler,
 bind_layout: gpu.BindGroup.Layout,
 pipeline: gpu.RenderPipeline,
 
+const vertices_per_glyph = 6;
+
 const Vertex = extern struct {
     pos: twod.Point,
     uv: twod.Point,
@@ -326,20 +328,6 @@ pub const GlyphPipelineArgs = struct {
     }
 };
 
-pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: GlyphPipelineArgs) !void {
-    log.debug("GlyphPipeline.run", .{});
-    const nvertices = args.locs.nvertices;
-    if (nvertices == 0) log.warn("nvertices=0", .{});
-
-    pass.setPipeline(self.pipeline);
-    pass.setBindGroup(.{ .group = args.bind_group });
-    pass.setVertexBuffer(.{
-        .buf = args.locs.pos,
-        .size = @sizeOf(Vertex) * nvertices,
-    });
-    pass.draw(.{ .vertex_count = nvertices });
-}
-
 fn createTexture(device: gpu.Device, size: twod.Size) !gpu.Texture {
     return try device.createTexture(&.{
         .label = "glyph atlas",
@@ -356,4 +344,16 @@ fn createTexture(device: gpu.Device, size: twod.Size) !gpu.Texture {
     });
 }
 
-const vertices_per_glyph = 6;
+pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: GlyphPipelineArgs) !void {
+    const nvertices = args.locs.nvertices;
+    if (nvertices == 0) return;
+    log.debug("GlyphPipeline.run nvertices={d}", .{nvertices});
+
+    pass.setPipeline(self.pipeline);
+    pass.setBindGroup(.{ .group = args.bind_group });
+    pass.setVertexBuffer(.{
+        .buf = args.locs.pos,
+        .size = @sizeOf(Vertex) * nvertices,
+    });
+    pass.draw(.{ .vertex_count = nvertices });
+}

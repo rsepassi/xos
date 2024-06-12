@@ -15,6 +15,8 @@ sampler: gpu.Sampler,
 bind_layout: gpu.BindGroup.Layout,
 pipeline: gpu.RenderPipeline,
 
+const vertices_per_sprite = 6;
+
 const Vertex = extern struct {
     pos: twod.Point,
     uv: twod.Point,
@@ -250,11 +252,11 @@ pub fn deinit(self: @This()) void {
     defer self.pipeline.deinit();
 }
 
-pub fn makeArgs(self: @This(), spritesheet: SpriteSheet, sprite_locs: *const SpriteLocs) SpritePipelineArgs {
-    return SpritePipelineArgs.init(self, spritesheet, sprite_locs);
+pub fn makeArgs(self: @This(), spritesheet: SpriteSheet, sprite_locs: *const SpriteLocs) Args {
+    return Args.init(self, spritesheet, sprite_locs);
 }
 
-pub const SpritePipelineArgs = struct {
+pub const Args = struct {
     bind_group: gpu.BindGroup,
     locs: *const SpriteLocs,
 
@@ -295,20 +297,6 @@ pub const SpritePipelineArgs = struct {
     }
 };
 
-pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: SpritePipelineArgs) !void {
-    log.debug("SpritePipeline.run", .{});
-    const nvertices = args.locs.nvertices;
-    if (nvertices == 0) log.warn("nvertices=0", .{});
-
-    pass.setPipeline(self.pipeline);
-    pass.setBindGroup(.{ .group = args.bind_group });
-    pass.setVertexBuffer(.{
-        .buf = args.locs.pos,
-        .size = @sizeOf(Vertex) * nvertices,
-    });
-    pass.draw(.{ .vertex_count = nvertices });
-}
-
 fn writeImage(q: gpu.Queue, tex: gpu.Texture, image: twod.Image) void {
     q.writeTexture(
         &.{
@@ -347,4 +335,16 @@ fn createTexture(device: gpu.Device, size: twod.Size) !gpu.Texture {
     });
 }
 
-const vertices_per_sprite = 6;
+pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: Args) !void {
+    const nvertices = args.locs.nvertices;
+    if (nvertices == 0) return;
+    log.debug("SpritePipeline.run nvertices={d}", .{nvertices});
+
+    pass.setPipeline(self.pipeline);
+    pass.setBindGroup(.{ .group = args.bind_group });
+    pass.setVertexBuffer(.{
+        .buf = args.locs.pos,
+        .size = @sizeOf(Vertex) * nvertices,
+    });
+    pass.draw(.{ .vertex_count = nvertices });
+}

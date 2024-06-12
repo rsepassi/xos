@@ -220,11 +220,11 @@ pub fn deinit(self: @This()) void {
     defer self.pipeline.deinit();
 }
 
-pub fn makeArgs(self: @This(), image: PipelineImage) ImagePipelineArgs {
-    return ImagePipelineArgs.init(self, image);
+pub fn makeArgs(self: @This(), image: PipelineImage) Args {
+    return Args.init(self, image);
 }
 
-pub const ImagePipelineArgs = struct {
+pub const Args = struct {
     bind_group: gpu.BindGroup,
     vertices: gpu.Buffer,
 
@@ -259,8 +259,8 @@ pub const ImagePipelineArgs = struct {
     }
 };
 
-pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: ImagePipelineArgs) !void {
-    log.debug("ImagePipeline.run", .{});
+pub fn run(self: @This(), pass: gpu.RenderPassEncoder, args: Args) !void {
+    log.debug("ImagePipeline.run nvertices={d}", .{nvertices});
     pass.setPipeline(self.pipeline);
     pass.setBindGroup(.{ .group = args.bind_group });
     pass.setVertexBuffer(.{
