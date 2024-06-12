@@ -21,6 +21,7 @@ elif [ "$TARGET_OS" = "windows" ]
 then
   cflags="-D_GLFW_WIN32"
   ldflags="-lws2_32 -luserenv -lbcrypt -lopengl32 -lgdi32"
+  ldflags="$ldflags --subsystem windows"
 fi
 
 zig build-lib -target $TARGET -O $OPT_ZIG \

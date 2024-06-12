@@ -39,46 +39,100 @@ pub const Config = struct {
 
 const WindowSize = struct { width: u32, height: u32 };
 
-pub const Ctx = switch (platform) {
-    .mac, .windows, .linux => struct {
-        app: *const glfw,
+pub const Resources = struct {
+    dir: std.fs.Dir,
 
-        pub fn glfwWindow(self: @This()) *glfw.c.GLFWwindow {
-            return self.app.window;
-        }
+    fn init(allocator: std.mem.Allocator) !@This() {
+        const exepath = try std.fs.selfExePathAlloc(allocator);
+        defer allocator.free(exepath);
+        const exedir = std.fs.path.dirname(exepath) orelse return error.NoResourceDir;
+        const resource_dir_path = try std.fs.path.join(allocator, &.{ exedir, "resources" });
+        defer allocator.free(resource_dir_path);
+        return .{
+            .dir = try std.fs.cwd().openDir(resource_dir_path, .{}),
+        };
+    }
 
-        pub fn getWindowSize(self: @This()) WindowSize {
-            var width: c_int = 0;
-            var height: c_int = 0;
-            glfw.c.glfwGetWindowSize(self.app.window, &width, &height);
-            return .{ .width = @intCast(width), .height = @intCast(height) };
-        }
-    },
-    .ios => struct {
-        metal_layer: *anyopaque,
-        window_size: [2]f64,
-
-        pub fn getMetalLayer(self: @This()) *anyopaque {
-            return self.metal_layer;
-        }
-
-        pub fn getWindowSize(self: @This()) WindowSize {
-            return .{ .width = @intFromFloat(self.window_size[0]), .height = @intFromFloat(self.window_size[1]) };
-        }
-    },
-    .android => struct {
-        native_window: *anyopaque,
-        window_size: [2]i32,
-
-        pub fn getNativeWindow(self: @This()) *anyopaque {
-            return self.native_window;
-        }
-
-        pub fn getWindowSize(self: @This()) WindowSize {
-            return .{ .width = @intCast(self.window_size[0]), .height = @intCast(self.window_size[1]) };
-        }
-    },
+    fn deinit(cself: *const @This()) void {
+        const self: *@This() = @constCast(cself);
+        self.dir.close();
+    }
 };
+
+pub const Ctx = struct {
+    const PlatformT = PlatformCtxMixin(@This());
+
+    gpa: std.heap.GeneralPurposeAllocator(.{}),
+    _resources: ?Resources = null,
+    platform: PlatformT,
+
+    pub usingnamespace PlatformT;
+
+    fn init() !*@This() {
+        const self = try std.heap.c_allocator.create(@This());
+        self.gpa = .{};
+        const alloc = self.gpa.allocator();
+        self._resources = Resources.init(alloc) catch null;
+        return self;
+    }
+
+    fn deinit(cself: *const @This()) void {
+        const self: *@This() = @constCast(cself);
+        defer if (self.gpa.deinit() == .leak) log.err("leak!", .{});
+        defer if (self._resources) |r| r.deinit();
+    }
+
+    pub fn allocator(self: *@This()) std.mem.Allocator {
+        return self.gpa.allocator();
+    }
+
+    pub fn resources(self: @This()) ?Resources {
+        return self._resources;
+    }
+};
+
+fn PlatformCtxMixin(comptime T: type) type {
+    return switch (platform) {
+        .mac, .windows, .linux => struct {
+            app: *const glfw,
+
+            pub fn glfwWindow(self: T) *glfw.c.GLFWwindow {
+                return self.platform.app.window;
+            }
+
+            pub fn getWindowSize(self: T) WindowSize {
+                var width: c_int = 0;
+                var height: c_int = 0;
+                glfw.c.glfwGetWindowSize(self.platform.app.window, &width, &height);
+                return .{ .width = @intCast(width), .height = @intCast(height) };
+            }
+        },
+        .ios => struct {
+            metal_layer: *anyopaque,
+            window_size: [2]f64,
+
+            pub fn getMetalLayer(self: T) *anyopaque {
+                return self.platform.metal_layer;
+            }
+
+            pub fn getWindowSize(self: T) WindowSize {
+                return .{ .width = @intFromFloat(self.platform.window_size[0]), .height = @intFromFloat(self.platform.window_size[1]) };
+            }
+        },
+        .android => struct {
+            native_window: *anyopaque,
+            window_size: [2]i32,
+
+            pub fn getNativeWindow(self: T) *anyopaque {
+                return self.platform.native_window;
+            }
+
+            pub fn getWindowSize(self: T) WindowSize {
+                return .{ .width = @intCast(self.platform.window_size[0]), .height = @intCast(self.platform.window_size[1]) };
+            }
+        },
+    };
+}
 
 const App = AppUser(userlib.App);
 pub const Event = union(enum) {
@@ -194,11 +248,11 @@ pub const glfw = struct {
         const app = try glfw.init(config);
         defer app.deinit();
 
-        var ctx: Ctx = .{
-            .app = &app,
-        };
+        var ctx = try Ctx.init();
+        ctx.platform.app = &app;
+        defer ctx.deinit();
 
-        var userapp = try App.init(&ctx);
+        var userapp = try App.init(ctx);
         defer userapp.deinit();
 
         _ = glfw.c.glfwSetCharCallback(app.window, glfw.onChar);

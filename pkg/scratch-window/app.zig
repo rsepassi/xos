@@ -16,9 +16,6 @@ const VgPipeline = @import("VgPipeline.zig");
 const VgGPU = @import("VgGPU.zig");
 const VgFrame = @import("VgFrame.zig");
 
-// TODO: resources
-const font_path = "/Users/ryan/code/xos/pkg/texthello/CourierPrime-Regular.ttf";
-
 pub const std_options = .{
     .log_level = .debug,
 };
@@ -33,7 +30,6 @@ pub const PipelineCtx = struct {
 
 // App
 appctx: *app.Ctx,
-allocator: std.heap.GeneralPurposeAllocator(.{}),
 // Graphics
 pipectx: PipelineCtx,
 demo_pipeline: DemoPipeline,
@@ -56,9 +52,7 @@ pub fn appConfig() app.Config {
 }
 
 pub fn init(self: *App, appctx: *app.Ctx) !void {
-    // Assign to self for pointer stability
-    self.allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = self.allocator.allocator();
+    const allocator = appctx.allocator();
 
     const gfx = try appgpu.defaultGfx(appctx);
     errdefer gfx.deinit();
@@ -95,8 +89,14 @@ pub fn init(self: *App, appctx: *app.Ctx) !void {
     log.debug("FreeType", .{});
     const ft = try text.FreeType.init();
     errdefer ft.deinit();
+
+    const resources = appctx.resources().?;
+    var font_path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const font_path = try resources.dir.realpath("CourierPrime-Regular.ttf", &font_path_buf);
+    font_path_buf[font_path.len] = 0;
+
     const font = try ft.font(.{
-        .path = font_path,
+        .path = @ptrCast(font_path),
         .pxsize = 40,
     });
     errdefer font.deinit();
@@ -106,7 +106,6 @@ pub fn init(self: *App, appctx: *app.Ctx) !void {
 
     self.* = .{
         .appctx = appctx,
-        .allocator = self.allocator,
         .pipectx = pipectx,
         .demo_pipeline = demo_pipeline,
         .image_pipeline = image_pipeline,
@@ -121,7 +120,6 @@ pub fn init(self: *App, appctx: *app.Ctx) !void {
 }
 
 pub fn deinit(self: *App) void {
-    defer if (self.allocator.deinit() == .leak) log.err("leak!", .{});
     defer self.pipectx.gfx.deinit();
     defer self.demo_pipeline.deinit();
     defer self.image_pipeline.deinit();

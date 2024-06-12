@@ -69,7 +69,7 @@ pub const Font = struct {
     }
 
     pub fn glyphIdx(self: Self, char: usize) GlyphIndex {
-        return c.FT_Get_Char_Index(self.face, char);
+        return c.FT_Get_Char_Index(self.face, @intCast(char));
     }
 
     pub fn loadGlyph(self: Self, id: GlyphIndex) !void {

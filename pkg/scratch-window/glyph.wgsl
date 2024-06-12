@@ -36,9 +36,6 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     var alpha = textureSample(tex, smp, in.uv).r;
-    if (alpha > 0) {
-        return vec4f(in.color, alpha);
-    } else {
-        discard;
-    }
+    if (alpha <= 0) { discard; }
+    return vec4f(in.color, alpha);
 }

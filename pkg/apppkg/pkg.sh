@@ -184,4 +184,8 @@ else
   cd $BUILD_OUT
   mkdir bin
   mv $HOME/$(zigi exe app) bin
+  if [ -d $USER_RESOURCES ]
+  then
+    cp -r $USER_RESOURCES bin
+  fi
 fi
