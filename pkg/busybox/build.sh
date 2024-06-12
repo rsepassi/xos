@@ -1,3 +1,13 @@
+if [ "$1" = "cache" ]
+then
+  bindir=$(fetch_untar "https://github.com/rsepassi/busybox-bin/releases/download/v20240612/busybox.tar.gz" \
+    busybox.tar.gz \
+    "5a712554ee267c23eb2d57345efbc675f00358e2e60a51e4eeeb4b1dab449598")
+  mkdir -p $BUILD_OUT/bin
+  cp $bindir/$TARGET/bin/$(zigi exe busybox) $BUILD_OUT/bin
+  exit 0
+fi
+
 needtool make
 make=$BUILD_TOOLS/make/bin/make
 
@@ -137,7 +147,7 @@ for obj in $objs
 do
 CROSS_COMPILE="bbcross-" \
 CFLAGS="$cflags" \
-  $make -j$(nproc) $obj
+  2>&1 $make -j$(nproc) $obj
 done
 
 echo "linking..."
