@@ -5,7 +5,7 @@ const gpu = @import("gpu");
 const appgpu = @import("appgpu");
 const twod = app.twod;
 
-const dummydata = @import("dummydata");
+const dummydata = @import("data.zig");
 const text = @import("text.zig");
 
 const DemoPipeline = @import("DemoPipeline.zig");

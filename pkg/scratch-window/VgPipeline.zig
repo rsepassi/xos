@@ -255,6 +255,7 @@ pub const Args = struct {
     }
 
     pub fn reset(self: *@This()) void {
+        self.nvertices = 0;
         self.ncalls = 0;
     }
 };
